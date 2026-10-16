@@ -1,0 +1,51 @@
+{
+  "evalDay": "45",
+  "fixture": "prepaid-reserve",
+  "miners": [
+    {
+      "baseFp": "2901641132169",
+      "coldkey": "5PrepaidMinerP111111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "90000000000",
+      "payWeightFp": "2078514",
+      "pciFp": "900000000",
+      "scoreFp": "4320221238650",
+      "streakFp": "1488888888",
+      "uid": 0
+    },
+    {
+      "baseFp": "2903394266757",
+      "coldkey": "5OrdinaryMinerO11111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "90000000000",
+      "payWeightFp": "2079142",
+      "pciFp": "900000000",
+      "scoreFp": "4322831461257",
+      "streakFp": "1488888888",
+      "uid": 1
+    },
+    {
+      "baseFp": "93297201740",
+      "coldkey": "5ShortReserveMinerQ1111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "928166",
+      "noahCreditRao": "0",
+      "payWeightFp": "283",
+      "pciFp": "27419249",
+      "scoreFp": "93297201740",
+      "streakFp": "1000000000",
+      "uid": 2
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 32760,
+    "1": 32770,
+    "2": 5
+  }
+}

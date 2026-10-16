@@ -1,0 +1,34 @@
+{
+  "evalDay": "184",
+  "fixture": "floor-boundary",
+  "miners": [
+    {
+      "baseFp": "0",
+      "coldkey": "5FloorBoundaryOneRaoShortDDDDDDDDDDDDDDDDDDDDDDD",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 0
+    },
+    {
+      "baseFp": "0",
+      "coldkey": "5FloorBoundaryExactlyAtEEEEEEEEEEEEEEEEEEEEEEEEE",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 1
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {}
+}

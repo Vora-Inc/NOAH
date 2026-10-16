@@ -1,0 +1,245 @@
+{
+  "convention": {
+    "fp_scale": "1000000000",
+    "rounding": "floor at every division",
+    "harshness": "integer 1..8 or the string 'cliff'",
+    "cliff_semantics": "below target 0; at or above target exactly FP_SCALE; the cap is ignored at the cliff",
+    "source": "docs/standard.md"
+  },
+  "multiplier_vectors": [
+    {
+      "name": "std_doc_miner_A_full",
+      "pci": "800000000",
+      "target": "800000000",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "std_doc_miner_B_gentle",
+      "pci": "600000000",
+      "target": "800000000",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "750000000"
+    },
+    {
+      "name": "std_doc_miner_C_zero",
+      "pci": "0",
+      "target": "800000000",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "0"
+    },
+    {
+      "name": "std_doc_miner_D_capped",
+      "pci": "950000000",
+      "target": "800000000",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "std_doc_miner_B_harsh3",
+      "pci": "600000000",
+      "target": "800000000",
+      "harshness": 3,
+      "cap": "1000000000",
+      "expected_multiplier": "421875000"
+    },
+    {
+      "name": "std_doc_miner_B_cliff",
+      "pci": "600000000",
+      "target": "800000000",
+      "harshness": "cliff",
+      "cap": "1000000000",
+      "expected_multiplier": "0"
+    },
+    {
+      "name": "std_doc_cap4_allin",
+      "pci": "1000000000",
+      "target": "200000000",
+      "harshness": 1,
+      "cap": "4000000000",
+      "expected_multiplier": "4000000000"
+    },
+    {
+      "name": "cliff_below",
+      "pci": "790000000",
+      "target": "800000000",
+      "harshness": "cliff",
+      "cap": "4000000000",
+      "expected_multiplier": "0"
+    },
+    {
+      "name": "cliff_at_target",
+      "pci": "800000000",
+      "target": "800000000",
+      "harshness": "cliff",
+      "cap": "4000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "cliff_above_target",
+      "pci": "1000000000",
+      "target": "800000000",
+      "harshness": "cliff",
+      "cap": "4000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "cliff_cap_below_one",
+      "pci": "1000000000",
+      "target": "800000000",
+      "harshness": "cliff",
+      "cap": "500000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "floor_ratio_one_third",
+      "pci": "1",
+      "target": "3",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "333333333"
+    },
+    {
+      "name": "floor_tiny_pci",
+      "pci": "1",
+      "target": "1000000000",
+      "harshness": 1,
+      "cap": "1000000000",
+      "expected_multiplier": "1"
+    },
+    {
+      "name": "floor_tiny_pci_h2_zero",
+      "pci": "1",
+      "target": "1000000000",
+      "harshness": 2,
+      "cap": "1000000000",
+      "expected_multiplier": "0"
+    },
+    {
+      "name": "at_target_h8",
+      "pci": "400000000",
+      "target": "400000000",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "ratio_1p1_h8",
+      "pci": "880000000",
+      "target": "800000000",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "2143588810"
+    },
+    {
+      "name": "ratio_0p9_h8",
+      "pci": "720000000",
+      "target": "800000000",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "430467210"
+    },
+    {
+      "name": "cap_hits_mid_power",
+      "pci": "2000000000",
+      "target": "1000000000",
+      "harshness": 8,
+      "cap": "10000000000",
+      "expected_multiplier": "10000000000"
+    },
+    {
+      "name": "zero_cap",
+      "pci": "1000000000",
+      "target": "500000000",
+      "harshness": 3,
+      "cap": "0",
+      "expected_multiplier": "0"
+    },
+    {
+      "name": "huge_pci_capped",
+      "pci": "9223372036854775808",
+      "target": "1",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "4000000000"
+    },
+    {
+      "name": "huge_pci_h1",
+      "pci": "9223372036854775808",
+      "target": "1000000000",
+      "harshness": 1,
+      "cap": "9223372036854775808",
+      "expected_multiplier": "9223372036854775808"
+    },
+    {
+      "name": "target_one_rao",
+      "pci": "1",
+      "target": "1",
+      "harshness": 2,
+      "cap": "3000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "d040_boundary_exact",
+      "pci": "800000000",
+      "target": "800000000",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "1000000000"
+    },
+    {
+      "name": "d040_boundary_one_rao_below",
+      "pci": "799999999",
+      "target": "800000000",
+      "harshness": 8,
+      "cap": "4000000000",
+      "expected_multiplier": "999999984"
+    },
+    {
+      "name": "cap_binds_below_the_unit",
+      "pci": "500000000",
+      "target": "1000000000",
+      "harshness": 1,
+      "cap": "100000000",
+      "expected_multiplier": "100000000"
+    },
+    {
+      "name": "cap_reached_exactly_on_a_power",
+      "pci": "2000000000",
+      "target": "1000000000",
+      "harshness": 2,
+      "cap": "4000000000",
+      "expected_multiplier": "4000000000"
+    }
+  ],
+  "apply_vectors": [
+    {
+      "name": "apply_identity",
+      "own_score": "123456789",
+      "mult": "1000000000",
+      "expected": "123456789"
+    },
+    {
+      "name": "apply_half",
+      "own_score": "101",
+      "mult": "500000000",
+      "expected": "50"
+    },
+    {
+      "name": "apply_zero",
+      "own_score": "999999",
+      "mult": "0",
+      "expected": "0"
+    },
+    {
+      "name": "apply_cap4",
+      "own_score": "7",
+      "mult": "4000000000",
+      "expected": "28"
+    }
+  ]
+}

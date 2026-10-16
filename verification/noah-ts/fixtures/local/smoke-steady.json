@@ -1,0 +1,95 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "182",
+    "harshness": 1,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "365",
+    "targetFp": "500000000"
+  },
+  "evalDay": "40",
+  "miners": [
+    {
+      "coldkey": "5FsteadyA",
+      "days": {
+        "38": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "39": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "40": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "38",
+      "holdRao": "412000000000",
+      "registrationDay": "38",
+      "uid": 7
+    },
+    {
+      "coldkey": "5FgatedB",
+      "days": {
+        "39": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "80000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "40": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "80000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "39",
+      "holdRao": "399999999999",
+      "registrationDay": "39",
+      "uid": 2
+    },
+    {
+      "coldkey": "5FgoneC",
+      "days": {
+        "40": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "80000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "40",
+      "holdRao": "412000000000",
+      "registrationDay": "40",
+      "uid": null
+    }
+  ],
+  "name": "smoke-steady",
+  "schema": "noah-fixture/6"
+}

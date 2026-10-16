@@ -1,0 +1,103 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "2000000000",
+    "halfLifeDays": "1",
+    "harshness": 2,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "4",
+    "targetFp": "500000000"
+  },
+  "evalDay": "3",
+  "miners": [
+    {
+      "coldkey": "5FcapEdge",
+      "days": {
+        "0": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "100000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "100000000000",
+          "payUnlockedRao": "0"
+        },
+        "1": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "100000000001",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "100000000000",
+          "payUnlockedRao": "0"
+        },
+        "2": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": true,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "3": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "50000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "100000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "0",
+      "holdRao": "400000000000",
+      "registrationDay": "0",
+      "uid": 0
+    },
+    {
+      "coldkey": "5FforeignHeavy",
+      "days": {
+        "2": {
+          "foreignDepositNoahEquivRao": "500000000000",
+          "noFault": false,
+          "noahDepositRao": "30000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "60000000000",
+          "payUnlockedRao": "0"
+        },
+        "3": {
+          "foreignDepositNoahEquivRao": "500000000000",
+          "noFault": false,
+          "noahDepositRao": "20000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "60000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "50000000000",
+      "firstActivityDay": "2",
+      "holdRao": "900000000000",
+      "registrationDay": "2",
+      "uid": 1
+    },
+    {
+      "coldkey": "5FneverPaid",
+      "days": {
+        "3": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": true,
+          "noahDepositRao": "10000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "3",
+      "holdRao": "400000000000",
+      "registrationDay": "3",
+      "uid": 2
+    }
+  ],
+  "name": "smoke-edges",
+  "schema": "noah-fixture/6"
+}

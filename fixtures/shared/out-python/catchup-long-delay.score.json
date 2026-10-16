@@ -1,0 +1,23 @@
+{
+  "evalDay": "62",
+  "fixture": "catchup-long-delay",
+  "miners": [
+    {
+      "baseFp": "3907842841",
+      "coldkey": "5Miner",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "249999998",
+      "noahCreditRao": "0",
+      "payWeightFp": "15627",
+      "pciFp": "249999999",
+      "scoreFp": "3907842841",
+      "streakFp": "1000000000",
+      "uid": 7
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "7": 65535
+  }
+}

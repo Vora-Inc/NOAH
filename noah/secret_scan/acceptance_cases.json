@@ -1,0 +1,1344 @@
+{
+ "schema": "noah-secret-scan-acceptance/1",
+ "note": "Templates only: every secret-looking value is generated at test time, no literal secret is stored. per_word expands over a generated phrase; {PHRASE} is the words joined by spaces.",
+ "cases": [
+  {
+   "id": "phrase-words-space",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "plain space-separated list (env file, README text, config value)",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-newline",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "one word per line",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-comma",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "comma-separated list",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": ", ",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-comma-nospace",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "comma-separated list without spaces",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": ",",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-crlf",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Windows line endings",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": "\r\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-numbered-dot",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "numbered list `1. a`",
+   "kind": "bip39-run",
+   "per_word": "{n}. {w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-numbered-paren",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "numbered list `1) a`, same line",
+   "kind": "bip39-run",
+   "per_word": "{n}) {w}",
+   "join": " ",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-numbered-parens",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "numbered list `(1) a`, same line",
+   "kind": "bip39-run",
+   "per_word": "({n}) {w}",
+   "join": " ",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-numbered-hash",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "numbered list `#1 a`, same line",
+   "kind": "bip39-run",
+   "per_word": "#{n} {w}",
+   "join": " ",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-numbered-multidigit",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "multi-digit numbering `001 a`",
+   "kind": "bip39-run",
+   "per_word": "{n:03d} {w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-words-labelled",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "labelled lines `word1: a`",
+   "kind": "bip39-run",
+   "per_word": "word{n}: {w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-md-bullets",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Markdown bullet list",
+   "kind": "bip39-run",
+   "per_word": "- {w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-md-bold",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Markdown emphasis `**word**`",
+   "kind": "bip39-run",
+   "per_word": "**{w}**",
+   "join": " ",
+   "words": 12,
+   "prefix": "",
+   "suffix": ""
+  },
+  {
+   "id": "phrase-md-table-row",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Markdown table row `| a | b |`",
+   "kind": "bip39-run",
+   "per_word": "| {w} ",
+   "join": "",
+   "words": 12,
+   "prefix": "",
+   "suffix": "|"
+  },
+  {
+   "id": "phrase-md-table-cells",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Markdown table, one word per row",
+   "kind": "bip39-run",
+   "per_word": "| {n} | {w} |",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-json-array-strings",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "JSON array of word strings (wrapped in [ ])",
+   "kind": "bip39-run",
+   "per_word": "\"{w}\"",
+   "join": ", ",
+   "words": 12,
+   "prefix": "[",
+   "suffix": "]"
+  },
+  {
+   "id": "phrase-json-string-spaces",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "JSON string holding a space-separated phrase",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 12,
+   "prefix": "{\"phrase\": \"",
+   "suffix": "\"}"
+  },
+  {
+   "id": "phrase-json-string-escaped-newlines",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "JSON string with escaped newlines",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": "\\n",
+   "words": 12,
+   "prefix": "{\"phrase\": \"",
+   "suffix": "\"}"
+  },
+  {
+   "id": "phrase-sql-values-rows",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "SQLite .dump text: INSERT \u2026 VALUES (0,'a'),(1,'b')",
+   "kind": "bip39-run",
+   "per_word": "({i},'{w}')",
+   "join": ",",
+   "words": 12,
+   "prefix": "INSERT INTO words VALUES ",
+   "suffix": ";"
+  },
+  {
+   "id": "phrase-py-list-quoted",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Python/TS source list of quoted strings",
+   "kind": "bip39-run",
+   "per_word": "'{w}'",
+   "join": ", ",
+   "words": 12,
+   "prefix": "WORDS = [",
+   "suffix": "]"
+  },
+  {
+   "id": "phrase-py-list-b-prefix",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Python bytes literals `b'word'`",
+   "kind": "bip39-run",
+   "per_word": "b'{w}'",
+   "join": ", ",
+   "words": 12,
+   "prefix": "WORDS = [",
+   "suffix": "]"
+  },
+  {
+   "id": "phrase-py-list-u-prefix",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Python unicode literals `u'word'`",
+   "kind": "bip39-run",
+   "per_word": "u'{w}'",
+   "join": ", ",
+   "words": 12,
+   "prefix": "WORDS = [",
+   "suffix": "]"
+  },
+  {
+   "id": "phrase-py-list-r-prefix",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Python raw literals `r'word'`",
+   "kind": "bip39-run",
+   "per_word": "r'{w}'",
+   "join": ", ",
+   "words": 12,
+   "prefix": "WORDS = [",
+   "suffix": "]"
+  },
+  {
+   "id": "phrase-ts-array-double",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "TS/JS array of double-quoted strings",
+   "kind": "bip39-run",
+   "per_word": "\"{w}\"",
+   "join": ", ",
+   "words": 12,
+   "prefix": "const words = [",
+   "suffix": "];"
+  },
+  {
+   "id": "phrase-html-cells",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "HTML table cells in a .html/.md file",
+   "kind": "bip39-run",
+   "per_word": "<td>{w}</td>",
+   "join": "",
+   "words": 12,
+   "prefix": "<tr>",
+   "suffix": "</tr>"
+  },
+  {
+   "id": "phrase-length-15",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "15-word phrase",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 15
+  },
+  {
+   "id": "phrase-length-18",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "18-word phrase",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 18
+  },
+  {
+   "id": "phrase-length-21",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "21-word phrase",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 21
+  },
+  {
+   "id": "phrase-length-24",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "24-word phrase",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 24
+  },
+  {
+   "id": "phrase-typo-one-in-12",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "best effort: one mistyped word in 12 (typo within edit distance 1-2 of a listed word)",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 12,
+   "typo_at": 5
+  },
+  {
+   "id": "phrase-abandon-vector",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "the famous test vector `abandon x11 about` (repeated words)",
+   "kind": "bip39-run",
+   "per_word": "{w}",
+   "join": " ",
+   "literal_runs": [
+    [
+     "abandon",
+     11
+    ],
+    [
+     "about",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "phrase-with-repeats",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "phrase with 3-5 repeated words (random phrases do repeat)",
+   "kind": "bip39-run",
+   "repeat_words": 4,
+   "per_word": "{w}",
+   "join": " ",
+   "words": 12
+  },
+  {
+   "id": "phrase-in-source-line",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "phrase embedded in a longer source/config line",
+   "kind": "bip39-run",
+   "wrap": "{N7} = \"{PHRASE}\"  # keep safe",
+   "words": 12
+  },
+  {
+   "id": "phrase-in-base64-text",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "phrase base64-encoded inside a text file (depth 1)",
+   "kind": "decoded-bip39-run",
+   "b64_of_phrase": 1,
+   "words": 12
+  },
+  {
+   "id": "phrase-in-base64-wrapped",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "phrase base64-encoded, wrapped at 64 or 76 columns inside a text file",
+   "kind": "decoded-bip39-run",
+   "b64_of_phrase": 1,
+   "wrap_cols": 76,
+   "words": 12
+  },
+  {
+   "id": "phrase-in-base64-nested",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "base64 of base64 of a phrase (depth 2)",
+   "kind": "decoded-bip39-run",
+   "b64_of_phrase": 2,
+   "words": 12
+  },
+  {
+   "id": "phrase-prefix-log-line",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "A per-line prefix of non-list words: scan each line's last token as its own stream.",
+   "kind": "bip39-run",
+   "per_word": "INFO [wallet] {w}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-url-encoded-percent20",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "no real input is URL-encoded text; ping-URL files are excluded by name",
+   "per_word": "{w}",
+   "join": "%20",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-url-encoded-plus",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same: no real input is URL-encoded text",
+   "per_word": "{w}",
+   "join": "+",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-pipe-joined-not-table",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "pipe-joined outside a Markdown table: nothing writes it",
+   "per_word": "{w}",
+   "join": "|",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-jsonl-one-word-per-object",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "JSON Lines with one word per object: nothing in the real inputs writes it",
+   "per_word": "{{\"w\":\"{w}\"}}",
+   "join": "\n",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-backslash",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "separator between words outside a code-like context: no real input",
+   "per_word": "{w}",
+   "join": "\\",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-arrow",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "->",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-equals",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "=",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-ampersand",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same (URL query strings are not an input)",
+   "per_word": "{w}",
+   "join": "&",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-tilde",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "~",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-star",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "*",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-at",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "@",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-caret",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "^",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-dollar",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "$",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-brace",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "{",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-sep-paren",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "same",
+   "per_word": "{w}",
+   "join": "(",
+   "words": 12
+  },
+  {
+   "id": "phrase-OUT-two-typos",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "two typos in one 12-word phrase: documented gap",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 12,
+   "typo_at": [
+    2,
+    8
+   ]
+  },
+  {
+   "id": "phrase-OUT-eleven-words",
+   "scope": "out",
+   "expect": "clean",
+   "reason": "11 words is not a phrase",
+   "per_word": "{w}",
+   "join": " ",
+   "words": 11
+  },
+  {
+   "id": "phrase-OUT-split-two-files",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "a phrase split across two files cannot be seen by a per-file scan"
+  },
+  {
+   "id": "phrase-OUT-rot13-hex-reversed",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "rot13, hex-encoded text, reversed text and other encodings are not decoded"
+  },
+  {
+   "id": "phrase-OUT-base64-of-gzip",
+   "scope": "out",
+   "expect": "may-miss",
+   "reason": "archives and compression are refused by name and never decoded, so base64 of a gzip is not opened"
+  },
+  {
+   "id": "kv-env-hex-token",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "env value that is 40 hex",
+   "kind": "env-assignment",
+   "template": "{N1}={HEX40}"
+  },
+  {
+   "id": "kv-env-token-trailing-text",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "NAME=value followed by other text on the line",
+   "kind": "env-assignment",
+   "template": "INFO cfg {N1}={HEX40} user=bob"
+  },
+  {
+   "id": "kv-env-systemd-environment",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "systemd Environment= line",
+   "kind": "env-assignment",
+   "template": "Environment={N2}={PW}"
+  },
+  {
+   "id": "kv-env-systemd-environment-quoted",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "systemd Environment= with several quoted assignments",
+   "kind": "env-assignment",
+   "template": "Environment=\"{N12}={PW}\" \"OTHER=1\""
+  },
+  {
+   "id": "kv-env-docker-run",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "command line with trailing arguments",
+   "kind": "env-assignment",
+   "template": "docker run -e {N2}={PW} -p 80:80 img"
+  },
+  {
+   "id": "kv-env-cli-flag",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "flag with camelCase name and trailing text",
+   "kind": "env-assignment",
+   "template": "run.py --{N9}={HEX64} --port 80"
+  },
+  {
+   "id": "kv-env-export-quoted",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "export with quotes",
+   "kind": "env-assignment",
+   "template": "export {N13}='{PW}'"
+  },
+  {
+   "id": "kv-env-passphrase-spaces",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "passphrase with spaces on an env-style line",
+   "kind": "env-assignment",
+   "template": "{N6}=correct horse battery staple"
+  },
+  {
+   "id": "kv-env-trailing-comment",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "value followed by a comment",
+   "kind": "env-assignment",
+   "template": "{N2}={PW}   # prod"
+  },
+  {
+   "id": "kv-env-all-alpha-password",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "all-alphabetic password",
+   "kind": "env-assignment",
+   "template": "{N3}=alphabeticonly"
+  },
+  {
+   "id": "kv-yaml-colon-value",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "YAML key: value",
+   "kind": "env-assignment",
+   "template": "{N11}: {PW}"
+  },
+  {
+   "id": "kv-json-camel-secretSeed",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "camelCase JSON name, 64 hex value",
+   "kind": "key-hex",
+   "template": "{{\"{N8}\": \"0x{HEX64}\"}}"
+  },
+  {
+   "id": "kv-json-camel-privateKey",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "camelCase JSON name",
+   "kind": "env-assignment",
+   "template": "{{\"{N9}\": \"{PW}\"}}"
+  },
+  {
+   "id": "kv-json-snake-secret_seed",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "snake_case JSON name",
+   "kind": "key-hex",
+   "template": "{{\"{N10}\": \"{HEX64}\"}}"
+  },
+  {
+   "id": "kv-json-embedded-in-text",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "JSON embedded in a log-like text line (a text input may contain it)",
+   "kind": "key-hex",
+   "template": "2026-10-05 cfg loaded {{\"{N8}\": \"0x{HEX64}\"}} ok"
+  },
+  {
+   "id": "kv-python-dict-camel",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Python dict repr",
+   "kind": "key-hex",
+   "template": "cfg = {{'{N8}': '0x{HEX64}'}}"
+  },
+  {
+   "id": "kv-sql-insert-secret-column",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "SQLite .dump row where the column NAME and the value are separate quoted strings",
+   "kind": "env-assignment",
+   "template": "INSERT INTO settings(name,value) VALUES('api_token','{HEX40}');"
+  },
+  {
+   "id": "kv-hex-after-keyword",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "64 hex after a strong keyword; a benign label does not defeat it",
+   "kind": "key-hex",
+   "template": "seed hash: {HEX64}"
+  },
+  {
+   "id": "kv-hex-after-keyword-0x",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "64 hex with 0x after a keyword",
+   "kind": "key-hex",
+   "template": "mnemonic 0x{HEX64}"
+  },
+  {
+   "id": "kv-hex128-after-keyword",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "128 hex after a keyword",
+   "kind": "key-hex",
+   "template": "private {HEX128}"
+  },
+  {
+   "id": "kv-base64-key-after-keyword",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "32-byte base64 key after a keyword",
+   "kind": "key-base64",
+   "template": "secret: {B64_32}"
+  },
+  {
+   "id": "kv-raw-hex-under-hotkey",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "public keys are SS58 here; raw hex under hotkey/coldkey/address is refused",
+   "kind": "raw-key-hex",
+   "template": "hotkey={HEX64}"
+  },
+  {
+   "id": "kv-raw-hex-under-address-json",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "same, JSON",
+   "kind": "raw-key-hex",
+   "template": "{{\"address\": \"0x{HEX64}\"}}"
+  },
+  {
+   "id": "kv-pem-private-key",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "PEM",
+   "kind": "private-key-header",
+   "template": "{PB}\nAAAA\n{PE}"
+  },
+  {
+   "id": "kv-pem-openssh",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "OpenSSH",
+   "kind": "private-key-header",
+   "template": "{OB}"
+  },
+  {
+   "id": "kv-token-github",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "GitHub token",
+   "kind": "token-shape",
+   "template": "token {GHP}"
+  },
+  {
+   "id": "kv-token-provider",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Structured provider access key identifier",
+   "kind": "token-shape",
+   "template": "AKIA{ACCESS_ID_SUFFIX}"
+  },
+  {
+   "id": "kv-token-jwt",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "JWT",
+   "kind": "token-shape",
+   "template": "{JWT}"
+  },
+  {
+   "id": "kv-token-hcping",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Healthchecks ping URL (a secret): such files are also refused by name",
+   "kind": "token-shape",
+   "template": "https://hc-ping.com/{UUID}"
+  },
+  {
+   "id": "kv-token-url-credentials",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "user:password@ URL",
+   "kind": "token-shape",
+   "template": "{PG}://svc:{PW}@db.internal/app"
+  },
+  {
+   "id": "kv-token-bearer",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "Bearer header",
+   "kind": "token-shape",
+   "template": "Authorization: Bearer {BEARER}"
+  },
+  {
+   "id": "clean-ss58-address",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "public SS58 addresses",
+   "template": "{{\"ark_address\": \"{SS58}\", \"validator_hotkey\": \"{SS58}\"}}"
+  },
+  {
+   "id": "clean-block-hash",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "0x block hashes",
+   "template": "{{\"genesis_hash\": \"{BLOCKHASH}\", \"block_hash\": \"{BLOCKHASH}\"}}"
+  },
+  {
+   "id": "clean-sha256sums-line",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "sha256sum output",
+   "template": "{HEX64}  fixture.json"
+  },
+  {
+   "id": "clean-sql-dump-addresses-hashes",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "history.db .dump rows: addresses and block hashes",
+   "template": "INSERT INTO attributed_pay VALUES(1,{N},'{SS58}','{SS58}',3,{N},'{BLOCKHASH}');"
+  },
+  {
+   "id": "clean-score-json-numbers",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "score fields",
+   "template": "{{\"scoreFp\": \"490314102985\", \"uid\": 4}}"
+  },
+  {
+   "id": "clean-env-placeholders",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "empty/placeholder/expansion values",
+   "template": "{N1}=changeme\n{N14}=\n{N4}=${{{N4}}}\n{N15}=12"
+  },
+  {
+   "id": "clean-env-your-short-placeholder",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "short placeholder words",
+   "template": "{N1}=your-token\n{N4}=example"
+  },
+  {
+   "id": "clean-systemd-credential-path",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "paths",
+   "template": "LoadCredential=name:/etc/keys/file"
+  },
+  {
+   "id": "clean-prose-about-seed",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "prose mentioning the words",
+   "template": "The validator uses a seed phrase stored offline; never paste it here."
+  },
+  {
+   "id": "clean-source-code-seed-name",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "code that mentions secret-like names",
+   "template": "seed = random.randint(0, 99999999)\ntoken = some_function_name_long(arg)"
+  },
+  {
+   "id": "clean-code-line-listed-words",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "code made only of repeated list words",
+   "template": "return agree real output hand output real output real output hand output hand output"
+  },
+  {
+   "id": "clean-pinned-genesis-prose",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "'private' as in private testnet near a genesis hash",
+   "template": "environment private-testnet, genesis {BLOCKHASH}, spec 448"
+  },
+  {
+   "id": "refuse-archive-zip",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "zip file: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-archive-tar",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "tar file: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-archive-gzip",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "gzip file: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-archive-bz2",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "bz2 file: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-archive-xz",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "xz file: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-archive-tar-gpg",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "`.tar.gpg` encrypted bundle: refused by name, never opened",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-sqlite-db",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "`.db`/`.sqlite` file: refused by name; the .dump TEXT is what gets scanned",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-unknown-binary",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "unknown extension, binary content: refused by name",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "refuse-png-unknown-ext",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "any extension not on the list: refused by name",
+   "kind": "unexpected-file"
+  },
+  {
+   "id": "closed-wallet-names",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": ".env, *.pem, id_rsa, keystore*, *mnemonic*, coldkey, hotkey, wallet.dat, *.gpg, *.kdbx, *.ppk, seed.*: refused by name",
+   "kind": "wallet-file-name"
+  },
+  {
+   "id": "closed-git-dir",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": ".git directory: refused (never silently skipped)",
+   "kind": "git-directory-refused"
+  },
+  {
+   "id": "closed-symlink",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "symlink (file or directory, also dangling): refused",
+   "kind": "symlink-refused"
+  },
+  {
+   "id": "closed-fifo",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "FIFO / socket / device: refused without being opened",
+   "kind": "special-file-refused"
+  },
+  {
+   "id": "closed-unreadable",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "unreadable file: a finding",
+   "kind": "unreadable"
+  },
+  {
+   "id": "closed-invalid-utf8",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "text-extension file that is not valid UTF-8: a finding, never skipped",
+   "kind": "binary-refused"
+  },
+  {
+   "id": "closed-too-large",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "text file over the per-file size cap (32 MiB): a finding",
+   "kind": "file-too-large"
+  },
+  {
+   "id": "closed-zero-files",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "nothing scanned: error exit 2, never 'clean'",
+   "kind": "ERROR"
+  },
+  {
+   "id": "closed-scan-crash",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "any unexpected failure while scanning a file: finding `scan-error`, no message printed",
+   "kind": "scan-error"
+  },
+  {
+   "id": "closed-deep-json",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "a deeply nested JSON document must not crash the scan",
+   "kind": "none"
+  },
+  {
+   "id": "names-masked",
+   "scope": "in",
+   "expect": "masked",
+   "reason": "a printed path component that looks like a secret (token shape, mixed case plus digits, secret word plus a random suffix, over 24 characters) is masked; archive member names are never printed (archives are not opened)"
+  },
+  {
+   "id": "perf-100kb-one-line",
+   "scope": "in",
+   "expect": "bounded",
+   "reason": "100 KB on ONE line of `key=x key=x ...` must scan in under 1 second",
+   "bytes": 100000,
+   "seconds": 1
+  },
+  {
+   "id": "perf-1mb-one-line",
+   "scope": "in",
+   "expect": "bounded",
+   "reason": "1 MB on ONE line must scan in under 10 seconds",
+   "bytes": 1000000,
+   "seconds": 10
+  },
+  {
+   "id": "perf-json-array-one-line",
+   "scope": "in",
+   "expect": "bounded",
+   "reason": "50,000 JSON objects on one line with a \"password\" key under 10 seconds",
+   "seconds": 10
+  },
+  {
+   "id": "tests-directories-scanned",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "files under tests/ and fixtures/ are scanned like any other (no path exemptions)"
+  },
+  {
+   "id": "report-refused-count",
+   "scope": "fail-closed",
+   "expect": "refused",
+   "reason": "condition 1: refused-by-name files (archives, .gpg, .tar.gpg, sqlite, unknown binaries) are never opened, make the exit code non-zero (3) and are printed as a distinct 'refused, not opened' count; they are never counted as clean"
+  },
+  {
+   "id": "excluded-named-list",
+   "scope": "in",
+   "expect": "counted",
+   "reason": "condition 2: ping-URL files are excluded only by an EXPLICIT named list passed in the config, never by a filename pattern; each excluded file is reported by count, and a file not on the list is scanned"
+  },
+  {
+   "id": "excluded-by-pattern-not-honoured",
+   "scope": "in",
+   "expect": "hit",
+   "reason": "a file merely NAMED like a ping file (e.g. ping-url.txt) is scanned unless listed explicitly"
+  },
+  {
+   "id": "summary-line",
+   "scope": "in",
+   "expect": "counted",
+   "reason": "the CLI always prints scanned / refused / excluded counts, so 'clean' can never hide skipped files"
+  },
+  {
+   "id": "phrase-one-odd-separator",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "bip39-run",
+   "reason": "agreed: a real phrase with ONE odd separator among uniform ones (`1. a 2. b ... 12) l`) still hits",
+   "words": 12,
+   "odd_separator": true
+  },
+  {
+   "id": "clean-code-mixed-separators",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "agreed: a code line made of listed words with mixed separators must stay clean",
+   "template": "result = real(output).hand_output + agree[real] * hand - output / real if hand else output(agree, real, hand)"
+  },
+  {
+   "id": "regress-placeholder-your-hex",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "`your-<40hex>` must not hide as a placeholder",
+   "template": "{N1}=your-{HEX40}"
+  },
+  {
+   "id": "regress-placeholder-your-actual",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "`your-actual-Pa55w0rd`",
+   "template": "{N2}=your-actual-{PW}"
+  },
+  {
+   "id": "regress-placeholder-example-hex",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "",
+   "template": "{N4}=example-{HEX40}"
+  },
+  {
+   "id": "regress-curl-password-query",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "curl -d 'password=<pw>&x=1'",
+   "template": "curl -d 'password={PW}&x=1' https://h/"
+  },
+  {
+   "id": "regress-csv-secretSeed",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "key-hex",
+   "reason": "camelCase keyword before hex in CSV",
+   "template": "name,{N8},{HEX64}"
+  },
+  {
+   "id": "regress-xml-secretSeed",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "key-hex",
+   "reason": "camelCase keyword in XML-like text",
+   "template": "<{N8}>{HEX64}</{N8}>"
+  },
+  {
+   "id": "regress-multiline-yaml-secretSeed",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "key-hex",
+   "reason": "key and value on different lines",
+   "template": "{N8}:\n  0x{HEX64}"
+  },
+  {
+   "id": "kv-env-punctuated-password",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "password with parentheses and punctuation on a NAME=value line",
+   "template": "{N2}=Pa(55)w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-systemd-environment-punctuated",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "quoted systemd Environment= value with punctuation",
+   "template": "Environment=\"{N2}=Pa(55)w0rd!{HEX40}\""
+  },
+  {
+   "id": "kv-systemd-environment-spaces",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "quoted systemd Environment= value with spaces and punctuation",
+   "template": "Environment=\"{N12}=correct horse (battery) staple!\""
+  },
+  {
+   "id": "kv-yaml-punctuated",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "key: value with punctuation, unquoted and quoted",
+   "template": "{N11}: Pa(55)w0rd!{HEX40}\n{N3}: \"Pa(55)w0rd!{HEX40}\""
+  },
+  {
+   "id": "clean-systemd-placeholders-and-code",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "placeholders and code in the same forms stay clean",
+   "template": "Environment=\"{N1}=changeme\"\nEnvironment=\"{N1}=${{{N5}}}\"\nEnvironment=\"{N15}=12\"\n{N5} = make_token(user)\n{N3}: your-token\n{N1}=<your-key>"
+  },
+  {
+   "id": "kv-conf-punctuated-with-space",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "password-named key in a .conf, value with punctuation AND a space",
+   "template": "{N17}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-systemd-punctuated-with-space",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "quoted systemd Environment= value with punctuation AND a space",
+   "template": "Environment=\"{N17}=Pa(55) w0rd!{HEX40}\""
+  },
+  {
+   "id": "clean-password-key-code-and-placeholders",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "code and placeholders on password-named keys stay clean",
+   "template": "{N17}=changeme\n{N17}=${{{N5}}}\n{N17}=make_token(user)\n{N17}=your-token\n{N17}=<your-key>\n{N3} = get_password(user) or fallback\n{N3} = input(\"Enter it: \")"
+  },
+  {
+   "id": "kv-quoted-colon",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "ordinary quoted value after a colon",
+   "template": "{N18}: \"Pa(55) w0rd!{HEX40}\""
+  },
+  {
+   "id": "kv-quoted-equals-single",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "single-quoted value after =",
+   "template": "{N18} = 'Pa(55) w0rd!{HEX40}'"
+  },
+  {
+   "id": "kv-quoted-conf",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "NAME=\"value\" in a .conf",
+   "template": "{N17}=\"Pa(55) w0rd!{HEX40}\""
+  },
+  {
+   "id": "kv-quoted-export",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "export NAME=\"value\"",
+   "template": "export {N17}=\"Pa(55) w0rd!{HEX40}\""
+  },
+  {
+   "id": "kv-quoted-environment-equals",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "Environment=NAME=\"value\"",
+   "template": "Environment={N17}=\"Pa(55) w0rd!{HEX40}\""
+  },
+  {
+   "id": "kv-quoted-json",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "JSON {\"accessToken\": \"value\"}",
+   "template": "{{\"{N19}\": \"Pa(55) w0rd!{HEX40}\"}}"
+  },
+  {
+   "id": "kv-spaced-db-secret",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "non-password secret name DB_SECRET, spaced punctuated value",
+   "template": "{N20}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-spaced-api-token",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "API_TOKEN",
+   "template": "{N1}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-spaced-api-key",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "api_key",
+   "template": "{N21}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-spaced-secretKey",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "secretKey",
+   "template": "{N22}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-spaced-clientSecret",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "clientSecret",
+   "template": "{N23}=Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "kv-spaced-authToken-colon",
+   "scope": "in",
+   "expect": "hit",
+   "kind": "env-assignment",
+   "reason": "authToken: value",
+   "template": "{N24}: Pa(55) w0rd!{HEX40}"
+  },
+  {
+   "id": "clean-secret-names-calls-and-placeholders",
+   "scope": "in",
+   "expect": "clean",
+   "reason": "calls, command substitution and placeholders stay clean on every secret-like name",
+   "template": "{N20}=get_password(x)\n{N1}=$(cat /etc/token)\n{N1}=changeme\n{N20}=${{{N5}}}\n{N24}: your-token\n{N21}=make_token(user, 3)\n{N22}=<your-key>\n{N23}=your-secret\n{N18} = \"get_password(x)\"\n{N19} = \"make_token(user, 3)\""
+  }
+ ]
+}

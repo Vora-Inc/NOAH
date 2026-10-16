@@ -1,0 +1,21 @@
+{
+  "evalDay": "187",
+  "fixture": "substitutor",
+  "miners": [
+    {
+      "baseFp": "0",
+      "coldkey": "5SubstitutorForeignOnly5555555555555555555555555",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "0",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 2
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {}
+}

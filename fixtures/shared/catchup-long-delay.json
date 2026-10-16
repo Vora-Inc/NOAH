@@ -1,0 +1,523 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "45",
+    "harshness": 2,
+    "ongoingHoldRao": "0",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "90",
+    "targetFp": "500000000"
+  },
+  "evalDay": "62",
+  "miners": [
+    {
+      "coldkey": "5Miner",
+      "days": {
+        "1": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "200000000000",
+          "payUnlockedRao": "0"
+        },
+        "10": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "11": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "12": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "13": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "14": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "15": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "16": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "17": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "18": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "19": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "2": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "20": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "21": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "22": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "23": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "24": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "25": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "26": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "27": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "28": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "29": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "3": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "30": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "31": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "32": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "33": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "34": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "35": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "36": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "37": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "38": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "39": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "4": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "40": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "41": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "42": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "43": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "44": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "45": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "46": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "47": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "48": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "49": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "5": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "50": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "51": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "52": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "53": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "54": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "55": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "56": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "57": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "58": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "59": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "6": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "60": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "61": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "62": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "50000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "7": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "8": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "9": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "10000000000",
+      "firstActivityDay": "1",
+      "holdRao": "0",
+      "registrationDay": "1",
+      "uid": 7
+    }
+  ],
+  "name": "catchup-long-delay",
+  "schema": "noah-fixture/6"
+}

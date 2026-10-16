@@ -1,0 +1,23 @@
+{
+  "evalDay": "183",
+  "fixture": "all-in",
+  "miners": [
+    {
+      "baseFp": "6576770291206",
+      "coldkey": "5AllInEveryDay22222222222222222222222222222222",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "999999998",
+      "noahCreditRao": "50000000000",
+      "payWeightFp": "3139448",
+      "pciFp": "499999999",
+      "scoreFp": "9856146155950",
+      "streakFp": "1498630136",
+      "uid": 0
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 65535
+  }
+}

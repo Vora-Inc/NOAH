@@ -1,0 +1,47 @@
+{
+  "evalDay": "1",
+  "fixture": "holding-door-three-coldkeys",
+  "miners": [
+    {
+      "baseFp": "0",
+      "coldkey": "5HoldingDoorColdkeyBelowTheFloorAAAAAAAAAAAAAA",
+      "doorOpen": false,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 10
+    },
+    {
+      "baseFp": "0",
+      "coldkey": "5HoldingDoorColdkeyAtOrAboveTheFloorBBBBBBBBBB",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 11
+    },
+    {
+      "baseFp": "0",
+      "coldkey": "5HoldingDoorColdkeyWellBelowTheFloorCCCCCCCCCC",
+      "doorOpen": false,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 12
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {}
+}

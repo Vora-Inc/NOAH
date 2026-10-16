@@ -1,0 +1,23 @@
+{
+  "evalDay": "20",
+  "fixture": "behavioral-miss",
+  "miners": [
+    {
+      "baseFp": "470090754064",
+      "coldkey": "5BehavioralMissResets9999999999999999999999999999",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "999999998",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "691243",
+      "pciFp": "499999999",
+      "scoreFp": "477818273231",
+      "streakFp": "1016438356",
+      "uid": 2
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "2": 65535
+  }
+}

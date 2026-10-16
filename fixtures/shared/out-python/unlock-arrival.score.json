@@ -1,0 +1,37 @@
+{
+  "evalDay": "4",
+  "fixture": "unlock-arrival",
+  "miners": [
+    {
+      "baseFp": "129544427022",
+      "coldkey": "5UnlockArrival111111111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "50000000000",
+      "payWeightFp": "361398",
+      "pciFp": "500000000",
+      "scoreFp": "130609175726",
+      "streakFp": "1008219178",
+      "uid": 0
+    },
+    {
+      "baseFp": "129544427022",
+      "coldkey": "5UnlockControl111111111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "50000000000",
+      "payWeightFp": "361398",
+      "pciFp": "500000000",
+      "scoreFp": "130609175726",
+      "streakFp": "1008219178",
+      "uid": 1
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 32768,
+    "1": 32767
+  }
+}

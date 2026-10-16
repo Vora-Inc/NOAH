@@ -1,0 +1,50 @@
+{
+  "evalDay": "40",
+  "fixture": "smoke-steady",
+  "miners": [
+    {
+      "baseFp": "159695899360",
+      "coldkey": "5FgatedB",
+      "doorOpen": false,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "80000000000",
+      "payWeightFp": "0",
+      "pciFp": "1000000000",
+      "scoreFp": "0",
+      "streakFp": "1005479452",
+      "uid": 2
+    },
+    {
+      "baseFp": "119544427022",
+      "coldkey": "5FsteadyA",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "347169",
+      "pciFp": "500000000",
+      "scoreFp": "120526983946",
+      "streakFp": "1008219178",
+      "uid": 7
+    },
+    {
+      "baseFp": "80000000000",
+      "coldkey": "5FgoneC",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "80000000000",
+      "payWeightFp": "283229",
+      "pciFp": "1000000000",
+      "scoreFp": "80219178080",
+      "streakFp": "1002739726",
+      "uid": null
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "2": 0,
+    "7": 65535
+  }
+}

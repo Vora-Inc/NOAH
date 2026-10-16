@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.venv-validator/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+*.tsbuildinfo
+npm-debug.log*
+
+# Local environment files.
+.env
+.env.*
+!.env.*.example
+
+# Scratch output from local twin-proof runs. The committed reconciliation
+# outputs under fixtures/shared/out-python/ and
+# verification/noah-ts/fixtures/local/out-ts/ are deliberately NOT ignored.
+/.twin-proof/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Participant-local configuration and records.
+/noah-deposit.ini
+/noah-deposit-state/
+/evidence.json
+
+# Local wallet tools, credentials, and database state.
+.venv-btcli/
+/secrets/
+/wallets/
+/.bittensor/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

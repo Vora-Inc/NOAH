@@ -1,0 +1,23 @@
+{
+  "evalDay": "10",
+  "fixture": "new-wallet-early-days",
+  "miners": [
+    {
+      "baseFp": "29923974840",
+      "coldkey": "5NewWalletEarlyDaysAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "599619150",
+      "noahCreditRao": "10000000000",
+      "payWeightFp": "103725",
+      "pciFp": "299809575",
+      "scoreFp": "29923974840",
+      "streakFp": "1000000000",
+      "uid": 4
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "4": 65535
+  }
+}

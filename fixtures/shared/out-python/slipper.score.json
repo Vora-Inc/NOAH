@@ -1,0 +1,23 @@
+{
+  "evalDay": "186",
+  "fixture": "slipper",
+  "miners": [
+    {
+      "baseFp": "5272762615458",
+      "coldkey": "5SlipperMissAndRecover4444444444444444444444444",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "990899432",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "2300152",
+      "pciFp": "495449716",
+      "scoreFp": "5388330014093",
+      "streakFp": "1021917808",
+      "uid": 1
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "1": 65535
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "evalDay": "5",
+  "fixture": "quantization-tie",
+  "miners": [
+    {
+      "baseFp": "79545003906",
+      "coldkey": "5TieMinerBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB0",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "20000000000",
+      "payWeightFp": "283578",
+      "pciFp": "500000000",
+      "scoreFp": "80416729967",
+      "streakFp": "1010958904",
+      "uid": 0
+    },
+    {
+      "baseFp": "79545003906",
+      "coldkey": "5TieMinerBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB1",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "20000000000",
+      "payWeightFp": "283578",
+      "pciFp": "500000000",
+      "scoreFp": "80416729967",
+      "streakFp": "1010958904",
+      "uid": 1
+    },
+    {
+      "baseFp": "79545003906",
+      "coldkey": "5TieMinerBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB2",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "20000000000",
+      "payWeightFp": "283578",
+      "pciFp": "500000000",
+      "scoreFp": "80416729967",
+      "streakFp": "1010958904",
+      "uid": 2
+    },
+    {
+      "baseFp": "79545003906",
+      "coldkey": "5TieMinerBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB3",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "20000000000",
+      "payWeightFp": "283578",
+      "pciFp": "500000000",
+      "scoreFp": "80416729967",
+      "streakFp": "1010958904",
+      "uid": 3
+    },
+    {
+      "baseFp": "79545003906",
+      "coldkey": "5TieDeregisteredCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "20000000000",
+      "payWeightFp": "283578",
+      "pciFp": "500000000",
+      "scoreFp": "80416729967",
+      "streakFp": "1010958904",
+      "uid": null
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 16384,
+    "1": 16384,
+    "2": 16384,
+    "3": 16383
+  }
+}

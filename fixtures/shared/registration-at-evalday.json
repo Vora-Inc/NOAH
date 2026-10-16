@@ -1,0 +1,53 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "182",
+    "harshness": 1,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "365",
+    "targetFp": "500000000"
+  },
+  "evalDay": "20",
+  "miners": [
+    {
+      "coldkey": "5RegAtEvalDayWithEntryDepositAAAAAAAAAAAAAAAAAA",
+      "days": {
+        "20": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "100000000000",
+      "firstActivityDay": "20",
+      "holdRao": "500000000000",
+      "registrationDay": "20",
+      "uid": 0
+    },
+    {
+      "coldkey": "5RegAtEvalDayControlNoEntryBBBBBBBBBBBBBBBBBBBB",
+      "days": {
+        "20": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "20",
+      "holdRao": "500000000000",
+      "registrationDay": "20",
+      "uid": 1
+    }
+  ],
+  "name": "registration-at-evalday",
+  "schema": "noah-fixture/6"
+}

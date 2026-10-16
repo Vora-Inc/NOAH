@@ -1,0 +1,213 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "182",
+    "harshness": 1,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "365",
+    "targetFp": "500000000"
+  },
+  "evalDay": "15",
+  "miners": [
+    {
+      "coldkey": "5DoorShortByOneRao666666666666666666666666666666",
+      "days": {
+        "10": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "11": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "12": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "13": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "14": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "15": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "5": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "6": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "7": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "8": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "9": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "5",
+      "holdRao": "399999999999",
+      "registrationDay": "5",
+      "uid": 0
+    },
+    {
+      "coldkey": "5DoorExactlyAtHold777777777777777777777777777777",
+      "days": {
+        "10": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "11": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "12": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "13": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "14": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "15": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "5": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "6": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "7": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "8": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "9": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "5",
+      "holdRao": "400000000000",
+      "registrationDay": "5",
+      "uid": 1
+    }
+  ],
+  "name": "door-closed",
+  "schema": "noah-fixture/6"
+}

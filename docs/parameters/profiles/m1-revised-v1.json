@@ -1,0 +1,12 @@
+{
+  "profileVersion": "m1-revised-v1",
+  "createdAt": "2026-09-20T05:24:42Z",
+  "targetFp": "900000000",
+  "harshness": 2,
+  "capFp": "1000000000",
+  "halfLifeDays": "45",
+  "streakCeilingFp": "2000000000",
+  "streakRampDays": "90",
+  "ongoingHoldRao": "0",
+  "entryDepositPerHotkeyRao": "10000000000"
+}

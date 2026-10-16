@@ -1,0 +1,53 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "182",
+    "harshness": 1,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "365",
+    "targetFp": "500000000"
+  },
+  "evalDay": "1",
+  "miners": [
+    {
+      "coldkey": "5MultiSeatColdkeyTwoHotkeysAAAAAAAAAAAAAAAAAAA",
+      "days": {
+        "1": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "10",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "10",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "1",
+      "holdRao": "1000000000",
+      "registrationDay": "1",
+      "uid": 20
+    },
+    {
+      "coldkey": "5MultiSeatColdkeyTwoHotkeysAAAAAAAAAAAAAAAAAAA",
+      "days": {
+        "1": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "20",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "20",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "1",
+      "holdRao": "2000000000",
+      "registrationDay": "1",
+      "uid": 21
+    }
+  ],
+  "name": "multi-seat-coldkey",
+  "schema": "noah-fixture/6"
+}

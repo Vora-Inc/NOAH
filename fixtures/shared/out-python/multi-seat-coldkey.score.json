@@ -1,0 +1,34 @@
+{
+  "evalDay": "1",
+  "fixture": "multi-seat-coldkey",
+  "miners": [
+    {
+      "baseFp": "0",
+      "coldkey": "5MultiSeatColdkeyTwoHotkeysAAAAAAAAAAAAAAAAAAA",
+      "doorOpen": false,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 20
+    },
+    {
+      "baseFp": "0",
+      "coldkey": "5MultiSeatColdkeyTwoHotkeysAAAAAAAAAAAAAAAAAAA",
+      "doorOpen": false,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "0",
+      "payWeightFp": "0",
+      "pciFp": "0",
+      "scoreFp": "0",
+      "streakFp": "1000000000",
+      "uid": 21
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {}
+}

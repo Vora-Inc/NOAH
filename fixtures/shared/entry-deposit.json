@@ -1,0 +1,133 @@
+{
+  "dayEpochTs": "1785715200",
+  "dials": {
+    "capFp": "1000000000",
+    "halfLifeDays": "182",
+    "harshness": 1,
+    "ongoingHoldRao": "400000000000",
+    "streakCeilingFp": "2000000000",
+    "streakRampDays": "365",
+    "targetFp": "500000000"
+  },
+  "evalDay": "20",
+  "miners": [
+    {
+      "coldkey": "5EntryDepositRegistrant111111111111111111111111",
+      "days": {
+        "15": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "16": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "17": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "18": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "19": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "20": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "100000000000",
+      "firstActivityDay": "15",
+      "holdRao": "500000000000",
+      "registrationDay": "15",
+      "uid": 0
+    },
+    {
+      "coldkey": "5EntryDepositControl2222222222222222222222222222",
+      "days": {
+        "15": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "0",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "0",
+          "payUnlockedRao": "0"
+        },
+        "16": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "17": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "18": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "19": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        },
+        "20": {
+          "foreignDepositNoahEquivRao": "0",
+          "noFault": false,
+          "noahDepositRao": "40000000000",
+          "paidLockedArrivalRao": "0",
+          "paidRao": "80000000000",
+          "payUnlockedRao": "0"
+        }
+      },
+      "entryDepositRao": "0",
+      "firstActivityDay": "15",
+      "holdRao": "500000000000",
+      "registrationDay": "15",
+      "uid": 1
+    }
+  ],
+  "name": "entry-deposit",
+  "schema": "noah-fixture/6"
+}

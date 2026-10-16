@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noah-subnet"
+version = "0.1.0"
+description = "Noah & the Ark subnet: the deterministic scoring engine (Python implementation), deposit computation, and the shared fixture set both scoring implementations must agree on."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Noah & the Ark contributors" }]
+keywords = ["bittensor", "subnet", "scoring", "deterministic", "integer-math"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+# Scoring and deposit calculations use the standard library and integer arithmetic.
+dependencies = []
+
+[project.scripts]
+noah-miner = "noah.deposits.assistant.miner_cli:entry"
+
+[project.optional-dependencies]
+# DEV ONLY, DELIBERATELY, AND NEVER IN `dependencies` ABOVE.
+dev = [
+    "pytest>=7",
+    "ruff>=0.6",
+    "pre-commit>=3.7",
+    # cyscale supplies the scalecodec import used by independent verification.
+    # Do not also install py-scale-codec: async-substrate-interface rejects
+    # that conflicting distribution in the validator environment.
+    "cyscale>=0.8",
+]
+
+# Chain and wallet dependencies are isolated from the computation environment.
+# scripts/install.sh creates .venv with dev and .venv-validator with both extras.
+validator = [
+    "bittensor>=11.1.0,<12.0.0",
+    "bittensor-core>=0.1.3",
+    # The chain adapter imports this library directly; startup checks its version.
+    "async-substrate-interface>=2.2.1",
+    # Operator maintenance scripts that share the validator environment use
+    # requests for public price reads. Keep the version pin for deployments
+    # that use those scripts; the noah package does not import it.
+    "requests==2.34.2",
+]
+
+[tool.setuptools.packages.find]
+include = ["noah*"]
+# Tests stay in the repository and run against the repository, where the
+# fixtures and vector files they compare against also live. Shipping them in
+# the installed package without that data would only be confusing.
+exclude = ["noah.tests", "noah.*.tests", "noah.*.tests.*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = [
+    "noah/scoring/tests",
+    "noah/standard/tests",
+    "noah/deposits/tests",
+    "noah/deposits/assistant/tests",
+    "noah/ark/tests",
+    "noah/chain/tests",
+    "noah/core/tests",
+    "noah/config/tests",
+    "noah/secret_scan/tests",
+    "neurons/tests",
+    "scripts/tests",
+    "tests",
+    "verification/hand/test_reconcile_incentive_live.py",
+]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".venv", ".venv-validator", "verification/noah-ts/node_modules"]
+
+[tool.ruff.format]
+# decay_table.py is a published constant table, generated offline and laid out
+# eight values to a row with an age comment on each row. Reformatting it would
+# turn a readable table into 778 single-value lines, so the formatter leaves it
+# exactly as generated.
+exclude = ["noah/scoring/decay_table.py"]
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import order. Deliberately narrow: this repo's
+# scoring code is checked line by line against the written rules, so automated
+# rewrites of its structure are not wanted.
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"noah/scoring/decay_table.py" = ["E501"]

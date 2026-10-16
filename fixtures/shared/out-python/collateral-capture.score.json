@@ -1,0 +1,51 @@
+{
+  "evalDay": "10",
+  "fixture": "collateral-capture",
+  "miners": [
+    {
+      "baseFp": "354574463227",
+      "coldkey": "5CollateralMidLock11111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "999999998",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "602757",
+      "pciFp": "499999999",
+      "scoreFp": "363317395109",
+      "streakFp": "1024657534",
+      "uid": 0
+    },
+    {
+      "baseFp": "394270940569",
+      "coldkey": "5CollateralUnlocked1111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "999999998",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "635603",
+      "pciFp": "499999999",
+      "scoreFp": "403992689691",
+      "streakFp": "1024657534",
+      "uid": 1
+    },
+    {
+      "baseFp": "354574463227",
+      "coldkey": "5CollateralControl11111111111111111111111111111",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "999999998",
+      "noahCreditRao": "40000000000",
+      "payWeightFp": "602757",
+      "pciFp": "499999999",
+      "scoreFp": "363317395109",
+      "streakFp": "1024657534",
+      "uid": 2
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 21455,
+    "1": 22625,
+    "2": 21455
+  }
+}
