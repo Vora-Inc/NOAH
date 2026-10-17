@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools==84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,7 +29,7 @@ noah-miner = "noah.deposits.assistant.miner_cli:entry"
 [project.optional-dependencies]
 # DEV ONLY, DELIBERATELY, AND NEVER IN `dependencies` ABOVE.
 dev = [
-    "pytest>=7",
+    "pytest>=9.1.1",
     "ruff>=0.6",
     "pre-commit>=3.7",
     # cyscale supplies the scalecodec import used by independent verification.

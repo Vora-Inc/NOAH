@@ -1,0 +1,44 @@
+name: Dependency audit
+
+on:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - constraints.txt
+      - verification/noah-ts/package-lock.json
+      - .github/workflows/dependency-audit.yml
+  push:
+    branches: [main]
+    paths:
+      - pyproject.toml
+      - constraints.txt
+      - verification/noah-ts/package-lock.json
+      - .github/workflows/dependency-audit.yml
+  schedule:
+    - cron: '23 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Audit pinned Python versions without installing the project
+        run: |
+          python -m pip install pip-audit==2.10.1
+          python -m pip_audit --disable-pip --no-deps --requirement constraints.txt
+      - name: Audit locked Node versions without running install scripts
+        working-directory: verification/noah-ts
+        run: npm audit --package-lock-only --ignore-scripts

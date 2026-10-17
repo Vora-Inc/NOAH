@@ -18,6 +18,18 @@ checks that require Bittensor, then installs the TypeScript dependencies.
 It may install local hooks when the public checkout includes hook settings.
 Keep the environments separate.
 
+Both Python environments use the reviewed versions in `constraints.txt`.
+The build backend is pinned separately in `pyproject.toml`; Node uses
+`verification/noah-ts/package-lock.json`. Constraints pin package versions,
+not artifact hashes. Use a trusted package index and retain the installed
+package inventory with each deployment.
+
+Review dependency updates together with these files, run the suite on the
+supported deployment platform, and check current security advisories before
+changing the constraints. The dependency-audit workflow checks the pinned
+Python and Node versions on pull requests and weekly. A clean advisory check
+does not replace the runtime tests.
+
 ## Run the suite
 
 ```sh

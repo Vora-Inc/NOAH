@@ -1,0 +1,64 @@
+# Reviewed Python dependency versions for the checkout installer.
+# Applies to both dev and validator extras; build isolation separately pins
+# setuptools in pyproject.toml. Node dependencies use package-lock.json.
+# Constraints pin versions, not artifact hashes. Use a trusted package index.
+# Review updates together with pyproject.toml, security advisories and tests.
+aiosqlite==0.22.1
+annotated-doc==0.0.5
+annotated-types==0.8.0
+async-substrate-interface==2.2.1
+bitarray==3.12.2
+bittensor==11.3.0
+bittensor-core==0.1.5
+certifi==2026.7.22
+cfgv==3.5.0
+charset-normalizer==3.5.2
+ckzg==2.1.8
+cyscale==0.8.0
+cytoolz==1.2.0
+distlib==0.4.4
+eth-abi==6.0.0
+eth-account==0.13.7
+eth-hash==0.8.0
+eth-keyfile==0.8.1
+eth-keys==0.8.0
+eth-rlp==3.0.0
+eth-typing==6.0.0
+eth-utils==6.0.0
+filelock==4.1.0
+hexbytes==2.0.0
+identify==2.6.20
+idna==3.20
+iniconfig==2.3.1
+markdown-it-py==4.2.0
+mdurl==0.1.2
+nodeenv==1.11.0
+packaging==26.3
+parsimonious==0.10.0
+platformdirs==4.12.4
+pluggy==1.7.0
+pre-commit==4.6.2
+pycryptodome==3.24.1
+pydantic==2.14.1
+pydantic-core==2.50.1
+pygments==2.21.0
+pytest==9.1.1
+python-discovery==1.6.3
+pyyaml==6.0.3
+qrcode==8.2
+regex==2026.9.29
+requests==2.34.2
+rich==15.0.0
+rlp==5.0.0
+ruff==0.17.1
+setuptools==84.0.0
+shellingham==1.5.4
+tomli==2.5.0
+toolz==1.2.0
+typer==0.27.3
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+urllib3==2.8.0
+virtualenv==21.14.8
+websockets==16.1.1
+xxhash==4.0.1
