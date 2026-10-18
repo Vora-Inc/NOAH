@@ -15,6 +15,7 @@ cd "$REPO_ROOT"
 VENV="$REPO_ROOT/.venv"
 VENV_VALIDATOR="$REPO_ROOT/.venv-validator"
 TS_DIR="$REPO_ROOT/verification/noah-ts"
+CONSTRAINTS="$REPO_ROOT/constraints.txt"
 MIN_NODE_MAJOR=24
 
 echo "Noah subnet: installing into $REPO_ROOT"
@@ -64,11 +65,15 @@ create_venv() {
 
 install_extras() {
   local venv="$1" extras="$2"
+  if [ ! -f "$CONSTRAINTS" ]; then
+    echo "ERROR: reviewed constraints.txt is missing; refusing an unconstrained install." >&2
+    exit 1
+  fi
   if command -v uv >/dev/null 2>&1; then
-    uv pip install --quiet --python "$venv/bin/python" --editable ".$extras"
+    uv pip install --quiet --python "$venv/bin/python" --constraint "$CONSTRAINTS" --editable ".$extras"
   else
     "$venv/bin/python" -m pip install --quiet --upgrade pip
-    "$venv/bin/python" -m pip install --quiet --editable ".$extras"
+    "$venv/bin/python" -m pip install --quiet --constraint "$CONSTRAINTS" --editable ".$extras"
   fi
 }
 

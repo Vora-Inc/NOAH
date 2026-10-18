@@ -1,24 +1,8 @@
-"""``LiveRunnerChain.events()``'s ``dict(_event_dict(event), ...)`` cast,
-decode-shape focused (issue #538).
+"""Regression checks for decoded EventRecord shapes and strict refusals.
 
-Found and flagged, not fixed, while closing #536/#537: the same pattern
-class as #532 (``int(_plain(...))``) and #536/#537 (``str(_plain(...))``) --
-a bare cast applied straight to ``_plain()``'s output, this time ``dict(...)``
-instead of ``int``/``str``. Unlike those three, this one was NOT live-broken:
-a real scan of the practice chain (``ws://127.0.0.1:9955``, 2026-08-30, see
-``_event_dict``'s own docstring in ``live.py`` for the exact block range and
-counts) found every real event already decodes as a genuine ``dict``, so
-``_plain(event)`` -- a no-op on something with no ``.value`` attribute -- was
-never garbling or crashing on it the way the other three sites' bare casts
-did on their own confirmed real shapes.
-
-This file is the hardening issue #538 itself asks for even though nothing
-was broken: ``_event_dict`` now unwraps the ONE confirmed shape and refuses
-everything else by name, the same discipline ``_mechanism_count_scalar`` and
-``_account_id32_address`` (``test_live_epoch_reads.py``) already have tests
-for. The real event fixtures below are copied verbatim from that live scan,
-not invented, so a reader can see the actual wire shape this guard accepts.
-"""
+The representative event records retain the structure of observed SDK events.
+Tests cover ordinary mappings, wrappers, missing fields and invalid types.
+All chain access is replaced by local test doubles."""
 
 import pytest
 
@@ -63,12 +47,7 @@ def _chain(**kwargs):
     return LiveRunnerChain(_Connection(**kwargs), netuid=2, endpoint="wss://node.example")
 
 
-# -- the confirmed real shape, copied verbatim from a live scan -------------
-#
-# ``ws://127.0.0.1:9955``, block 51696, position 0 -- the actual first
-# element ``get_events()`` returned, before this project's own code ever
-# touches it. Already a genuine dict; no ``.value`` attribute anywhere in
-# it, at any nesting level.
+# Representative initialization event: already a dict, with no value wrapper.
 
 _REAL_BALANCES_ISSUED_EVENT = {
     "phase": "Initialization",
@@ -86,9 +65,7 @@ _REAL_BALANCES_ISSUED_EVENT = {
     "topics": [],
 }
 
-# Same live scan, a second real shape (an extrinsic-triggered event, not an
-# Initialization-phase one) -- block 51710, position 1.
-
+# Representative extrinsic-triggered event.
 _REAL_SYSTEM_EXTRINSIC_SUCCESS_EVENT = {
     "phase": "ApplyExtrinsic",
     "extrinsic_idx": 0,

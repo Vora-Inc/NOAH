@@ -1,0 +1,93 @@
+{
+  "evalDay": "2",
+  "fixture": "surplus-bonus-2x",
+  "miners": [
+    {
+      "baseFp": "59847147520",
+      "coldkey": "miner0",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1000000000",
+      "noahCreditRao": "50000000000",
+      "payWeightFp": "245992",
+      "pciFp": "500000000",
+      "scoreFp": "60512115819",
+      "streakFp": "1011111111",
+      "uid": 0
+    },
+    {
+      "baseFp": "64847147520",
+      "coldkey": "miner1",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1210000000",
+      "noahCreditRao": "55000000000",
+      "payWeightFp": "309833",
+      "pciFp": "550000000",
+      "scoreFp": "65567671374",
+      "streakFp": "1011111111",
+      "uid": 1
+    },
+    {
+      "baseFp": "69847147520",
+      "coldkey": "miner2",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1440000000",
+      "noahCreditRao": "60000000000",
+      "payWeightFp": "382680",
+      "pciFp": "600000000",
+      "scoreFp": "70623226929",
+      "streakFp": "1011111111",
+      "uid": 2
+    },
+    {
+      "baseFp": "79847147520",
+      "coldkey": "miner3",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "1960000000",
+      "noahCreditRao": "70000000000",
+      "payWeightFp": "556908",
+      "pciFp": "700000000",
+      "scoreFp": "80734338039",
+      "streakFp": "1011111111",
+      "uid": 3
+    },
+    {
+      "baseFp": "80847147520",
+      "coldkey": "miner4",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "2000000000",
+      "noahCreditRao": "71000000000",
+      "payWeightFp": "571822",
+      "pciFp": "710000000",
+      "scoreFp": "81745449150",
+      "streakFp": "1011111111",
+      "uid": 4
+    },
+    {
+      "baseFp": "109847147520",
+      "coldkey": "miner5",
+      "doorOpen": true,
+      "foreignCreditRao": "0",
+      "multiplierFp": "2000000000",
+      "noahCreditRao": "100000000000",
+      "payWeightFp": "666536",
+      "pciFp": "1000000000",
+      "scoreFp": "111067671369",
+      "streakFp": "1011111111",
+      "uid": 5
+    }
+  ],
+  "schema": "noah-score-output/6",
+  "weightsU16": {
+    "0": 5897,
+    "1": 7427,
+    "2": 9174,
+    "3": 13350,
+    "4": 13708,
+    "5": 15979
+  }
+}

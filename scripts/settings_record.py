@@ -21,13 +21,9 @@ MARKER_NAME = ".deployed-commit"
 
 
 def _locate_code_root(start=None):
-    """The code root, found by walking up from this file, for both layouts: the
-    monorepo (``<root>/services/noah/scripts/``) and a flattened checkout
-    (``<root>/scripts/``, the production host and the public tree). The first
-    ancestor that holds the deployed-commit marker wins; with no marker anywhere
-    (a tree that was never marked), the first ancestor that is a git checkout, else
-    the first that holds both a ``noah`` package and ``scripts``. ``None`` when
-    neither exists, so the caller refuses instead of reporting a wrong root."""
+    """Locate the code root by walking up from this file. Prefer an explicit
+    deployed-commit marker, then a Git checkout, then a directory holding
+    both the noah package and scripts. Return None when no root is found."""
     here = Path(start if start is not None else __file__).resolve().parent
     ancestors = [here, *here.parents]
     for ancestor in ancestors:
@@ -78,9 +74,8 @@ def _jsonable(value):
 
 
 def read_deployed_marker(code_root=None):
-    """``{"path", "commit", "deployed_at"}`` from the first ``.deployed-commit``
-    found at the code root or the ``services/noah`` source tree, fields
-    verbatim; ``"absent"`` if neither exists or it cannot be read."""
+    """Read the deployment marker from the supported source layouts.
+    Return its path, commit and deployment timestamp, or "absent" when unreadable."""
     root = _root_or_refuse(code_root)
     for candidate in (root / MARKER_NAME, root / "services" / "noah" / MARKER_NAME):
         if not candidate.is_file():

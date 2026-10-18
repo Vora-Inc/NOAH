@@ -103,20 +103,16 @@ test("single hit day, day one: credit, matching, pci, streak, score, pay", () =>
   assert.equal(m.noahCreditRao, 60n); // min(60, day 4's pay 100)
   assert.equal(m.foreignCreditRao, 30n); // room was 60
   assert.equal(m.baseFp, 90n); // N=60, F=30
-  // #290: the index counts a deposit once, towards the day's need: need =
-  // floor(0.5 x 100) = 50, so S = 50 (the other 10 waits in the prepaid
-  // reserve) and pci = floor(50e9/100).
-  assert.equal(m.pciFp, 500_000_000n);
-  // Genuinely measured (day 5 is the day AFTER the transition day, 4):
-  // ratio = floor(pci*1e9/target) = floor(5e8*1e9/5e8) = 1.0e9, harshness 1,
-  // below the 2.0 cap.
-  assert.equal(m.multiplierFp, 1_000_000_000n);
+  // 60 regular deposits / 100 prior pay; 10 still covers future need.
+  // Foreign matching is excluded. Linear test harshness gives 1.2x.
+  assert.equal(m.pciFp, 600_000_000n);
+  assert.equal(m.multiplierFp, 1_200_000_000n);
   // run=1: streak = 1e9 + floor(1e9 * 1 / 365)
   assert.equal(m.streakFp, 1_002_739_726n);
   // score = floor(90 * 1002739726 / 1e9) = 90, slot no-op, door open
   assert.equal(m.scoreFp, 90n);
-  // payWeight = floor(isqrt(90)=9 * 1.0e9 / 1e9) = 9
-  assert.equal(m.payWeightFp, 9n);
+  // payWeight = floor(isqrt(90)=9 * 1.2e9 / 1e9) = 10
+  assert.equal(m.payWeightFp, 10n);
   assert.deepEqual([...r.weightsU16], [[0, 65535]]);
 });
 
@@ -133,9 +129,9 @@ test("pay-cap boundary: deposit exactly equal to the day's pay", () => {
     days: { "0": day("100", "0"), "1": day("0", "101") },
   }]));
   assert.equal(r2.miners[0].noahCreditRao, 100n); // credit capped at prior pay
-  // #290: the index counts only the day's need (floor(0.5 x 100) = 50); the
-  // 51 above it waits in the prepaid reserve, so pci = floor(50e9/100).
-  assert.equal(r2.miners[0].pciFp, 500_000_000n);
+  // All 101 regular units enter the bonus ratio once; credit remains capped.
+  assert.equal(r2.miners[0].pciFp, 1_010_000_000n);
+  assert.equal(r2.miners[0].multiplierFp, 2_000_000_000n);
 });
 
 test("matching-room exhaustion: F pinned at N", () => {
@@ -273,7 +269,7 @@ test("closed door zeroes the score and the pay weight, nothing else", () => {
   assert.equal(m.scoreFp, 0n);
   assert.equal(m.payWeightFp, 0n);
   assert.equal(m.baseFp, 60n); // credit and history untouched
-  assert.equal(m.pciFp, 500_000_000n); // need 50 counts; the other 10 is reserve
+  assert.equal(m.pciFp, 600_000_000n); // bonus does not bypass the closed door
   assert.equal(r.weightsU16.size, 0); // sole miner gated -> no weights set
 });
 
@@ -334,8 +330,8 @@ test("entry deposit: exempt from the pay cap, excluded from both index legs", ()
   // #16/#135: day -1 does not exist, so day 0 supplies the prior pay (10,
   // no deposit) and registration/eval both land on day 1: ordinary credit
   // there is capped at day 0's pay (10), the entry deposit of 100 lands in
-  // full anyway. #290: the PCI counts the day's need, floor(0.5 x 10) = 5,
-  // against prior pay 10; the rest of the 30 waits in the prepaid reserve.
+  // full anyway. The bonus ratio includes only 30 regular units / 10 pay.
+  // The 100 entry units are excluded; reserve accounting stays unchanged.
   const r = scoreFixture(fx("1", [{
     coldkey: "A", uid: 0, holdRao: "400000000000",
     entryDepositRao: "100", registrationDay: "1", firstActivityDay: "0",
@@ -345,7 +341,7 @@ test("entry deposit: exempt from the pay cap, excluded from both index legs", ()
   // registrationDay == evalDay: output = min(30, prior pay 10) + 100 entry.
   assert.equal(m.noahCreditRao, 110n);
   assert.equal(m.baseFp, 110n); // 10 capped credit + 100 entry
-  assert.equal(m.pciFp, 500_000_000n); // floor(5e9/10): no entry in S
+  assert.equal(m.pciFp, 3_000_000_000n); // 30/10, not (30+100)/10
 });
 
 test("entry credit stays OUT of the output when registrationDay < evalDay", () => {
@@ -363,26 +359,17 @@ test("entry credit stays OUT of the output when registrationDay < evalDay", () =
   assert.equal(r.miners[0].noahCreditRao, 50n);
 });
 
-test("pci at target measures a multiplier of exactly 1.0; a cap of 2.0 cannot lift it", () => {
-  // #16/#135: a deposit is judged against the PRIOR day's pay. Day 0 (paid
-  // 100, no deposit) is this seat's own first spendable pay day (#112
-  // starting treatment, unshifted), so it establishes the real prior pay
-  // for day 1's deposit with no starting-treatment day of its own polluting
-  // S with an unmatched deposit. Days 1 and 2 then each deposit 100 against
-  // the immediately preceding day's 100 pay -- day 2 (eval) is two full
-  // steps past the transition, so the formula is genuinely measured.
-  // halfLifeDays=1 for clean decay: uniform per-day decay preserves the
-  // S/Pd ratio exactly. #290: each day's deposit of 100 counts only up to
-  // its need (floor(0.5 x 100) = 50) in S, the rest goes to the reserve, so
-  // day 2's pci is 5e8 (floor(75e9/150)) = target, ratio = 1e9. The index
-  // can no longer exceed the target, so a cap above 1.0 never binds.
+test("at target stays 1x; genuine surplus makes the 2x cap reachable", () => {
   const dials = { ...DIALS, halfLifeDays: "1" };
-  const r = scoreFixture(fx("2", [{
-    coldkey: "A", uid: 0, holdRao: "400000000000",
-    days: { "0": day("100", "0"), "1": day("100", "100"), "2": day("100", "100") },
-  }], dials));
-  assert.equal(r.miners[0].pciFp, 500_000_000n);
-  assert.equal(r.miners[0].multiplierFp, 1_000_000_000n);
+  for (const [deposit, pci, mult] of [["50", 500_000_000n, 1_000_000_000n],
+                                    ["100", 1_000_000_000n, 2_000_000_000n]] as const) {
+    const r = scoreFixture(fx("2", [{
+      coldkey: "A", uid: 0, holdRao: "400000000000",
+      days: { "0": day("100", "0"), "1": day("100", deposit), "2": day("100", deposit) },
+    }], dials));
+    assert.equal(r.miners[0].pciFp, pci);
+    assert.equal(r.miners[0].multiplierFp, mult);
+  }
 });
 
 test("a cap below 1.0 binds even though pci is well above target", () => {
@@ -524,18 +511,14 @@ test("unlock day: the unlock drives the cap, the denominator, and the ask", () =
   // arrival could not. Pd = 100.
   assert.equal(m.noahCreditRao, 80n);
   assert.equal(m.baseFp, 80n);
-  // #290: need = floor(0.5 x 100) = 50 counts; the other 30 is reserve.
-  assert.equal(m.pciFp, 500_000_000n); // floor(50e9/100)
-  // Day 1's own unlock (spendable pay 100) is this seat's own FIRST
-  // spendable pay day (#112 starting treatment, unshifted); day 2 (eval)
-  // is the day after, so the multiplier is genuinely measured: ratio =
-  // floor(5e8 x 1e9 / 5e8) = 1.0e9, harshness 1, below the 2.0 cap.
-  assert.equal(m.multiplierFp, 1_000_000_000n);
+  // 80 regular units / 100 unlocked prior pay; linear test harshness = 1.6x.
+  assert.equal(m.pciFp, 800_000_000n);
+  assert.equal(m.multiplierFp, 1_600_000_000n);
   // The ask followed the spendable pay: need floor(0.5 x 100) = 50, deposit
   // 80: a hit, run 1.
   assert.equal(m.streakFp, 1_002_739_726n);
   assert.equal(m.scoreFp, 80n); // floor(80 x 1002739726 / 1e9)
-  assert.equal(m.payWeightFp, 8n); // floor(isqrt(80)=8 x 1.0e9 / 1e9)
+  assert.equal(m.payWeightFp, 12n); // floor(isqrt(80)=8 x 1.6e9 / 1e9)
 });
 
 test("an unlock adds to same-day spendable pay everywhere", () => {
@@ -554,7 +537,7 @@ test("an unlock adds to same-day spendable pay everywhere", () => {
   }], dials));
   const m = r.miners[0];
   assert.equal(m.noahCreditRao, 100n); // min(100, 40 + 60): nothing lost
-  assert.equal(m.pciFp, 500_000_000n); // #290: need 50 counts, floor(50e9/100)
+  assert.equal(m.pciFp, 1_000_000_000n); // regular 100 / unlocked prior pay 100
   assert.equal(m.streakFp, 1_002_739_726n); // need 50, deposit 100: hit, run 1
 });
 
@@ -748,4 +731,32 @@ test("prepaid: miner P (1,800 on day 2, then silence) scores like ordinary O by 
     assert.equal(a.multiplierFp, 1_000_000_000n); // never penalised
     assert.equal(a.streakFp, b.streakFp); // same unbroken run as ordinary
   }
+});
+
+test("surplus bonus draws do not recount receipts and cap1 keeps legacy PCI", () => {
+  const dials = { ...DIALS, harshness: 2, halfLifeDays: "45", ongoingHoldRao: "0" };
+  const days = { "0": day("100", "120"), "1": day("100", "0"),
+                 "2": day("100", "0"), "3": day("100", "0") };
+  const input = [{ coldkey: "A", uid: 0, holdRao: "0", days }];
+  const firstThree = [{ ...input[0], days: { "0": days["0"], "1": days["1"], "2": days["2"] } }];
+  const r = scoreFixture(fx("2", firstThree, dials)).miners[0];
+  assert.equal(r.pciFp, 600_000_000n); // 120/200, no second count of draws
+  assert.equal(r.multiplierFp, 1_440_000_000n);
+  const later = scoreFixture(fx("3", input, dials)).miners[0];
+  const oldLater = scoreFixture(fx("3", input, { ...dials, capFp: "1000000000" })).miners[0];
+  assert.deepEqual(later, oldLater); // unpaid debt keeps the aged penalty
+  const legacy = scoreFixture(fx("2", firstThree, { ...dials, capFp: "1000000000" })).miners[0];
+  assert.ok(legacy.pciFp <= 500_000_000n);
+  assert.equal(legacy.scoreFp, r.scoreFp);
+});
+
+test("unlimited prepaid surplus saturates multiplier input without overflow", () => {
+  const dials = { ...DIALS, harshness: 2, ongoingHoldRao: "0" };
+  const days = { "0": day("1", "10000000000000000000000000000000000000000"), "1": day("0", "0") };
+  const input = [{ coldkey: "A", uid: 0, holdRao: "0", days }];
+  const first = scoreFixture(fx("0", [{ ...input[0], days: { "0": days["0"] } }], dials)).miners[0];
+  assert.equal(first.multiplierFp, 1_000_000_000n);
+  const r = scoreFixture(fx("1", input, dials)).miners[0];
+  assert.equal(r.pciFp, (1n << 64n) - 1n);
+  assert.equal(r.multiplierFp, 2_000_000_000n);
 });

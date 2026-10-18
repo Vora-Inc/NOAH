@@ -162,7 +162,7 @@ class LockedSource(FakeSource):
 
 
 def test_all_locked_stake_is_explained(tmp_path):
-    # Measured on the private test chain: uid 202, 40.363198987 NOAH all locked, available 0.
+    # Representative balance: all stake is locked and none is available.
     stake = 40_363_198_987
     r = Rig(tmp_path, source=LockedSource(stake=stake, locked=stake, available=0))
     res = S.preview(r.config, r.services())

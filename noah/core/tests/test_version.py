@@ -10,6 +10,7 @@ import unittest
 
 from ..version import (
     OUR_VERSION_KEY,
+    SCORING_CONTRACT,
     ScoringVersionTooOld,
     check_version_current,
     version_key_for,
@@ -21,16 +22,21 @@ class OurKey(unittest.TestCase):
         self.assertIsInstance(OUR_VERSION_KEY, int)
         self.assertGreater(OUR_VERSION_KEY, 0)
 
-    def test_the_key_is_derived_from_the_rules_and_is_stable(self):
-        # Same rules, same key, every time and on every machine. If this were
-        # derived from anything that varies, two validators running identical
-        # code would tag their work differently.
-        self.assertEqual(version_key_for("noah-fixture/4"), version_key_for("noah-fixture/4"))
+    def test_current_publication_identity_has_reviewed_key(self):
+        self.assertEqual(SCORING_CONTRACT, "noah-scoring/surplus-bonus-v1")
+        self.assertEqual(OUR_VERSION_KEY, 208370384225125)
+        self.assertEqual(OUR_VERSION_KEY, version_key_for(SCORING_CONTRACT))
+        self.assertLess(OUR_VERSION_KEY, 2**64)
 
-    def test_different_rules_give_a_different_key(self):
-        # The whole point: a change to the rules must be visible as a change to
-        # the key, or the announcement mechanism announces nothing.
-        self.assertNotEqual(version_key_for("noah-fixture/4"), version_key_for("noah-fixture/5"))
+    def test_new_identity_is_distinct_from_legacy_fixture_label(self):
+        legacy = version_key_for("noah-fixture/4")
+        self.assertEqual(legacy, 201647293659568)
+        self.assertNotEqual(OUR_VERSION_KEY, legacy)
+        self.assertGreater(OUR_VERSION_KEY, legacy)
+
+    def test_hash_keys_must_not_be_interpreted_as_ordered_rule_versions(self):
+        self.assertGreater(version_key_for("noah-fixture/5"),
+                           version_key_for("noah-fixture/6"))
 
 
 class RefusingWhenStale(unittest.TestCase):

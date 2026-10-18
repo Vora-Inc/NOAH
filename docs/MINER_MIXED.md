@@ -1,8 +1,7 @@
 # Test a conversion followed by mixed deposits
 
 This command currently supports **private test chains, fixed budgets and direct signing only**.
-Production mixed deposits are disabled pending review and adoption of the
-approved contribution and valuation policy. Changing `test_only` to false does
+Production mixed deposits are not supported in this release. Changing `test_only` to false does
 not enable production. Fixed direct and proxy deposits are described in the
 [quickstart](MINER_QUICKSTART.md) and [proxy guide](MINER_PROXY.md).
 

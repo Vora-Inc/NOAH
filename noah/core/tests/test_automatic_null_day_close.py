@@ -28,9 +28,9 @@ TEMPO = 360
 SETTLE = 20
 GENESIS = "0x" + "a" * 64
 KEYS = {0: VALIDATOR, **{uid: f"synthetic-hotkey-{uid}" for uid in range(1, 59)}}
-# Recorded live testnet profile values, explicit fixture input (not policy defaults).
+# Explicit synthetic fixture inputs; not operator policy defaults.
 PROFILE = {
-    "profileVersion": "candidate-448-50pct-v1",
+    "profileVersion": "synthetic-50pct-v1",
     "createdAt": "2026-09-29T00:00:00Z",
     "targetFp": "500000000",
     "harshness": 2,

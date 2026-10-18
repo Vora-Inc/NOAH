@@ -4,8 +4,8 @@
     python3 scripts/verify_bundle.py <bundle-dir>
 
 Needs only the Python standard library plus this repository's own
-``noah.scoring.audit_published`` (put ``services/noah`` on PYTHONPATH, or run
-from there). Four checks, in order:
+``noah.scoring.audit_published``. Run from the repository root with
+``PYTHONPATH=.``. Four checks, in order:
 
   1. the directory holds exactly the expected files, nothing else;
   2. (optional ``score-published.json``, identity keys removed, equals ``score.json``)
@@ -171,7 +171,7 @@ def run_audit(bundle: Path, out) -> int:
         from noah.scoring.fixture_io import FixtureError
     except ImportError as why:
         print(f"NO VERDICT: cannot import the repository's audit code ({why}).", file=out)
-        print("Put services/noah on PYTHONPATH (run from that directory).", file=out)
+        print("Run from the repository root with PYTHONPATH=. to import noah.", file=out)
         return _CANNOT_RUN
     try:
         return audit(bundle / "fixture.json", bundle / "score.json", out=out)

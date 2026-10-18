@@ -55,6 +55,8 @@ function scoreMiner(m: MinerInput, f: Fixture, decayFp: bigint): MinerResult {
   let F = 0n; // matching credit (invariant F <= N)
   let S = 0n; // entombed; the index's numerator, excluding the entry deposit
   let Pd = 0n; // pay on the spendable basis; the index's denominator
+  let totalDeposits = 0n;
+  let totalPriorPay = 0n;
   let run = 0n; // consecutive hit days
 
 
@@ -110,6 +112,9 @@ function scoreMiner(m: MinerInput, f: Fixture, decayFp: bigint): MinerResult {
       priorSpendablePay = priorDay.paidRao + priorDay.payUnlockedRao;
       priorNoFault = priorDay.noFault;
     }
+
+    totalDeposits += e.noahDepositRao;
+    totalPriorPay += priorSpendablePay;
 
     // Own-token credit, capped at day d2-1's spendable pay.
     let credit = e.noahDepositRao < priorSpendablePay ? e.noahDepositRao : priorSpendablePay;
@@ -186,7 +191,16 @@ function scoreMiner(m: MinerInput, f: Fixture, decayFp: bigint): MinerResult {
   const doorOpen = m.holdRao >= d.ongoingHoldRao;
 
   // The index. Zero decayed pay gives an index of 0.
-  const pciFp = Pd > 0n ? (S * FP_SCALE) / Pd : 0n;
+  let pciFp = Pd > 0n ? (S * FP_SCALE) / Pd : 0n;
+  // Non-expiring surplus may earn a bonus after debt is cleared. Entry,
+  // foreign matching and reserve draws are not new regular deposits.
+  if (d.capFp > FP_SCALE && debtReserve === 0n && coverageReserve > 0n && totalPriorPay > 0n) {
+    const surplusPci = (totalDeposits * FP_SCALE) / totalPriorPay;
+    if (surplusPci > d.targetFp) {
+      const bounded = surplusPci < (1n << 64n) ? surplusPci : (1n << 64n) - 1n;
+      if (bounded > pciFp) pciFp = bounded;
+    }
+  }
 
 
   const inStartingTreatment = firstSpendablePayDay === null || f.evalDay <= firstSpendablePayDay;

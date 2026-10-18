@@ -239,8 +239,7 @@ class DayAwareChain(DayZeroAwareChain):
     self._day_window(height)``, called UNWRAPPED, before any existence
     check -- see that method's own docstring), so a period whose own day
     has not ended yet is refused a REAL ``DayNotComplete``, exactly the
-    shape the live rehearsal chain log shows (issue #244), not a stand-in
-    exception. Publication is tracked by DAY, not by height or period --
+    exception raised by the real adapter, not a stand-in exception. Publication is tracked by DAY, not by height or period --
     matching ``ChainAdapter.read``'s own real behaviour (`day_window`
     reads a whole day's range regardless of which height inside it
     triggered the read): any height within an already-published day reads
@@ -3142,9 +3141,7 @@ class DayCatchUpTests(unittest.TestCase):
         # tick and never actually exercised more than one period of
         # holding -- exactly what this test covers instead, with tempo=60
         # against the SAME Day 1 (359..717), now ~6 periods long (359,
-        # 419, 479, 539, 599, 659 all fall inside it), the same shape as
-        # rehearsal chain's real Day 2 (roughly a dozen periods at
-        # tempo=360).
+        # 419, 479, 539, 599, 659 all fall inside it).
         with tempfile.TemporaryDirectory() as tmp:
             state_path, lock_path = _paths(tmp)
             chain = DayAwareChain(head=400, tempo=60, settle_blocks=1)

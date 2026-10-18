@@ -38,6 +38,8 @@ Thumbs.db
 
 # Participant-local configuration and records.
 /noah-deposit.ini
+# The config editor preserves the previous file, which may contain RPC credentials.
+*.ini.before-edit-*
 /noah-deposit-state/
 /evidence.json
 

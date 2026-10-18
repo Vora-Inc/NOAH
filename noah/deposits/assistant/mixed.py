@@ -55,7 +55,7 @@ def parse_settings(raw):
     if not required <= set(raw) or len(sizes) != 1 or set(raw) - required - sizes:
         refuse('mixed settings require the safety fields and exactly one swap sizing option')
     if raw['test_only'] != 'true':
-        refuse('production mixed deposits await the human policy file and approval')
+        refuse('production mixed deposits are not supported in this release')
     def number(name, minimum, maximum):
         text = raw[name]
         if not re.fullmatch(r'0|[1-9][0-9]*', text):
@@ -103,7 +103,7 @@ def test_gate(config, settings):
     if (settings.test_only is not True or config.network not in ('testnet', 'private-test')
             or not re.fullmatch(r'0x[0-9a-f]{64}', config.genesis_hash or '')
             or config.genesis_hash in (MAINNET, public_testnet)):
-        refuse('mixed execution is restricted to an explicitly pinned private test chain pending human policy approval')
+        refuse('mixed execution requires an explicitly pinned disposable test chain')
     if config.mode != 'fixed':
         refuse('mixed execution currently requires a fixed budget; percentage and maintenance coverage await shared period accounting')
     if config.stake_position != 'miner':

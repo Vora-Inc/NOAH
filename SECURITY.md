@@ -19,9 +19,12 @@ versions they deploy. Security fixes should identify the affected versions.
 ## Keys and endpoints
 
 Miners control their own signing keys. The deposit helper supports a local
-software wallet; it does not sign through a hardware wallet, multisig,
-extension, or miner proxy. Do not import a hardware wallet's recovery words to
-make it work.
+software wallet and miner-position deposits through a dedicated software
+delegate using the [bounded proxy signer](docs/MINER_PROXY.md). The real owner
+authorizes that delegate with its existing trusted signing method; the helper
+does not load the owner's key in proxy mode. The helper does not directly sign
+through a hardware wallet, multisig, or browser extension. Never import a
+hardware wallet's recovery words to make it work.
 
 The validator can publish through a separate operational proxy key. Protect
 that key and its recovery copy. The validator owner's hardware wallet seed and

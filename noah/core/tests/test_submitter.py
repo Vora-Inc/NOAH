@@ -233,6 +233,7 @@ class SubmitDirectComposesTheOtherPermittedCall(unittest.TestCase):
         self.assertEqual(composed[0].params["mecid"], 0)
         self.assertEqual(composed[0].params["dests"], [0, 1, 2])
         self.assertEqual(composed[0].params["weights"], [10, 20, 30])
+        self.assertEqual(composed[0].params["version_key"], 208370384225125)
         self.assertEqual(result, {"error": None, "block": 9044,
                                   "extrinsic_index": 2, "block_hash": None})
 

@@ -182,18 +182,7 @@ def test_canary_propagates_a_failed_read_as_chain_unavailable():
 
 
 class _HeadConnection:
-    """Enough of a raw substrate connection for ``head_block``:
-    ``get_chain_finalised_head`` and ``get_block_number`` only. Tracks
-    every call and every argument, so a fix that structurally changed the
-    CALL SHAPE (not merely the returned value) is actually provable, not
-    merely inferred from the final answer.
-
-    **The regression guard, explicit and named, per the Orchestrator's own
-    follow-up (2026-09-15): raises if ``get_block_number`` is EVER called
-    with ``block_hash=None``** -- not merely "the wrong hash," so a future
-    edit that reintroduces the implicit-latest shape (whether as zero
-    arguments or as an explicit ``None``) cannot silently regress past this
-    test."""
+    """Track finalized-head calls and reject implicit-latest block-number reads."""
 
     def __init__(self, *, head_hash, block_number):
         self._head_hash = head_hash
@@ -221,27 +210,9 @@ class _HeadConnection:
 
 
 def test_head_block_never_calls_get_block_number_with_none():
-    """Orchestrator finding, 2026-09-15, traced to real observed behavior on
-    the real private chain: a parameterless call that implicitly resolves
-    to "current"/"latest" (here, ``get_block_number(block_hash=None)``) can
-    hang indefinitely on this chain's endpoints, where every call that has
-    worked names an explicit block -- and the identical shape spelled with
-    an explicit ``None`` argument is exactly as dangerous as zero
-    arguments, per the Orchestrator's own follow-up finding (#15 found and
-    fixed the same pattern in its own code). The fix: establish the head
-    ONCE through a cheap, non-subscribing, explicit call
-    (``get_chain_finalised_head()``, ``async_substrate_interface.
-    SubstrateInterface``'s own dedicated ``chain_getFinalizedHead`` RPC --
-    confirmed by direct reading of the installed library, not assumed, and
-    the same call #15's own fix uses) and thread that resulting hash
-    explicitly into the next call, rather than ever letting
-    ``get_block_number`` resolve its own "current" internally.
-
-    This proves the CALL SHAPE, not just the returned value: a fix that
-    still called ``get_block_number(None)`` somewhere, but happened to
-    return the right number some other way, would not pass this test --
-    ``_HeadConnection.get_block_number`` raises if it is EVER called with
-    ``block_hash=None`` specifically, not merely "the wrong hash"."""
+    """Resolve the finalized head once and pass its explicit hash to the number read.
+    The connection rejects implicit-latest reads even if another route could
+    happen to return the expected height."""
     connection = _HeadConnection(head_hash="0x" + "cd" * 32, block_number=12345)
     chain = LiveRunnerChain(connection, netuid=35, endpoint="wss://node.example")
 
@@ -279,10 +250,7 @@ class _ClosableConnection:
 
 
 def test_close_closes_the_underlying_connection():
-    """Ticket #16 (B06), 2026-09-15, Orchestrator finding: today's stalls
-    correlate with connections that are never explicitly closed. Proves
-    LiveRunnerChain.close() actually calls the underlying connection's own
-    close(), not merely that it exists or returns without error."""
+    """LiveRunnerChain.close delegates to the underlying connection exactly once."""
     connection = _ClosableConnection()
     chain = LiveRunnerChain(connection, netuid=35, endpoint="wss://node.example")
 

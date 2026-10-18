@@ -158,20 +158,8 @@ class Chain:
         return list(self._extrinsics.get(block, []))
 
     def owner_at(self, *, hotkey, block_hash, block=None):
-        """Issue #112-15: the ``owner_at(hotkey=, block_hash=)`` duck type
-        ``_ParentBlockOwnerSource``/``confirm_owner_entitled_at_block`` call.
-        ``owner_fail_at`` (a block NUMBER, matching ``fail_at`` above's own
-        convention) simulates a chain read that cannot reach the node at
-        all -- a network blip, a node restart. Raises ``ChainUnavailable``
-        directly -- the identical ``Refusal`` a real, unreachable
-        ``noah.chain.live.LiveRunnerChain.owner_at`` raises (see its own
-        docstring, "Orchestrator's own addendum") -- rather than a bare
-        exception, because this fixture stands in for that real method
-        directly and a bare exception here would exercise a shape
-        (`confirm_owner_entitled_at_block` reclassifying it as
-        `OwnerReadUnreadable`) the real wiring is specifically built NOT to
-        take for a connection failure.
-        """
+        """Model an owner lookup at the requested block. Configured transport failures
+        raise ChainUnavailable, preserving the real source refusal type."""
         self.asked.append(("owner_at", hotkey, block_hash))
         if self._owner_fail_at is not None and block == self._owner_fail_at:
             raise ChainUnavailable(
@@ -1521,14 +1509,8 @@ def test_attribute_deposits_true_records_owner_not_entitled_but_does_not_lose_th
 def test_an_owner_source_connection_failure_stops_the_run_and_does_not_mark_the_day_scanned(
     tmp_path,
 ):
-    """Orchestrator's own addendum (2026-09-20): an owner_source that
-    cannot reach the chain at all (a network blip, a node restart) must
-    never be silently treated as ordinary attribution or an ordinary
-    refusal. `Chain.owner_at` here raises `ChainUnavailable` -- exactly what
-    a real, unreachable `noah.chain.live.LiveRunnerChain.owner_at` raises --
-    and it must propagate all the way out of `run_day`, unconverted, the
-    same as any other chain-read failure already does elsewhere in this
-    file: the day is NOT marked scanned."""
+    """A failed owner read propagates ChainUnavailable and leaves the day unscanned.
+    Transport failure must not become an attribution refusal or successful scan."""
     store = a_store(tmp_path)
     chain = Chain(
         deposits={8_800_001: _a_batch_all_deposit()},
