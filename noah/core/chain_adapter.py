@@ -368,8 +368,7 @@ class ArkIdentityNotPublished(ChainAdapterRefused):
     **Fires on every real deployment until the subnet's own identity record
     names an address in ``additional``** (``noah.chain.live.
     LiveRunnerChain.published_ark_pin``'s own docstring for exactly which
-    field and why) -- including the practice chain today, which has not
-    published one. Configuring the record is an on-chain, operator action
+    field and why). Configuring the record is an on-chain, operator action
     outside this codebase's own scope; this refusal exists to make its
     absence loud rather than silently trusted.
     """
@@ -2528,11 +2527,7 @@ def _default_canonical_score_path(day):
     if override:
         runtime_root = pathlib.Path(override)
     else:
-        # chain_adapter.py sits at <checkout>/services/noah/noah/core/
-        # chain_adapter.py -- parents[2] is <checkout>/services/noah,
-        # the identical depth persist_score_evidence.py's own
-        # _SOFTWARE_NOAH_ROOT (scripts/persist_score_evidence.py,
-        # parents[1]) resolves to, from a different starting file.
+        # Locate the package root relative to this module.
         software_noah_root = pathlib.Path(__file__).resolve().parents[2]
         repo_root = software_noah_root.parent.parent
         runtime_root = repo_root.parent.parent / "runtime"

@@ -1,9 +1,9 @@
 {
-  "profileVersion": "mainnet-production-v1",
-  "createdAt": "2026-10-05T00:00:00Z",
+  "profileVersion": "mainnet-production-bonus-2x-v1",
+  "createdAt": "2026-10-17T00:00:00Z",
   "targetFp": "500000000",
   "harshness": 2,
-  "capFp": "1000000000",
+  "capFp": "2000000000",
   "halfLifeDays": "45",
   "streakCeilingFp": "2000000000",
   "streakRampDays": "90",

@@ -134,7 +134,7 @@ your miner hotkey; it does not yet move ownership to the Ark.
 ## 5. Configure the deposit assistant
 
 Work in a private directory on your trusted signing machine. Keep this mainnet settings
-file and ledger separate from any test or rehearsal files:
+file and ledger separate from any test files:
 
 ```sh
 mkdir -p "$HOME/noah-mainnet-miner"
@@ -296,7 +296,7 @@ noah-miner --config noah-mainnet-deposit.ini deposit --label entry
 ## Conversion followed by mixed deposits
 
 The `convert-deposit` command is currently restricted to disposable private-test
-work. Production mixed deposits remain disabled pending the approved policy.
+work. Production mixed deposits are not supported in this release.
 See the [mixed deposit guide](MINER_MIXED.md) for settings and the three-step
 workflow. Use the active INI of a disposable private-test miner, not the mainnet
 INI above. Each target still has one INI containing all of its settings:
@@ -328,7 +328,7 @@ For disposable private-test accounts, `purchase-deposit` buys the configured
 asset using a fixed TAO cap, deposits the fixed NOAH amount, and then transfers
 only the purchased asset quantity established by its finalized receipt.
 See the [purchase settings and proxy requirements](../noah/deposits/assistant/USAGE.md#fixed-free-tao-purchase-rehearsal).
-Production execution remains disabled pending live verification and approval.
+Production execution is not supported in this release.
 
 ```sh
 noah-miner --config noah-deposit.ini purchase-deposit --preview --label purchase-test-01

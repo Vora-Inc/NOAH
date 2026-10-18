@@ -28,7 +28,7 @@ def parse_settings(raw):
     if not required <= set(raw) or set(raw) - required - {'max_slippage_bp', 'plan_id'}:
         refuse('purchase requires explicit fixed amounts and reviewed runtime safety settings')
     if raw['test_only'] != 'true':
-        refuse('purchase execution is restricted to private test chains pending live proof')
+        refuse('purchase execution requires a disposable test chain; production execution is not supported')
     def number(name, low, high, default=None):
         value = raw.get(name, default)
         if not isinstance(value, str) or not re.fullmatch(r'0|[1-9][0-9]*', value):

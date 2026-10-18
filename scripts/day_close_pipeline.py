@@ -96,7 +96,7 @@ def run_pipeline(
 
     ``publish`` and ``publish_direct`` are mutually exclusive: at most one
     of the two real publish paths runs, and passing neither is the default
-    dry run. Ticket #16 (B06), issue #56 comment 5720306237:
+    dry run.
     ``publish_direct`` is never attempted because ``publish`` failed or
     was skipped -- a caller who wants it passes it, by name, itself. See
     this module's own docstring, step 4, for why the two are not
@@ -249,13 +249,7 @@ def run_pipeline(
     # real infrastructure interruption during this optional, separate scan
     # (e.g. ChainUnavailable -- a real Refusal, not a made-up one) must not
     # discard four already-real, already-succeeded steps' worth of evidence
-    # -- found for real (ticket #16, 2026-09-17): a mid-run tunnel drop at
-    # block 411 during this exact scan crashed the whole script and lost
-    # steps 1-4's own real success along with it, before this fix. Caught
-    # the identical soft way NoEpochBlockFound already was, distinguished
-    # by its own real reason in the "skipped" message -- never silently
-    # treated as "nothing to reconcile" when the real reason is "could not
-    # ask."
+    # Record the read failure explicitly rather than discarding completed steps.
     if reconcile_from_block is not None and reconcile_to_block is not None:
         import reconcile_incentive_live as ril
 
@@ -405,42 +399,13 @@ def main(argv=None) -> int:
         "--force-rescan",
         action="store_true",
         help=(
-            "force a genuinely fresh rescan of this one day, even though its local history "
-            "store already has a scanned_day marker for it -- a deliberate, one-time operator "
-            "action on ONE NAMED DAY ONLY (noah/core/chain_adapter.py:build_chain_adapter's own "
-            "may_resume docstring), never the default. Exists for exactly one case: a day "
-            "whose store record predates a real fix to what this script reads (read_collateral "
-            "flipping True being the first real case, 2026-09-22) -- without this, the "
-            "unattended resume shortcut trusts the stale marker and skips the day forever, "
-            "reusing whatever the pre-fix scan already wrote. Threaded straight through as "
-            "may_resume=False on the SAME build_chain_adapter call this script already makes "
-            "for both the dry-run/evidence-only path and the real --publish-direct path -- "
-            "never a new default: every ordinary run, with or without --publish/--publish-"
-            "direct, still leaves may_resume at its own default (True) unless this is passed "
-            "explicitly. "
-            "**--height resolves to exactly ONE day (noah.chain.dayblocks.day_block_range), "
-            "and this flag rescans ONLY that one day -- it cannot reach any OTHER day's own "
-            "already-recorded scanned_day marker, even one this same fixture's cumulative "
-            "checks (noah.chain.fixture_build) depend on.** Real incident, 2026-09-23 (#16, "
-            "#135, #112): a fix that changed what an EARLIER day's own scan would have found "
-            "(a wallet's registration-time collateral lock, read only at its own real "
-            "registration block) was deployed and --force-rescan was run for the day being "
-            "closed, but not for the earlier day some wallets had actually registered in -- 3 "
-            "of 4 affected coldkeys, whose registrations fell entirely in that earlier, "
-            "never-rescanned day, kept failing with byte-identical pre-fix figures; a 4th, "
-            "whose registrations straddled the boundary, looked fixed only because its portion "
-            "in the rescanned day happened to be enough, while its earlier day's own real lock "
-            "stayed silently unrecorded. Before relying on a fix here, identify EVERY day any "
-            "affected wallet's own relevant history falls in (a wallet's firstActivityDay "
-            "through the day being closed, not merely the day being closed) and pass this flag "
-            "once per --height inside each of THOSE days too, oldest first -- one --force-"
-            "rescan run closes exactly one day, never a range. Rule B (#338) note: this "
-            "does NOT apply the rule-B deposit reader to days already stored. A stored "
-            "deposit with no miner hotkey and no reason that the new reader now gives a "
-            "reason raises ObservationChanged, and nothing is rewritten in place. To apply "
-            "that change to old days, rebuild the store from the chain into a fresh store "
-            "(the recovery tool's rebuild route; the from-empty path is not yet proven end "
-            "to end)."
+            "Rescan exactly the day selected by --height instead of trusting its scanned_day "
+            "marker. This is an explicit recovery action, not the default. After a reader "
+            "correction, identify all affected historical days and rescan each oldest first; "
+            "rescanning the closing day does not repair earlier days. Conflicting stored "
+            "observations raise ObservationChanged and are not overwritten. Reader changes "
+            "that conflict with stored receipts require a separately verified rebuild into "
+            "a fresh store; preserve the original store and evidence."
         ),
     )
     args = parser.parse_args(argv)
@@ -577,33 +542,9 @@ def main(argv=None) -> int:
             reader=reader,
             wallet=wallet,
             uid=uid,
-            # `True`, matching `neurons/validator.py`'s own real call site --
-            # the unattended loop's already-proven, live configuration, not a
-            # new choice invented here. Confirmed live tonight (2026-09-22):
-            # this script's own hardcoded `False` reached
-            # `noah.chain.runner._locked_pay_reads`, which -- exactly as its
-            # own docstring says it will when told not to read collateral --
-            # held every paid wallet's locked/unlocked pay out as
-            # "unknown rather than zero" and named it, rather than reading
-            # the real figure. `noah/chain/fixture_build.py` then refused
-            # outright (`MissingFromStore`) for any coldkey that also
-            # carries a real entry deposit, which is exactly the shape a
-            # real `--publish-direct` catch-up run needs correct: it cannot
-            # publish a locked-pay figure this script never tried to read.
-            # `False` here was never a considered choice about THIS call
-            # site -- `noah/core/chain_adapter.py:build_chain_adapter`'s own
-            # docstring ("read_collateral stays False here, unchanged") is
-            # about ITS OWN unset-by-caller default, reasoned through for a
-            # chain whose deployed runtime was once missing the collateral
-            # pallet storage entirely; it also says explicitly that a caller
-            # may pass `read_collateral=True` once that upgrade is
-            # confirmed, and names `neurons/validator.py`'s own call site as
-            # the one to change then. That call site already reads `True`
-            # (and has, every real period, successfully) -- this script's
-            # own separate, hardcoded `False` was simply never updated to
-            # match once the real chain caught up.
+            # Match the validator: read collateral needed by the scoring fixture.
             read_collateral=True,
-            # `--force-rescan` (this ticket, 2026-09-22), threaded straight
+            # `--force-rescan` threaded straight
             # through as `may_resume`. `not args.force_rescan` keeps this
             # script's own ordinary, unattended-loop-matching default
             # (`True`) untouched when the flag is absent -- exactly the
@@ -700,16 +641,8 @@ def main(argv=None) -> int:
                 )
                 _print_fixture_record(result["score"].get("evalDay"), fixture_path, adapter, args)
             else:
-                # Canonical, predictable location (ticket #16, this same
-                # round): the real gap found live tonight was that a real
-                # day close never automatically produced evidence at any
-                # path a live reader (#12's operator view) could find
-                # on its own -- only ever at whichever --out-dir a caller
-                # picked by hand. Written ADDITIONALLY here, every time a
-                # REAL score is actually computed (dry run or real -- a
-                # dry run's score is still real for a closed historical
-                # day; --fixture above is the only thing that skips this
-                # block), regardless of --out-dir. See
+                # Persist every computed day score in the canonical location,
+                # independently of the optional output directory. See
                 # persist_score_evidence.write_canonical_score_evidence
                 # for the explicit-not-silent overwrite behavior, and
                 # --on-canonical-conflict above for the refuse-instead-of-

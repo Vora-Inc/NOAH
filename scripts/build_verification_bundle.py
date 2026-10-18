@@ -308,10 +308,10 @@ Verify, from a clean checkout of the public repository at that commit (Python 3,
 no packages needed beyond the checkout):
 
   1. Files intact:        sha256sum -c SHA256SUMS
-  2. Score follows input: cd services/noah && python3 -m noah.scoring.audit_published \\
+  2. Score follows input: python3 -m noah.scoring.audit_published \\
                             <bundle>/fixture.json <bundle>/score.json
                           It prints AGREES and exits 0.
-  3. All checks at once:  cd services/noah && python3 scripts/verify_bundle.py <bundle>
+  3. All checks at once:  PYTHONPATH=. python3 scripts/verify_bundle.py <bundle>
                           It prints PASS or FAIL.
 
 Optional recompute: run the scorer on fixture.json yourself
@@ -444,8 +444,8 @@ def build_bundle(args) -> Path:
             "score_source": score_source,
             "settings_source": settings_source,
             "verification_command": (
-                f"git checkout {code_commit} && cd services/noah && "
-                "python3 scripts/verify_bundle.py <this-directory>"
+                f"git checkout {code_commit} && "
+                "PYTHONPATH=. python3 scripts/verify_bundle.py <this-directory>"
             ),
             "published_score": verify_bundle.PUBLISHED if published_raw is not None else NOT_RECORDED,
             "files": [

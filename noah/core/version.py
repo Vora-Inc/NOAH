@@ -10,9 +10,11 @@ import hashlib
 
 from .settings import SettingsError
 
-# The contract the engine scores against. Its version moves whenever the rules
-# do, which is what makes it the right thing to derive a key from.
-SCORING_CONTRACT = "noah-fixture/4"
+# Publication identity for the deployed surplus-bonus scoring rules. This is
+# separate from the fixture wire schema (noah-fixture/6), which is unchanged. Bump this
+# label when scoring rules change, then verify its numeric key against the chain
+# floor; hash-derived keys are not ordered versions.
+SCORING_CONTRACT = "noah-scoring/surplus-bonus-v1"
 
 
 class ScoringVersionTooOld(SettingsError):

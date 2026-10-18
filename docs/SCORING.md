@@ -3,8 +3,9 @@
 Noah scores contributions against spendable mining earnings. The mainnet target
 is 50%. A miner who consistently meets that target receives approximately a
 1.0 contribution multiplier, subject to the configured cap and integer
-rounding. The final reward weight also depends on scoring credit, streaks,
-and eligibility.
+rounding. Qualifying surplus can increase this multiplier up to **2.0** under
+the checked-in mainnet profile. The final reward weight also depends on scoring
+credit, streaks, and eligibility.
 
 This page describes the included implementation. Test fixtures carry their own
 parameters; they are not the mainnet configuration. See the
@@ -87,9 +88,10 @@ coverage. See [reserve.py](../noah/scoring/reserve.py) and
 
 ## From contributions to weights
 
-The contribution index, `PCI`, is the age-adjusted NOAH coverage divided by
-age-adjusted spendable pay. It is **not** deposits divided by the target amount.
-At a 50% target, an on-target miner's index is approximately 0.5.
+The baseline contribution index, `PCI`, is age-adjusted NOAH coverage divided
+by age-adjusted spendable pay. It is **not** deposits divided by the target
+amount. At a 50% target, an on-target miner's index is approximately 0.5.
+The surplus rule below can raise this baseline index.
 
 For ordinary scoring, the multiplier is:
 
@@ -97,10 +99,10 @@ For ordinary scoring, the multiplier is:
 multiplier = min((PCI / target) ^ harshness, cap)
 ```
 
-For illustration, with a target of 0.5, harshness of 2, and cap of 1.0, a PCI
-of 0.25 gives a multiplier of 0.25. A PCI of 0.5 gives 1.0. These values
-match the checked-in mainnet profile; the example omits the miner's other
-score inputs.
+With the checked-in mainnet target of 0.5, harshness of 2, and cap of 2.0, a
+PCI of 0.25 gives a multiplier of 0.25; a PCI of 0.5 gives 1.0. A qualifying
+surplus PCI of 0.6 gives 1.44. These examples omit the miner's other score
+inputs and the starting-period override described above.
 
 The engine then combines accumulated NOAH credit, permitted other-token
 matching credit, the streak factor, and the holding gate. Holding less than
@@ -122,6 +124,79 @@ relative weights, not a promise of a particular daily payout.
 All normative arithmetic uses integers with floor division in a fixed order.
 Fractions use a scale of `10^9`: 1.0 is `1000000000`. Small rounding differences
 from a decimal calculation are expected.
+
+## Surplus contribution bonus
+
+The engine considers a surplus bonus when all of these hold:
+
+- The configured multiplier cap is greater than 1.0.
+- Outstanding contribution debt is zero.
+- Unused advance coverage is greater than zero.
+- Cumulative prior-day spendable earnings are greater than zero.
+
+It sums qualifying regular NOAH deposits and prior-day spendable pay over the
+miner's complete recorded history, starting at its first activity day:
+
+```text
+surplus ratio = cumulative regular NOAH deposits / cumulative prior-day spendable pay
+PCI = max(baseline age-adjusted PCI, surplus ratio)  # only if ratio > target
+multiplier = min((PCI / target) ^ harshness, cap)
+```
+
+The entry contribution, other-token matching credit and draws from existing
+coverage are **not** new regular deposits in this ratio. Locked pay enters the
+denominator only after it becomes spendable and reaches the next day's
+comparison. The evaluated day's newly spendable earnings enter that comparison
+the following day. Old debt must be fully repaid first; paying only enough to
+clear a shortfall does not create a surplus bonus. The starting-period 1.0
+override and eligibility gates still apply.
+
+At a 50% target and harshness 2, a qualifying cumulative contribution ratio of
+about **70.71%** reaches the 2.0 cap (`0.5 × sqrt(2)`). This is a contribution
+multiplier, not a promise of twice the tokens or twice another miner's reward.
+The implementation uses fixed-point integer arithmetic and saturation before
+the existing multiplier calculation; boundary values are subject to rounding.
+
+**The surplus ratio does not age.** Scoring credit and the baseline compliance
+index still age; cumulative deposits, cumulative prior-day pay, actual debt and
+unused coverage do not. New earnings dilute a fixed surplus over time. For the
+same absolute extra contribution, a shorter earnings history receives a larger
+bonus:
+
+| Complete prior-pay history | Earnings/day | Regular contribution/day | Extra on evaluation day | Multiplier |
+|---|---|---|---|---|
+| 5 days | 100 NOAH | 50 NOAH | 100 NOAH | 1.96× |
+| 365 days | 100 NOAH | 50 NOAH | 100 NOAH | approximately 1.01099× |
+
+These examples assume no other debt or contributions, ignore entry credit,
+and are beyond the starting period. Their ratios are `350/500` and
+`18,350/36,500`. Histories with the same cumulative contribution percentage
+have the same surplus ratio; the difference above comes from comparing a
+fixed extra amount against different cumulative earnings. Aging this ratio
+would be a separate scoring-rule change, not a documentation correction.
+
+## Scoring-rule identity
+
+The surplus-bonus rule set is identified by
+`noah-scoring/surplus-bonus-v1`, with publication `version_key`
+`208370384225125`. [version.py](../noah/core/version.py) derives this number
+from the declared identifier. The previous identifier `noah-fixture/4`
+produced `201647293659568`; the identity update distinguishes the rule set
+without changing the already implemented surplus arithmetic.
+
+This publication identifier is separate from the input/output schemas and
+from the parameter profile. The input schema remains `noah-fixture/6` and the
+output schema remains `noah-score-output/6`. Reproducing a score requires its
+inputs, parameters and source revision as well as the declared rule set; the
+identifier is not an automatic fingerprint of every source file and is not
+currently embedded in every standalone score JSON.
+
+The weight-submission call carries the numeric version alongside its UID/weight
+vector. Updating the identifier changes that version field, not the calculated
+vector. The subnet's minimum accepted version is a separate chain policy.
+Hash-derived identifiers are not numerically ordered by release date: check
+compatibility with the existing minimum before a validator update. This
+release does not itself change that chain setting or authorize publication.
 
 ## Check a score
 
@@ -164,7 +239,7 @@ Inputs use the `noah-fixture/6` schema. The
 |---|---|
 | `targetFp` | Contribution target; `500000000` means 50% |
 | `harshness`, `capFp` | Multiplier curve and ceiling |
-| `halfLifeDays` | Aging of scoring credit and index values |
+| `halfLifeDays` | Aging of scoring credit and baseline index; not the cumulative surplus ratio |
 | `streakCeilingFp`, `streakRampDays` | Streak growth and maximum |
 | `ongoingHoldRao` | Minimum holding needed for eligibility |
 | `entryDepositRao` | This miner's entry credit, separate from daily deposits |

@@ -204,8 +204,7 @@ def live_chain_source_from_environment(env_var, *, connection_factory=None):
     if not url:
         raise LiveChainSourceMisconfigured(
             f"{env_var} is not set. A live chain source cannot be built without an endpoint "
-            f"URL, and there is no default: this ticket assumes nothing about which "
-            f"private-server endpoint is meant."
+            f"URL. Configure an explicit endpoint for the intended network; no default is assumed."
         )
     scheme = urlsplit(url).scheme.lower()
     if scheme not in ("ws", "wss"):

@@ -307,9 +307,8 @@ def _event_dict(value):
             return plain
         raise ValueError(
             f"one of this block's events decoded with module_id={module_id!r}, "
-            f"event_id={event_id!r} -- not the non-empty strings every real decode "
-            f"(4439 events, 8 module/event_id pairs, issue #538, 2026-08-30) "
-            f"produces for both -- refusing rather than letting deposits.py/"
+            f"event_id={event_id!r} -- not the non-empty strings required for "
+            f"both identifiers -- refusing rather than letting deposits.py/"
             f"emissions.py's own module_id-routing checks silently treat this as an "
             f"honest unrelated event. Treat this block's events as unread, and "
             f"report the value above."
@@ -318,8 +317,7 @@ def _event_dict(value):
         raise ValueError(
             f"one of this block's events decoded as a dict missing "
             f"{sorted(_EVENT_RECORD_KEYS - plain.keys())} -- not the complete "
-            f"EventRecord shape a live scan of 4439 real events (issue #538, "
-            f"2026-08-30) confirms every event carries -- refusing rather than "
+            f"EventRecord shape -- refusing rather than "
             f"merging ordinal_in_block into an incomplete record two modules "
             f"downstream (deposits.py, emissions.py) would otherwise silently skip "
             f"instead of refuse. Treat this block's events as unread, and report "
@@ -327,11 +325,8 @@ def _event_dict(value):
         )
     raise ValueError(
         f"one of this block's events decoded as {plain!r} ({type(plain).__name__}), "
-        f"not the genuine dict this project's client (async_substrate_interface, "
-        f"floored at >=2.2.1 by pyproject.toml, 2.2.1 itself installed and checked "
-        f"here: get_events(), sync_substrate.py:1563-1582) and a live scan of 4439 "
-        f"real events across 8 module/event_id pairs (issue #538, 2026-08-30) both "
-        f"confirm every event decodes as -- refusing rather than guessing how to "
+        f"not the genuine dict required for a decoded EventRecord -- "
+        f"refusing rather than guessing how to "
         f"merge ordinal_in_block into whatever this is. Treat this block's events "
         f"as unread, check whether the installed async_substrate_interface version "
         f"(>=2.2.1 per pyproject.toml) changed get_events()'s shape, and report the "
@@ -679,9 +674,7 @@ class LiveRunnerChain:
                 return value
             raise ValueError(
                 f"TotalHotkeyAlpha[{hotkey},{self.netuid}] decoded as {value!r}, not the "
-                f"already-plain int, in AlphaBalance's own u64 range, this project's read "
-                f"path has measured this storage item to produce (tests/chain-recordings/"
-                f"2026-08-20_netuid35_absence_and_position.json) -- refusing rather than "
+                f"already-plain int in AlphaBalance's u64 range -- refusing rather than "
                 f"coercing a bool, a numeric string, bytes, a float, an out-of-range int, "
                 f"or a list wrapper (the shape a structurally similar type, MechId, is "
                 f"confirmed to need unwrapping for -- see this method's own docstring) "

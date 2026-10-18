@@ -1603,21 +1603,8 @@ class ConnectionGenesisHashSurvivesAnEmptyBlockInfo(unittest.TestCase):
 
 
 class TempoAcceptsAnExplicitBlockSoACallerCanPinIt(unittest.TestCase):
-    """Ticket #16 (B06), 2026-09-15, an Orchestrator finding traced to real
-    observed behavior on this project's real private chain: never make a
-    parameterless call. ``ChainReader.tempo(netuid)`` used to expose no
-    ``block`` parameter at all, so ``noah.core.chain_adapter.ChainAdapter.
-    pinned_height()`` -- which reads ``self.reader.current_block()`` and
-    then ``self.reader.tempo(self.netuid)`` as two SEPARATE calls -- could
-    not pin the second to the same height the first just established,
-    leaving ``tempo`` to implicitly ask the underlying client for
-    "current" a second time. Fixed by adding an optional ``block=None``
-    keyword, threaded straight through to the same ``self._query(...,
-    block=block)`` every OTHER read on this class already supports and
-    already uses this identical way -- backward compatible for every
-    existing caller (``neurons/validator.py``'s own ``survey()`` still
-    calls ``tempo(netuid)`` with no block and gets the identical behavior
-    as before)."""
+    """Tempo reads accept an explicit block so related observations can share
+    one chain snapshot. Omitting the optional block retains client defaults."""
 
     def test_no_block_given_behaves_exactly_as_before(self):
         class Client:
@@ -1649,12 +1636,7 @@ class TempoAcceptsAnExplicitBlockSoACallerCanPinIt(unittest.TestCase):
 
 
 class ClosingTheUnderlyingClient(unittest.TestCase):
-    """Ticket #16 (B06), 2026-09-15, Orchestrator finding: none of the real
-    connections this project's chain-reading path opens was ever explicitly
-    closed. ``ChainReader`` wraps a single client (in production,
-    ``bt.subtensor``, which already exposes its own ``close()``); this proves
-    ``ChainReader.close()`` actually delegates to it rather than merely
-    existing."""
+    """ChainReader.close delegates to the wrapped client rather than leaking it."""
 
     def test_close_closes_the_underlying_client(self):
         class Client:

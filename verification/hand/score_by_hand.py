@@ -148,6 +148,7 @@ def _score_miner_by_hand(miner: dict, dials: dict, eval_day: int) -> dict:
     hold_rao = _int_of(miner["holdRao"])
 
     n = f = s = pd = 0
+    total_regular = total_observed_prior_pay = 0
     run = 0
     credit_ledger = 0  # deposit not yet credited to n
     coverage_ledger = 0  # deposit above a day's need, not yet claimed by debt
@@ -185,6 +186,9 @@ def _score_miner_by_hand(miner: dict, dials: dict, eval_day: int) -> dict:
         else:
             prior_spendable_pay = 0
             prior_no_fault = True
+
+        total_regular += noah_deposit_rao
+        total_observed_prior_pay += prior_spendable_pay
 
         # A day's need, in one place: floor(target x prior spendable pay).
         need_rao = target_fp * prior_spendable_pay // FP_SCALE
@@ -230,6 +234,12 @@ def _score_miner_by_hand(miner: dict, dials: dict, eval_day: int) -> dict:
     base_fp = n + f
     gate_value = _door_gate(hold_rao, ongoing_hold_rao)
     pci_fp = (s * FP_SCALE // pd) if pd > 0 else 0
+
+    if cap_fp > FP_SCALE and debt_ledger == 0 and coverage_ledger > 0:
+        if total_observed_prior_pay > 0:
+            surplus_ratio = total_regular * FP_SCALE // total_observed_prior_pay
+            if surplus_ratio > target_fp:
+                pci_fp = max(pci_fp, min(surplus_ratio, (1 << 64) - 1))
 
     in_starting_treatment = first_spendable_pay_day is None or eval_day <= first_spendable_pay_day
     if in_starting_treatment:

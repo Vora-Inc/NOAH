@@ -46,6 +46,7 @@ def score_miner(m: MinerInput, dials: Dials, eval_day: int) -> MinerResult:
 
     n = f = s = pd = 0  # N, F (credit) and S, Pd (the index's two legs)
     run = 0
+    total_deposits = total_prior_pay = 0
     reserve = Reserve()
     debt_weight = 0
     noah_credit = foreign_credit = 0
@@ -83,6 +84,8 @@ def score_miner(m: MinerInput, dials: Dials, eval_day: int) -> MinerResult:
         else:
             prior_spendable_pay = prior_day.paid_rao + prior_day.pay_unlocked_rao
             prior_no_fault = prior_day.no_fault
+        total_deposits += dd.noah_deposit_rao
+        total_prior_pay += prior_spendable_pay
         debt_before = reserve.debt
         step = reserve_step(
             reserve,
@@ -123,6 +126,24 @@ def score_miner(m: MinerInput, dials: Dials, eval_day: int) -> MinerResult:
     base = n + f
     g = door_gate(m.hold_rao, dials.ongoing_hold_rao)
     pci_fp = s * FP_SCALE // pd if pd > 0 else 0
+
+    # Above-target surplus earns a bonus only after all catch-up debt is paid.
+    # Count each regular receipt once, not entry, foreign credit or reserve draws.
+    # Lifetime totals share the reserve ledger's non-expiring accounting horizon;
+    # new prior-day earnings consume the surplus and reduce this ratio naturally.
+    # Keep the aged compliance index (including debt's original age) otherwise.
+    # A cap <= 1 retains the legacy output byte for byte.
+    if (
+        dials.cap_fp > FP_SCALE
+        and reserve.debt == 0
+        and reserve.coverage > 0
+        and total_prior_pay > 0
+    ):
+        surplus_pci = total_deposits * FP_SCALE // total_prior_pay
+        if surplus_pci > dials.target_fp:
+            # Saturating at the multiplier's u64 input bound is exact once capped:
+            # target <= 1, harshness >= 1, and cap < 2**64.
+            pci_fp = max(pci_fp, min(surplus_pci, (1 << 64) - 1))
 
     in_starting_treatment = (
         first_spendable_pay_day is None or eval_day <= first_spendable_pay_day

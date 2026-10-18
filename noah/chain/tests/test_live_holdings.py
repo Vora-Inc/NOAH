@@ -1,35 +1,6 @@
-"""``LiveRunnerChain``'s four holding reads (issue #134): ``staking_hotkeys``,
-``alpha_share``, ``hotkey_shares``, ``hotkey_alpha``.
-
-These are raw reads with no resolution logic of their own -- every decision
-about what a share MEANS belongs to ``noah/chain/holdings.py``, already
-proven by its own test suite. What is specific to this file, and cannot be
-proven anywhere else, is the COMPOSITION: does each method ask the chain the
-right question (right storage item, right key order, matching the pinned
-runtime source cited in ``live.py``'s own docstrings), and does it correctly
-tell an ABSENT key apart from a key that decodes to zero -- the one
-distinction ``holdings.py``'s own ``from_storage`` docstring says a typed
-``query()`` alone cannot make, and the one this project's real 2026-08-20
-chain recording (``tests/chain-recordings/
-2026-08-20_netuid35_absence_and_position.json``) exists specifically to
-prove is real: an absent share and a share holding zero are the same bytes.
-
-``live.py`` never imports the real chain client library -- ``connection`` is
-injected by the caller, which is what keeps ``noah/``'s custody-boundary
-promise (``noah/deposits/tests/test_no_runtime_dependencies.py``,
-``noah/audit/tests/test_signers.py``: the standard library only). So the
-fake ``_Connection`` below plays the role of a real
-``async_substrate_interface.SubstrateInterface``, including its
-``create_storage_key`` method -- the same public method
-``LiveRunnerChain._share_component`` calls on the real thing -- returning a
-minimal fake key object whose ``.to_hex()`` is just the (name, params) pair
-it was asked to build a key for, not a real encoded hex string. The fake
-``_Connection.get_storage_by_key`` then answers presence by that SAME
-(name, params) pair, so these tests exercise ``live.py``'s own composition
--- which name, which params, in which order, routed through which of
-``holdings.py``'s functions -- without needing a real chain or real SCALE
-metadata to do it.
-"""
+"""Test storage keys, parameter order and absent-versus-zero handling for
+LiveRunnerChain holding reads. Injected connections model the SDK storage API;
+these tests require neither live chain access nor SCALE metadata."""
 
 import pytest
 

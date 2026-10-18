@@ -25,9 +25,10 @@ from ..deposits.owner_entitlement import (
     OwnerReadUnreadable,
     confirm_owner_entitled_at_block,
 )
+from .deposit_batches import read_batch
 from .sources import Refusal
-from .store import UNNAMED_REASON_PREFIX
 from .ss58 import NotAnAddress, address_of, public_key_of
+from .store import UNNAMED_REASON_PREFIX
 
 _logger = logging.getLogger(__name__)
 
@@ -175,7 +176,8 @@ class Deposit:
     ``extrinsics``/``parent_block_hash``/``owner_source`` to
     ``deposits_in_block`` at all.
 
-    ``unattributed_reason`` records a failed attribution: a batch this module attempted to attribute and
+    ``unattributed_reason`` records a failed attribution: a batch this module
+    attempted to attribute and
     could not -- an ambiguous batch, a malformed remark, or an unentitled
     signer -- is still a real deposit; the alpha genuinely moved to the
     Ark, and dropping the row would leave the Ark's own holdings grown with
@@ -707,7 +709,8 @@ def deposits_in_block(
     :class:`~noah.deposits.owner_entitlement.OwnerNotEntitled` (or
     :class:`OwnerReadUnreadable` if the read itself could not be trusted).
     None of these four is ever guessed past -- ``origin_hotkey`` stays
-    ``None`` -- but none of them drops the ``Deposit`` either. The real alpha genuinely moved to the Ark
+    ``None`` -- but none of them drops the ``Deposit`` either. The real alpha
+    genuinely moved to the Ark
     regardless of whether it could be attributed, and dropping the row
     would leave the Ark's own holdings grown with nothing accounting for
     the increase. The ``Deposit`` for that extrinsic is still produced,
@@ -755,6 +758,15 @@ def deposits_in_block(
     what persists durably; a caller that needs the reason kept must
     persist the ``Deposit`` it already has, not configure logging to catch
     a line that was only ever a courtesy.
+
+    **Explicit multi-receipt batches:** before the legacy fallback below,
+    ``deposit_batches.read_batch`` recognizes a flat alternating sequence of
+    transfer_stake and miner remark calls in Utility.batch_all, including a
+    direct Multisig.as_multi wrapper. Complete ItemCompleted boundaries,
+    BatchCompleted, successful execution, matching calls/events and historical
+    ownership are required. Each arrival retains its original event ordinal.
+    Missing or unsupported evidence falls back to the behavior below. This
+    does not reinterpret arbitrary nested batches or proxy wrappers.
 
     **AS OF ISSUE #112-15, GAP 2: a fifth, older case gets the identical
     treatment.** Before this ticket, an extrinsic whose events carried more
@@ -843,7 +855,37 @@ def deposits_in_block(
             f"here decodes a remark this call could never actually confirm."
         )
 
-    givers = {}  # extrinsic -> (coldkey, event_id, raw StakeAndHotkeyTransferred origin_hotkey or None)
+    # Recognize only batches with complete per-call execution boundaries.
+    # Everything else keeps the legacy unattributed/structural-refusal path.
+    batch_deposits = []
+    handled = set()
+    if isinstance(extrinsics, (list, tuple)):
+        grouped = {}
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            index = event.get("extrinsic_idx")
+            if isinstance(index, int) and not isinstance(index, bool):
+                grouped.setdefault(index, []).append(event)
+        for index, batch_events in grouped.items():
+            if not 0 <= index < len(extrinsics):
+                continue
+            receipts = read_batch(
+                extrinsics[index], batch_events, ark_coldkey=ark_coldkey,
+                designated_validator_hotkey=designated_validator_hotkey,
+                block=block, block_hash=block_hash, parent_block_hash=parent_block_hash,
+                owner_source=owner_source,
+            )
+            if receipts is not None:
+                batch_deposits.extend(receipts)
+                handled.add(index)
+        events = [
+            e for e in events
+            if not isinstance(e, dict) or e.get("extrinsic_idx") not in handled
+        ]
+
+    # extrinsic -> (coldkey, event_id, raw named-transfer origin_hotkey or None)
+    givers = {}
     arrivals = {}  # extrinsic -> the FIRST (ordinal, alpha, netuid, hotkey) seen
     remarked_hash_by_extrinsic = {}  # extrinsic -> System.Remarked's own committed hash
 
@@ -1013,7 +1055,7 @@ def deposits_in_block(
                 f"can be undone."
             )
 
-    deposits = []
+    deposits = batch_deposits
     for extrinsic, (ordinal, alpha, netuid, hotkey) in sorted(
         arrivals.items(), key=lambda item: item[1][0]
     ):
@@ -1181,4 +1223,4 @@ def deposits_in_block(
                 unattributed_reason=unattributed_reason,
             )
         )
-    return deposits
+    return sorted(deposits, key=lambda deposit: deposit.event_ordinal)

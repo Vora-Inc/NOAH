@@ -492,16 +492,8 @@ def test_a_genuinely_old_schema_store_refuses_by_name_not_transiently(tmp_path):
 
 
 def test_a_pre_hotkey_column_store_refuses_cleanly_rather_than_crashing(tmp_path):
-    """D-138 reopened (issue #112, 2026-09-19): schema 14 adds a `hotkey`
-    column to `noah_deposit`. Real store files built under schema 13 (no
-    such column) already exist -- see the private test server's own runs
-    the night this landed. Opening one under this code must not crash deep
-    inside a later query with an ordinary "no such column" exception (the
-    same bug class D-139's own tests above pin for `day_anchor_ts` ->
-    `week_anchor_ts`): `Store.open`'s `PRAGMA user_version` check refuses it
-    by name, before any query ever reaches `noah_deposit`, so a caller knows
-    to rebuild rather than treating it as a transient read failure.
-    """
+    """Refuse a schema-13 store before queries require the schema-14 hotkey column.
+    An explicit schema refusal is actionable; a later SQL error is not."""
     import sqlite3
 
     from noah.chain.store import SchemaTooOld

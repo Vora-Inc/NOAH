@@ -75,7 +75,7 @@ FOREIGN_PRICE = 20_000_000
 NOAH_PRICE = 50_000_000
 
 
-# Synthetic ledger setup is self-contained so the public tests need no private rehearsal.
+# Synthetic ledger setup is self-contained and needs no live chain.
 def paid(store, coldkey, day, amount, uid=140, locked=0, unlocked=0, hotkey=HOT_A):
     block = 8_800_000 + day * DAY // 12 + uid
     store.record_attributed_pay(
@@ -765,7 +765,7 @@ def test_incomplete_foreign_metadata_cannot_feed_credit(tmp_path, column):
     assert store._conn.execute("SELECT COUNT(*) FROM foreign_deposit").fetchone()[0] == 1
 
 
-@pytest.mark.parametrize('profile_name', ['candidate-448-50pct-v1', 'mainnet-production-v1'])
+@pytest.mark.parametrize('profile_name', ['mainnet-production-v1'])
 @pytest.mark.parametrize('first,second,surplus', [
     (3 * N, 7 * N, 0), (5 * N, 5 * N, 0), (5 * N, 7 * N, 2 * N),
     (30_000_000, 10 * N, 30_000_000),
@@ -783,8 +783,6 @@ def test_split_entry_crossing_day_scores_once_and_unlocks_foreign(
     from noah.scoring.fixture_io import render_output
 
     profile_path = _REPO_ROOT / 'docs/parameters/profiles' / (profile_name + '.json')
-    if profile_name == 'candidate-448-50pct-v1' and not profile_path.exists():
-        pytest.skip('Private testnet profile is intentionally not distributed; mainnet case remains')
     profile = json.loads(profile_path.read_text())
     monkeypatch.setitem(globals(), 'ENTRY', int(profile['entryDepositPerHotkeyRao']))
     monkeypatch.setenv('NOAH_PARAMETERS_JSON', str(profile_path))
