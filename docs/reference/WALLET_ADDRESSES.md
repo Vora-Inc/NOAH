@@ -14,13 +14,14 @@ proxy authorized for their deployment. Never put keys or recovery material in
 a configuration example or commit a completed environment file. See the
 [validator guide](../VALIDATOR_QUICKSTART.md) for this edition's startup restrictions.
 
-## Mainnet startup identities
+## Existing Noah deployment identities
 
-This edition pins its mainnet startup checks to the following protocol identities.
-The scoring identity owns the validator seat; it is not the operational proxy
-whose key signs transactions. The dedicated proxy address is deployment-specific
-and must be configured separately. Substituting an unrelated scoring identity
-is not supported by this edition.
+The following public references describe Noah's deployment, not a publishing
+allowlist. Independent operators configure their own registered scoring identity
+and its dedicated authorized proxy. The application checks those configured
+identities; it does not require the owner hotkey below. The chain must still grant
+a publishing permit. Under Null only the elected highest-stake UID holds one.
+The shared Ark deposit addresses above remain fixed for all operators.
 
 | Role | Address |
 |---|---|

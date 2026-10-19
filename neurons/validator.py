@@ -273,8 +273,14 @@ def mainnet_preflight(settings, reader, genesis, hotkey, *, env=None, genesis_co
                 break
     if doc_path and Path(doc_path).is_file():
         doc_addresses = set(re.findall(r"`(5[1-9A-HJ-NP-Za-km-z]{47})`", Path(doc_path).read_text()))
+    # The publisher belongs to this operator, not the internal wallet roster.
+    # Network registration, permit and proxy delegation are enforced by gate().
+    line(
+        "scoring hotkey (public)",
+        bool(settings.expected_signer_address) and mn._same_key(hotkey, settings.expected_signer_address),
+        f"{hotkey}  (configured publishing identity)",
+    )
     for label, value, expected in (
-        ("scoring hotkey (public)", hotkey, mn.SIGNER_HOTKEY),
         ("Ark Validator hotkey", settings.designated_validator_hotkey, mn.ARK_VALIDATOR_HOTKEY),
         ("Ark address", settings.ark_address, mn.ARK_ADDRESS),
     ):

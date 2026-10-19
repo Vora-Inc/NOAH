@@ -77,7 +77,7 @@ An unfinished example is refused. Check the following settings:
 | `NOAH_NETWORK`, `NOAH_NETUID` | Intended network and subnet |
 | `NOAH_CHAIN_ENDPOINT`, `NOAH_ENDPOINT_2` or `NOAH_ENDPOINT_2_FILE` | Two independently sourced chain connections; the file option keeps a keyed second address outside the settings file |
 | `NOAH_WALLET_NAME`, `NOAH_WALLET_HOTKEY` | Local proxy wallet and key labels |
-| `NOAH_EXPECTED_SIGNER_ADDRESS` | Noah validator identity that owns the seat and commits weights |
+| `NOAH_EXPECTED_SIGNER_ADDRESS` | Your registered publishing hotkey that owns the seat and publishes weights |
 | `NOAH_PROXY_SIGNER_ADDRESS` | Separate operational key signing the transaction |
 | `NOAH_PUBLISH_MODE` | `direct` for the selected Null policy; uses the configured proxy and requires commit-reveal off |
 | `NOAH_SUBMIT_ENDPOINT` | Submission connection; empty uses the primary endpoint |
@@ -92,11 +92,25 @@ The Noah validator identity and `NOAH_VALIDATOR_HOTKEY` serve different
 roles. The latter identifies the Ark Validator, the required delegation
 destination of Ark deposits.
 
-The current mainnet startup code accepts only the published Noah scoring
-hotkey. This example does **not** support an unrelated independent validator
-by substituting its address. Other validators can reproduce the scores with
-the [verification tools](VERIFYING_SCORES.md); a supported independent
-publisher setup is not provided in this edition.
+Set `NOAH_EXPECTED_SIGNER_ADDRESS` to **your own registered publishing hotkey**
+and `NOAH_PROXY_SIGNER_ADDRESS` to its separate authorized proxy. Replace the
+`REPLACE-ME` values in the supplied example with these public addresses.
+Publishing is not restricted to Noah's owner identity.
+Keep the shared Ark receiving address and designated Ark Validator unchanged:
+these select qualifying deposits, not the operator publishing the scores.
+
+**Null still elects exactly one publishing permit holder**, the registered UID
+with the highest stake weight. Configuring a different identity does not grant
+that permit. Startup refuses publication without it, even for the subnet owner.
+Other operators can reproduce scores with the [verification tools](VERIFYING_SCORES.md);
+this change does not enable simultaneous publishers or switch consensus to Yuma.
+
+Use separate history, runtime and publication-ledger paths for each publisher.
+Do not reuse another publisher's pending attempts or submitted-day records.
+Reconstruct the complete required finalized earnings and deposit history using
+independent chain sources and the same scoring profile and UTC cutoff. An empty
+history database or a successful startup check alone does not prove score parity.
+Before enabling a new publisher, compare its results to retained score evidence.
 
 `NOAH_WALLET_NAME` and `NOAH_WALLET_HOTKEY` are labels for the signing wallet
 installed on the validator host. They are not recovery words or a way to
