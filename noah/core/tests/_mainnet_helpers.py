@@ -26,6 +26,8 @@ def write_profile(directory, version=DECIDED_NAME, **over):
     return str(path)
 
 
+OWNER_HOTKEY = "5Hn6PHyjx2rLY3EXCP1xK7XHUquRo17fyuyM1HuZrAWb8y3G"
+
 TEST_PROXY = "5ErAdwYih4PrXEHqibWGvw6YVk4iKNgdtbVstLYUNupe9kJ9"
 
 
@@ -39,7 +41,7 @@ def good_mapping():
         "NOAH_PUBLISH_MODE": "sealed",
         "NOAH_WALLET_NAME": "noah-scoring",
         "NOAH_WALLET_HOTKEY": "scoring",
-        "NOAH_EXPECTED_SIGNER_ADDRESS": mn.SIGNER_HOTKEY,
+        "NOAH_EXPECTED_SIGNER_ADDRESS": OWNER_HOTKEY,
         "NOAH_PROXY_SIGNER_ADDRESS": TEST_PROXY,
         "NOAH_ARK_ADDRESS": mn.ARK_ADDRESS,
         "NOAH_VALIDATOR_HOTKEY": mn.ARK_VALIDATOR_HOTKEY,

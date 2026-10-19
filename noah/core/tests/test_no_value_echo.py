@@ -211,7 +211,6 @@ class TheMainnetAndProxyRefusalsHideTheValue(unittest.TestCase):
                             self.assertIn(key, problems)
 
     def test_signer_and_proxy_checks_in_every_branch(self):
-        from noah.core import mainnet as mn
         from noah.core.mainnet import check_signer_hotkey
         from noah.core.proxy_route import (
             ProxyRouteRefused,
@@ -219,7 +218,7 @@ class TheMainnetAndProxyRefusalsHideTheValue(unittest.TestCase):
             identity_from_settings,
         )
 
-        from ._mainnet_helpers import TEST_PROXY
+        from ._mainnet_helpers import TEST_PROXY, OWNER_HOTKEY
 
         valid = "5" + "H" * 47
         other = "5" + "G" * 47
@@ -231,10 +230,10 @@ class TheMainnetAndProxyRefusalsHideTheValue(unittest.TestCase):
                         (text, text, valid),  # proxy signer equals the commit identity
                         (text, other, text),  # the loaded hotkey IS the commit identity
                         (valid, text, other),  # the loaded hotkey is not the proxy signer
-                        (text, TEST_PROXY, TEST_PROXY),  # finney: expected is not the published key
+                        (text, TEST_PROXY, TEST_PROXY),  # finney: expected is not a valid address
                         (valid, text, text),  # finney: the proxy signer is dev / the validator
-                        (mn.SIGNER_HOTKEY, text, text),  # finney: reaches the proxy signer check
-                        (mn.SIGNER_HOTKEY, text, other),
+                        (OWNER_HOTKEY, text, text),  # finney: reaches the proxy signer check
+                        (OWNER_HOTKEY, text, other),
                     ]
                     for expected, proxy, loaded in cases:
                         for network in ("finney", "test"):

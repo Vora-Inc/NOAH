@@ -2,8 +2,8 @@
 
 Require the mainnet genesis opt-in, subnet and parameter profile, distinct read
 endpoints, designated Ark identities, explicit publication mode and the restricted proxy
-route. This implementation also pins the scoring identity to SIGNER_HOTKEY; it
-does not currently support arbitrary independent mainnet validator identities.
+route. The operator configures the publishing identity; registration, the chain
+permit and proxy authorization are checked separately before publication.
 Public receiving/delegation identities and the validator's signing identity serve
 different purposes and must not be conflated."""
 
@@ -20,7 +20,6 @@ MAINNET_NETUID = 82
 
 ARK_ADDRESS = "5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3"
 ARK_VALIDATOR_HOTKEY = "5DLQGc9DoabXWGp4s4vktHyGEA3itg8twResPfDZ4qw8RZJV"
-SIGNER_HOTKEY = "5Hn6PHyjx2rLY3EXCP1xK7XHUquRo17fyuyM1HuZrAWb8y3G"
 ARK_VALIDATOR_MULTISIG = "5Gj3HZJdLC1hASrn32NR4mttimJ8UPb63ftJATUraNMuWohX"
 OWNER_MULTISIG = "5GGrRdUatgDLiJxnytdWfYCwsAb1Cyo4U5Dw1HmLiAcbWj88"
 
@@ -109,6 +108,35 @@ def _is_dev(address):
     return [name for name, dev in DEV_ADDRESSES.items() if _same_key(address, dev)]
 
 
+def _publisher_identity_problems(settings):
+    """Validate configured public identities without an operator allowlist.
+
+    Keep this shared by startup and the final loaded-signer check. Never echo
+    malformed values: operators sometimes paste confidential text by mistake.
+    Registration, permit and actual proxy authorization remain chain checks.
+    """
+    problems = []
+    for field, address in (
+        ("NOAH_EXPECTED_SIGNER_ADDRESS", settings.expected_signer_address),
+        ("NOAH_PROXY_SIGNER_ADDRESS", settings.proxy_signer_address),
+    ):
+        if not address:
+            problems.append(f"{field} is not set.")
+            continue
+        try:
+            public_key_of(address)
+        except (NotAnAddress, TypeError, ValueError):
+            problems.append(f"{field} is not a valid checksummed public address (value not shown).")
+            continue
+        for name in _is_dev(address):
+            problems.append(f"{field} is the well-known dev address //{name}.")
+    if settings.expected_signer_address and settings.proxy_signer_address and _same_key(
+        settings.expected_signer_address, settings.proxy_signer_address
+    ):
+        problems.append("NOAH_PROXY_SIGNER_ADDRESS equals NOAH_EXPECTED_SIGNER_ADDRESS; they must differ.")
+    return problems
+
+
 def _profile_problems(settings, env):
     from ..scoring.parameters import ParametersError, load_parameters
 
@@ -170,7 +198,6 @@ def setting_problems(settings, env=None):
         for name in _is_dev(vh):
             problems.append(f"NOAH_VALIDATOR_HOTKEY is the well-known dev address //{name}.")
         for label, other in (
-            ("the scoring/commit hotkey", SIGNER_HOTKEY),
             ("the Ark Validator multisig coldkey", ARK_VALIDATOR_MULTISIG),
             ("the SN82 owner coldkey", OWNER_MULTISIG),
             ("the Ark receiving coldkey", ARK_ADDRESS),
@@ -195,30 +222,7 @@ def setting_problems(settings, env=None):
             f"entryDepositPerHotkeyRao is {params.entry_deposit_per_hotkey_rao}."
         )
 
-    signer = settings.expected_signer_address
-    if not signer:
-        problems.append("NOAH_EXPECTED_SIGNER_ADDRESS is not set.")
-    else:
-        if not _same_key(signer, SIGNER_HOTKEY):
-            problems.append(
-                f"NOAH_EXPECTED_SIGNER_ADDRESS is not the scoring/commit hotkey "
-                f"{SIGNER_HOTKEY}."
-            )
-        for name in _is_dev(signer):
-            problems.append(f"NOAH_EXPECTED_SIGNER_ADDRESS is the well-known dev address //{name}.")
-    proxy_signer = settings.proxy_signer_address
-    if not proxy_signer:
-        problems.append(
-            "NOAH_PROXY_SIGNER_ADDRESS is not set. Mainnet publishes through the proxy route "
-            "(the validator's own key is never on the server)."
-        )
-    else:
-        if signer and _same_key(proxy_signer, signer):
-            problems.append("NOAH_PROXY_SIGNER_ADDRESS equals NOAH_EXPECTED_SIGNER_ADDRESS; they must differ.")
-        if _same_key(proxy_signer, SIGNER_HOTKEY):
-            problems.append("NOAH_PROXY_SIGNER_ADDRESS is the validator's own hotkey; it must be a dedicated key.")
-        for name in _is_dev(proxy_signer):
-            problems.append(f"NOAH_PROXY_SIGNER_ADDRESS is the well-known dev address //{name}.")
+    problems.extend(_publisher_identity_problems(settings))
 
     for field in dataclasses.fields(settings):
         value = getattr(settings, field.name)
@@ -275,8 +279,8 @@ def clear_mainnet(settings, connections, env=None):
 def check_signer_hotkey(settings, loaded_hotkey_ss58):
     """Require the loaded signer to match the configured signing role.
 
-    In proxy mode the signer must differ from the commit identity. Mainnet additionally
-    pins that commit identity to SIGNER_HOTKEY and requires the proxy route."""
+    In proxy mode the signer must differ from the commit identity. Mainnet requires
+    valid non-development identities and the authorized proxy route."""
     from .proxy_route import check_proxy_signing_identity, proxy_mode
 
     expected = settings.expected_signer_address
@@ -289,23 +293,14 @@ def check_signer_hotkey(settings, loaded_hotkey_ss58):
                 raise MainnetRefused(str(error)) from error
             raise
         if settings.network == "finney":
-            if not expected or not _same_key(expected, SIGNER_HOTKEY):
-                raise MainnetRefused(
-                    f"NOAH_EXPECTED_SIGNER_ADDRESS (the value is not shown) is not the address "
-                    f"mainnet publishes as, {SIGNER_HOTKEY} (the scoring/commit hotkey). "
-                    f"Nothing was signed."
-                )
-            proxy = settings.proxy_signer_address
-            if _is_dev(proxy) or _same_key(proxy, SIGNER_HOTKEY):
-                raise MainnetRefused(
-                    "NOAH_PROXY_SIGNER_ADDRESS is a well-known dev address or the "
-                    "validator itself. Nothing was signed."
-                )
+            problems = _publisher_identity_problems(settings)
+            if problems:
+                raise refusal(problems)
         return
     if settings.network == "finney":
         raise MainnetRefused(
             f"mainnet publishes through the proxy route only: set NOAH_PROXY_SIGNER_ADDRESS to "
-            f"the dedicated signer's public address. The validator's own key {SIGNER_HOTKEY} is "
+            f"the dedicated signer's public address. The configured validator's own key is "
             f"never loaded on a server (the loaded hotkey here is {loaded_hotkey_ss58}). "
             f"Nothing was signed."
         )
