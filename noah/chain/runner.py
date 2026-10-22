@@ -140,6 +140,8 @@ def run_day(
     read_collateral,
     may_resume=True,
     attribute_deposits=False,
+    progressive=False,
+    finalize=True,
 ):
     """Read a block range into the day history and return its provenance.
 
@@ -173,7 +175,27 @@ def run_day(
                           outcome="already_scanned")
             return provenance
 
-        store.require_day_rescan_range(day, from_block, to_block)
+        needs_rescan = store.require_day_rescan_range(day, from_block, to_block)
+        if not finalize and not progressive:
+            raise RunRefused("partial collection requires progressive mode")
+        progress = None
+        if progressive and not needs_rescan:
+            from .collection import CollectionProgress
+            progress = CollectionProgress(store, chain, day, from_block, to_block, {
+                "version": 1, "genesis": chain.genesis_hash(), "netuid": netuid,
+                "ark": ark_coldkey, "validator": designated_validator_hotkey,
+                "holding_stride": holding_stride, "read_collateral": read_collateral,
+                "attribute_deposits": attribute_deposits,
+            })
+            for boundary in (from_block, to_block):
+                if store.day_of(_block_time(chain, boundary, None)) != day:
+                    raise RunRefused("progressive range crosses its UTC day")
+            if finalize:
+                from .dayblocks import day_block_range
+                if day_block_range(chain, store.day_anchor_ts, from_block) != (
+                    day, from_block, to_block
+                ):
+                    raise RunRefused("only the entire closed day can be finalized")
         head = chain.head_block()
         last_time = None
         day_time = None
@@ -182,7 +204,16 @@ def run_day(
         # The previous iteration's block number and hash, kept only once that
         # iteration finished with every re-check passing.
         previous = None
-        for block in range(from_block, to_block + 1):
+        start = from_block
+        if progress is not None:
+            start = progress.last + 1
+            observed_receipts = set(progress.receipts)
+            if progress.last >= from_block:
+                previous = (progress.last, chain.block_hash(progress.last))
+                last_time = (progress.last, _block_time(chain, progress.last, None))
+                day_time = last_time[1]
+                days_seen.add(day)
+        for block in range(start, to_block + 1):
             context = ReadContext(at_block=block, head_block=head)
             block_hash = chain.block_hash(block)
             events = chain.events(block)
@@ -346,6 +377,8 @@ def run_day(
                         f"forcing a fresh read will not see the retry take effect."
                     )
 
+            if progress is not None:
+                progress.advance(block, block_hash, observed_receipts)
             previous = (block, block_hash)
             provenance.read("blockRead", context)
             if (block - from_block + 1) % 256 == 0:
@@ -363,7 +396,14 @@ def run_day(
             provenance,
             day_time,
             designated_validator_hotkey=designated_validator_hotkey,
+            progress=progress,
+            finalize=finalize,
         )
+
+        if not finalize:
+            history_state(day=day, height=to_block, from_block=from_block,
+                          to_block=to_block, outcome="collecting")
+            return provenance
 
         if not days_seen:
             days_seen = {
@@ -444,6 +484,8 @@ def _sample_holdings(
     provenance,
     day_time,
     designated_validator_hotkey=None,
+    progress=None,
+    finalize=True,
 ):
     """Sample every observed wallet at a fixed stride through the requested day.
 
@@ -484,7 +526,8 @@ def _sample_holdings(
     if not wallets:
         # Nobody earned and nobody contributed. Sampling nothing is the honest
         # answer, and marking the day sampled says the question was asked.
-        store.mark_day_sampled(day, stride=stride, from_block=from_block, to_block=to_block)
+        if finalize:
+            store.mark_day_sampled(day, stride=stride, from_block=from_block, to_block=to_block)
         return
 
     # Chained across the loop, the same way the main block pass chains
@@ -512,6 +555,8 @@ def _sample_holdings(
             if store.day_of(block_timestamp) == day:
                 in_target_day = True
                 for coldkey in wallets:
+                    if progress is not None and progress.sampled(coldkey, block, block_hash):
+                        continue
                     positions = []
                     listed = chain.staking_hotkeys(coldkey, block)
                     _prove_staking_hotkeys_complete(
@@ -618,6 +663,8 @@ def _sample_holdings(
                 available_rao=NOT_READ,
                 positions=write_positions,
             )
+            if progress is not None:
+                progress.mark_sample(coldkey, block, block_hash)
             provenance.read("holdRao", context)
 
     if not wrote_any:
@@ -628,7 +675,8 @@ def _sample_holdings(
             f"would read as a day of wallets holding nothing, when nobody was actually asked."
         )
 
-    store.mark_day_sampled(day, stride=stride, from_block=from_block, to_block=to_block)
+    if finalize:
+        store.mark_day_sampled(day, stride=stride, from_block=from_block, to_block=to_block)
 
 
 def _block_time(chain, block, last_time):

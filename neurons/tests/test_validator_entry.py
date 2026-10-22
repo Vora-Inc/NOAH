@@ -539,7 +539,7 @@ class MainPassesLedgerPath(unittest.TestCase):
 
         def fake_build(**kwargs):
             captured.update(kwargs)
-            return object()
+            return mock.Mock()
 
         wallet = mock.Mock()
         wallet.hotkey.ss58_address = "5" + "H" * 47
@@ -588,3 +588,18 @@ class CommitLedgerPathTests(unittest.TestCase):
     def test_env_overrides(self):
         with mock.patch.dict("os.environ", {"NOAH_COMMIT_LEDGER_PATH": "/x/l.json"}):
             self.assertEqual(validator_module._commit_ledger_path(Path("/s")), Path("/x/l.json"))
+
+
+def test_epoch_restart_waits_for_rate_limit_without_skipping_other_gates():
+    settings = Settings.from_mapping({**GOOD_ENV, 'NOAH_PUBLISH_MODE': 'direct',
+                                     'NOAH_EPOCH_REPUBLICATION': 'true'})
+    with mock.patch.object(validator_module, 'check_can_publish_yet',
+                           side_effect=validator_module.CannotPublishYet('wait 10 blocks')):
+        results, _ = gate(Reader(), settings, OURS)
+    outcomes = dict(results)
+    assert outcomes['may publish yet'].startswith('WAIT')
+    assert 'weights are accepted' in outcomes
+    with mock.patch.object(validator_module, 'check_can_publish_yet',
+                           side_effect=ChainUnreadable('disconnected')):
+        results, _ = gate(Reader(), settings, OURS)
+    assert dict(results)['may publish yet'].startswith('NO')

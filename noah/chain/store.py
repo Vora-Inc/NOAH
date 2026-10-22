@@ -188,6 +188,19 @@ def _validate_store_schema(conn, version):
         del expected["day_needs_rescan"]
         expected["foreign_deposit"] = expected["foreign_deposit"][:8]
     actual_names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+    # Optional incremental-collection cache. Require both exact table shapes;
+    # unknown tables and partial/corrupt extensions still refuse to open.
+    if actual_names & {"epoch_collection", "epoch_holding_cache"}:
+        from .collection import SCHEMA as COLLECTION_SCHEMA
+
+        model = sqlite3.connect(":memory:")
+        try:
+            for statement in COLLECTION_SCHEMA:
+                model.execute(statement)
+            for name in ("epoch_collection", "epoch_holding_cache"):
+                expected[name] = list(model.execute(f'PRAGMA table_info("{name}")'))
+        finally:
+            model.close()
     if actual_names != set(expected):
         raise SchemaTooOld("store has an incomplete or unexpected schema; migration refused")
     for name, shape in expected.items():

@@ -34,6 +34,7 @@ from .pinning import NoSettledPeriod, period_of, pin_height
 from .publish_intent import PublicationStatusUnknown
 from .reader import ChainUnreadable
 from .settings import SettingsError
+from .startup import CannotPublishYet, check_can_publish_yet
 from .writer_lock import LockHeld, held
 
 # Every one of these already refuses loudly, by name, with its own reason
@@ -1314,6 +1315,16 @@ def tick(
     try:
         head = chain.current_block()
         tempo = chain.tempo()
+        # Gate the real scheduler, including its pinned-height/day-catchup
+        # wrappers. A late epoch refresh must not permanently refuse a new day.
+        if getattr(chain, "epoch_republication", False) and chain._publish_intent.load() is None:
+            check_can_publish_yet(chain, uid=chain.uid, netuid=chain.netuid)
+    except CannotPublishYet as error:
+        return (
+            TickResult(acted=False, period=None, outcome="waiting", detail=str(error),
+                       last_attempted_tempo=last_attempted_tempo),
+            last_attempted_height,
+        )
     except Exception as error:  # noqa: BLE001 -- see comment above
         emit("validator", "eligibility.state", "validator.eligibility", outcome="waiting",
              reason_code="head_unreadable", settle_blocks=settle_blocks, severity="warning")
@@ -2258,6 +2269,8 @@ def run_forever(
         # for why this travels on the result object instead of a third
         # return-tuple element). Round 13 (2026-08-29).
         last_attempted_tempo = result.last_attempted_tempo
+        from .epoch_work import maintain
+        maintain(chain, lock_path)
         diagnostic(f"[loop] {result.outcome}: {result.detail}", severity=result.log_severity)
         if on_tick is not None:
             on_tick(result)

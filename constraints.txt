@@ -10,7 +10,7 @@ async-substrate-interface==2.2.1
 bitarray==3.12.2
 bittensor==11.3.0
 bittensor-core==0.1.5
-certifi==2026.7.22
+certifi==2026.10.19
 cfgv==3.5.0
 charset-normalizer==3.5.2
 ckzg==2.1.8
@@ -59,6 +59,6 @@ typer==0.27.3
 typing-extensions==4.16.0
 typing-inspection==0.4.4
 urllib3==2.8.0
-virtualenv==21.14.8
+virtualenv==21.14.9
 websockets==16.1.1
 xxhash==4.0.1
