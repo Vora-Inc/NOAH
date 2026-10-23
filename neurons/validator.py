@@ -446,7 +446,10 @@ def gate(reader, settings, hotkey):
             call()
             results.append((label, "yes"))
         except (*refusals, ChainUnreadable) as error:
-            results.append((label, f"NO. {error}"))
+            if isinstance(error, CannotPublishYet) and settings.epoch_republication:
+                results.append((label, f"WAIT. {error}"))
+            else:
+                results.append((label, f"NO. {error}"))
     # Proxy route only (empty otherwise): the delegation from the validator to the dedicated
     # signer must exist as NonFungible with delay 0, and the signer must hold fee money.
     from noah.core.proxy_route import gate_lines
@@ -649,6 +652,14 @@ def main(argv=None):
         # exposes one endpoint. Reported the same clean way every other
         # startup refusal in this file is, rather than as a raw traceback.
         diagnostic(f"\nCHAIN ADAPTER REFUSED\n  {scrub_endpoint_text(error, *urls)}", severity="error")
+        return 3
+
+    from noah.core.epoch_work import configure
+    try:
+        configure(adapter, settings)
+    except SettingsError as error:
+        adapter.close()
+        diagnostic(f"EPOCH MAINTENANCE REFUSED: {error}", severity="error")
         return 3
 
     print("Adapter built. Starting the unattended loop (noah.core.loop.run_forever).")

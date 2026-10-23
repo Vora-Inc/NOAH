@@ -179,6 +179,8 @@ KEYS = (
     # existing deployment that has never heard of this setting must keep
     # publishing exactly as it does today.
     "NOAH_PUBLISH_MODE",
+    "NOAH_EPOCH_COLLECTION",
+    "NOAH_EPOCH_REPUBLICATION",
     # Mainnet only (ticket #293 mainnet startup). Unset on every other network.
     # NOAH_MAINNET_ENABLE: must equal mainnet's exact genesis hash to lift the
     # chain guard's refusal (noah.core.mainnet). NOAH_SUBMIT_ENDPOINT: an
@@ -417,6 +419,8 @@ class Settings:
     holding_stride_blocks: Optional[int]
     entry_deposit_rao: Optional[int]
     publish_mode: str
+    epoch_collection: bool = False
+    epoch_republication: bool = False
     mainnet_enable: Optional[str] = None
     submit_endpoint: Optional[str] = None
     expected_signer_address: Optional[str] = None
@@ -451,6 +455,12 @@ class Settings:
                 "validator's weights at the wrong subnet entirely and the run would "
                 "look ordinary. Set it to the subnet this validator runs on."
             )
+
+        epoch_flags = {key: _flag({key: mapping.get(key, "false")}, key) for key in
+                       ("NOAH_EPOCH_COLLECTION", "NOAH_EPOCH_REPUBLICATION")}
+        if (epoch_flags["NOAH_EPOCH_REPUBLICATION"]
+                and mapping.get("NOAH_PUBLISH_MODE", PUBLISH_MODE_DEFAULT) != "direct"):
+            raise BadSetting("epoch republication requires direct publication mode")
 
         endpoint = mapping.get("NOAH_CHAIN_ENDPOINT", "").strip()
         second_endpoint = _second_endpoint(mapping)
@@ -519,6 +529,8 @@ class Settings:
             publish_mode=_one_of_or_default(
                 mapping, "NOAH_PUBLISH_MODE", PUBLISH_MODES, PUBLISH_MODE_DEFAULT
             ),
+            epoch_collection=epoch_flags["NOAH_EPOCH_COLLECTION"],
+            epoch_republication=epoch_flags["NOAH_EPOCH_REPUBLICATION"],
             mainnet_enable=mapping.get("NOAH_MAINNET_ENABLE", "").strip() or None,
             submit_endpoint=mapping.get("NOAH_SUBMIT_ENDPOINT", "").strip() or None,
             expected_signer_address=mapping.get("NOAH_EXPECTED_SIGNER_ADDRESS", "").strip()

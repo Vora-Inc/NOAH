@@ -36,6 +36,8 @@ COMPLETE = {
     "NOAH_HOLDING_STRIDE_BLOCKS": "",
     "NOAH_ENTRY_DEPOSIT_RAO": "",
     "NOAH_PUBLISH_MODE": "",
+    "NOAH_EPOCH_COLLECTION": "false",
+    "NOAH_EPOCH_REPUBLICATION": "false",
     # #112: known to Settings' _refuse_unknown (so a real, documented line
     # in .env.validator is never refused as a typo), but not a Settings
     # dataclass field -- noah.scoring.parameters.load_parameters() (the
@@ -230,6 +232,8 @@ class RequiredAndRanges(unittest.TestCase):
             # above), never a startup refusal -- the opposite treatment from
             # the #566/#570 settings above it, not the same one.
             "NOAH_PUBLISH_MODE",
+            "NOAH_EPOCH_COLLECTION",
+            "NOAH_EPOCH_REPUBLICATION",
         )
         for key in COMPLETE:
             if key in optional:

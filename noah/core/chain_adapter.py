@@ -991,6 +991,8 @@ class ChainAdapter:
         # of this parameter, including every fake/test chain built before it
         # existed.
         self.publish_mode = publish_mode
+        self.epoch_collection = False
+        self.epoch_republication = False
         # Issue #334: the per-day sealed-commit ledger (noah.core.commit_ledger).
         # None (the default, and every pre-existing caller) means no ledger:
         # sealed already_published behaves exactly as before. Sealed mode only;
@@ -1571,6 +1573,7 @@ class ChainAdapter:
             # pre-#112-15 default that left every deposit's origin
             # unattributed.
             attribute_deposits=True,
+            progressive=self.epoch_collection,
         )
         seats = self._seats_source(day, store)
         observe_seats(seats, day=day, height=height)
@@ -2234,14 +2237,18 @@ class ChainAdapter:
                     ) is True
             except Exception:  # Optional hint; retain the authoritative scan.
                 pass
-            if observed_event:
+            from .epoch_work import confirmed_refresh_block
+
+            if observed_event and not confirmed_refresh_block(self, hint, day):
                 raise PublicationStatusUnknown(
                     "unattributed direct publication history; reconcile before sending"
                 )
             events = self.reader.weights_set_blocks_for_seat(
                 self.netuid, self.uid, to_block + 1, head
             )
-            if events is None or events:
+            if events is None or any(
+                not confirmed_refresh_block(self, block, day) for block in events
+            ):
                 raise PublicationStatusUnknown(
                     "unattributed direct publication history; reconcile before sending"
                 )
@@ -2266,8 +2273,12 @@ class ChainAdapter:
             "block_hash": evidence["block_hash"],
         }
         marker = {**marker, "result": result}
+        directory = self._submitted_record_dir
+        if marker.get("refresh_epoch") is not None:
+            from pathlib import Path
+            directory = Path(directory) / "epoch-publications" / str(marker["refresh_epoch"])
         write_submitted_record(
-            self._submitted_record_dir,
+            directory,
             day=marker["day"],
             height=marker["height"],
             vector={int(k): v for k, v in marker["vector"].items()},
@@ -2281,16 +2292,29 @@ class ChainAdapter:
             route=marker["route"],
         )
 
-    def publish_direct(self, vector, height):
+    def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None):
         """Persist the complete direct intent before sending, with restart guards."""
         import uuid
 
         from .publish import _validated_vector
 
         _validated_vector(vector)
-        if self._already_published_direct(height):
-            raise PublicationRefused("this day's direct publication is already confirmed")
-        day = self._day_window(height)[0]
+        if refresh_epoch is None:
+            if self._already_published_direct(height):
+                raise PublicationRefused("this day's direct publication is already confirmed")
+            day = self._day_window(height)[0]
+        else:
+            if not self.epoch_republication or self.publish_mode != "direct":
+                raise PublicationRefused("epoch republication is not enabled")
+            if type(refresh_epoch) is not int or refresh_epoch <= 0 or type(source_day) is not int:
+                raise PublicationRefused("invalid epoch republication identity")
+            if self._publish_hold is not None:
+                self._publish_hold.raise_if_held()
+            if self._publish_intent.load() is not None:
+                raise PublicationStatusUnknown("an earlier send must be reconciled first")
+            if self._failure_backoff is not None:
+                self._failure_backoff.raise_if_blocked()
+            day = source_day
         signer = self.publisher.signer_address
         context = self.publisher.send_context(signer)
         if (
@@ -2303,6 +2327,7 @@ class ChainAdapter:
             )
         marker = dict(
             intent_id=str(uuid.uuid4()),
+            refresh_epoch=refresh_epoch,
             day=day,
             height=height,
             hotkey=self.wallet_hotkey.ss58_address,

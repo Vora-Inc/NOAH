@@ -369,3 +369,10 @@ Historical observation events use `scan_day` and omit calculation/intent links:
 this scan may read earlier epochs, and it does not establish which publication
 was applicable, reconcile expected payouts, or classify returned collateral
 principal as earnings. These events alone do not prove settlement.
+
+## Optional epoch maintenance
+
+[Daily scoring with epoch maintenance](EPOCH_MAINTENANCE.md) describes the
+opt-in collection and republication settings. Both default to false. They
+do not change the daily scoring formula or UTC cutoff. Review and rehearse
+them before enabling; each extra publication incurs a transaction fee.

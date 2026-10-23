@@ -362,6 +362,10 @@ class LiveRunnerChain:
         """Close the underlying connection or connections. Cleanup failures remain visible."""
         self._connection.close()
 
+    def genesis_hash(self):
+        """Chain identity for resumable collection; no genesis state read."""
+        return self.block_hash(0)
+
     # -- the four questions asked of every block -----------------------------
 
     def head_block(self):
