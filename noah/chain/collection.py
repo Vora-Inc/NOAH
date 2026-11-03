@@ -75,23 +75,28 @@ class CollectionProgress:
             )
         self.last = block
 
-    def sample_proof(self, coldkey, block_hash):
-        # A newly discovered hotkey requires historical samples to be rechecked
-        # for that wallet. Keep the full-day stride anchored at the original start.
+    def sample_proof(self, coldkey, block_hash, registered_hotkeys=()):
+        # A newly discovered or registered hotkey requires that wallet's sample
+        # to be rechecked, including a formerly omitted never-funded entrant.
+        # Keep the full-day stride anchored at the original start.
         return fingerprint(
-            [self.settings, block_hash, sorted(self.store.known_hotkeys_of(coldkey))]
+            [self.settings, block_hash,
+             sorted(set(self.store.known_hotkeys_of(coldkey)) | set(registered_hotkeys))]
         )
 
-    def sampled(self, coldkey, block, block_hash):
+    def sampled(self, coldkey, block, block_hash, registered_hotkeys=()):
         row = self.conn.execute(
             "SELECT proof FROM epoch_holding_cache WHERE day=? AND block=? AND coldkey=?",
             (self.day, block, coldkey),
         ).fetchone()
-        return row is not None and row[0] == self.sample_proof(coldkey, block_hash)
+        return row is not None and row[0] == self.sample_proof(
+            coldkey, block_hash, registered_hotkeys
+        )
 
-    def mark_sample(self, coldkey, block, block_hash):
+    def mark_sample(self, coldkey, block, block_hash, registered_hotkeys=()):
         with self.conn:
             self.conn.execute(
                 "INSERT OR REPLACE INTO epoch_holding_cache VALUES (?,?,?,?)",
-                (self.day, block, coldkey, self.sample_proof(coldkey, block_hash)),
+                (self.day, block, coldkey,
+                 self.sample_proof(coldkey, block_hash, registered_hotkeys)),
             )

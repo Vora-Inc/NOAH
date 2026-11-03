@@ -535,6 +535,8 @@ def main(argv=None):
     parser.add_argument(
         "--dry-run", action="store_true", help="read and check everything, sign nothing"
     )
+    parser.add_argument("--starter-remove", action="store_true", help="replace an active starter overlay with verified ordinary-only weights, then exit")
+    parser.add_argument("--starter-guard", action="store_true", help="run the independent starter-expiry guard")
     args = parser.parse_args(argv)
 
     try:
@@ -661,6 +663,24 @@ def main(argv=None):
         adapter.close()
         diagnostic(f"EPOCH MAINTENANCE REFUSED: {error}", severity="error")
         return 3
+
+    if args.starter_remove:
+        from noah.starter.runtime import guard_tick
+        try:
+            if adapter.starter_entry_policy is None:
+                raise SettingsError("starter removal requires the installed migration policy")
+            print(guard_tick(adapter, remove_now=True))
+        finally:
+            adapter.close()
+        return 0
+
+    if args.starter_guard:
+        from noah.starter.runtime import run_guard
+        try:
+            run_guard(adapter)
+        finally:
+            adapter.close()
+        return 0
 
     print("Adapter built. Starting the unattended loop (noah.core.loop.run_forever).")
     print("The loop reads each eligible settled period and reports any named refusal;")

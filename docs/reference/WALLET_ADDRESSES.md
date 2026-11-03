@@ -20,7 +20,8 @@ The following public references describe Noah's deployment, not a publishing
 allowlist. Independent operators configure their own registered scoring identity
 and its dedicated authorized proxy. The application checks those configured
 identities; it does not require the owner hotkey below. The chain must still grant
-a publishing permit. Under Null only the elected highest-stake UID holds one.
+a publishing permit. Current Mainnet uses single-mechanism Yuma; the starter
+profile also requires direct publication with commit-reveal disabled.
 The shared Ark deposit addresses above remain fixed for all operators.
 
 | Role | Address |

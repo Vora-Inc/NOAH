@@ -1,4 +1,4 @@
-# Noah deposit helper: newcomer guide
+# Noah deposit helper: ongoing contributions
 
 A terminal tool you run on your own computer. It works out a proposed Ark contribution, shows
 it in plain English, and sends it only after you type an exact confirmation. Your own local
@@ -12,12 +12,12 @@ helper configuration, evidence files or diagnostic reports.
 > where it is not read, names no miner hotkey, so the deposit is recorded as unattributed, with
 > a reason, and credits nobody (the chain itself shows no error). This helper sends NOAH
 > directly, using transfer_stake_and_hotkey (stake_position = miner) or a top-level batch_all
-> that carries the remark (stake_position = validator), with optional proxy signing only for the miner position. The entry
-> deposit must name your miner hotkey the first time; an unnamed attempt is recorded as
-> unattributed and does not count as your entry.
+> that carries the remark (stake_position = validator), with optional proxy signing only for the miner position.
+> Every contribution must identify its miner; an unnamed attempt receives no mining credit.
 
-Use it only on a network you have been told to use. Nothing here has been proven on the live
-(mainnet) chain.
+Current Mainnet starters do not need an upfront NOAH purchase or Ark deposit. This optional helper is for ongoing contributions; it does not register
+a miner or establish starter eligibility. See [starter entry](../../../docs/STARTER_ENTRY.md).
+Verify the network and current transaction requirements before any send.
 
 ## 1. Install
 
@@ -43,6 +43,10 @@ noah-miner --config noah-deposit.ini COMMAND
 `--config` defaults to `noah-deposit.ini` in the current folder. `--help` lists the commands.
 
 ## 2. Write the settings file
+
+The generated example selects a test network, not Mainnet. Mainnet participants
+must apply the [explicit Mainnet mapping](../../../docs/MINER_QUICKSTART.md#optional-mainnet-contribution-configuration),
+including subnet 82, the pinned genesis and verified Ark addresses.
 
 ```
 noah-miner --config noah-deposit.ini init-config
@@ -91,22 +95,24 @@ to start.
 The `deposit` command only moves NOAH that is already staked. The separate
 private-test purchase command below can buy stake using a fixed free-TAO budget.
 
-## 3. The 10 NOAH entry contribution and the first deposit
+## 3. Choose an ongoing contribution
 
-The 10 NOAH entry contribution is a separate requirement. It is never part of the ongoing
-percentage or maintenance calculations. This helper does not check it.
+There is no fixed entry payment for current Mainnet starters. Choose an amount
+from actual earnings and contribution evidence under the ongoing 50% target.
+The helper does not determine starter eligibility or build that evidence for you.
 
-To make a first contribution with the helper, first stake the NOAH to the right place with your
-usual wallet tools (your miner hotkey for `miner`, the Ark Validator for `validator`). Then set
-`mode = custom` and `amount_noah = 10` and run it with an explicit label:
+For a deliberately chosen one-time amount, set `mode = custom` and set
+`amount_noah` to your reviewed amount. The stake must already be spendable in the
+selected position. Preview before sending, and keep one label for the same attempt:
 
+```sh
+noah-miner --config noah-deposit.ini deposit --preview
+noah-miner --config noah-deposit.ini deposit --label contribution-01
 ```
-noah-miner --config noah-deposit.ini deposit --label entry
-```
 
-Whether the validator side counts that deposit as your entry is decided by the validator reader,
-and this path has not been proven end to end as an entry deposit. Confirm against the published
-records.
+A finalized transfer is separate from validator scoring credit. Never subtract a
+new entry fee from a newcomer's contribution totals. Exclude only actual preserved
+legacy entry allocations when constructing ordinary contribution evidence.
 
 ## 4. Amount modes
 
@@ -133,8 +139,10 @@ never be shown as credited. The only field used is the credited total before you
 { "credited_contributions_rao": "300000000000" }
 ```
 
-`credited` status needs this field, measured before the deposit and excluding the 10 NOAH entry
-contribution.
+`credited` status needs this field, measured before the deposit and excluding
+only any actual preserved legacy entry allocation. New starters have no new entry
+fee to subtract. Older helper wording about entry credit refers to that historical
+accounting, not a required payment.
 
 For `percent` and `maintenance` the file is required and must say its history is complete:
 

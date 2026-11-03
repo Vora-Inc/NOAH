@@ -7,9 +7,16 @@ that sends you to look at the wrong thing entirely.
 """
 
 import unittest
+import pytest
 
 from ..submitter import SCHEDULE, Publisher, ScheduleUnreadable, _block_from_extrinsic_id
 from ..wallet import CallNotPermitted, PERMITTED_CALLS
+
+
+@pytest.fixture(autouse=True)
+def prepared_boundary(monkeypatch):
+    from ._prepared_transport_fake import install
+    install(monkeypatch)
 
 
 class Keypair:
@@ -224,7 +231,7 @@ class SubmitDirectComposesTheOtherPermittedCall(unittest.TestCase):
                 return FakeExtrinsicResult(extrinsic_id="9044-0002")
 
         publisher = Publisher(Watcher(), Keypair(), netuid=2, mecid=0)
-        result = publisher.submit_direct([0, 1, 2], [10, 20, 30], 2)
+        result = publisher.submit_direct([0, 1, 2], [10, 20, 30], 2, persist=lambda _: None)
 
         self.assertEqual(len(composed), 1)
         self.assertEqual(composed[0].module, "SubtensorModule")
@@ -245,7 +252,7 @@ class SubmitDirectComposesTheOtherPermittedCall(unittest.TestCase):
         publisher = Publisher(Client(), Keypair(), netuid=2)
         with mock.patch.object(wallet_module, "PERMITTED_CALLS", frozenset()):
             with self.assertRaises(CallNotPermitted):
-                publisher.submit_direct([0], [1], 2)
+                publisher.submit_direct([0], [1], 2, persist=lambda _: None)
 
     def test_submit_direct_asks_before_composing_anything(self):
         from unittest import mock
@@ -262,7 +269,7 @@ class SubmitDirectComposesTheOtherPermittedCall(unittest.TestCase):
         publisher = Publisher(Watcher(), Keypair(), netuid=2)
         with mock.patch.object(wallet_module, "PERMITTED_CALLS", frozenset()):
             with self.assertRaises(CallNotPermitted):
-                publisher.submit_direct([0], [1], 2)
+                publisher.submit_direct([0], [1], 2, persist=lambda _: None)
         self.assertEqual(composed, [])
 
     def test_a_failed_direct_submission_is_reported_not_raised(self):
@@ -270,7 +277,7 @@ class SubmitDirectComposesTheOtherPermittedCall(unittest.TestCase):
             def submit_call(self, call, wallet, **kwargs):
                 return FakeExtrinsicResult(error="SomeChainError", message="details")
 
-        got = Publisher(FailingClient(), Keypair(), netuid=2).submit_direct([0], [1], 2)
+        got = Publisher(FailingClient(), Keypair(), netuid=2).submit_direct([0], [1], 2, persist=lambda _: None)
         self.assertEqual(got["error"], "SomeChainError details")
         self.assertTrue(got["indeterminate"])
 

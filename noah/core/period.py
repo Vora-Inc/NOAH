@@ -128,6 +128,11 @@ def run_period(chain):
                 "nothing was submitted"
             ) from error
 
+    # Starter entry changes eligibility/allocation, never either scoring engine.
+    prepare_starters = getattr(chain, "prepare_starter_vector", None)
+    if callable(prepare_starters):
+        turnover_checked = prepare_starters(turnover_checked)
+
     # 5. Before adding a publication, check the last one actually landed as the
     #    rescale of what we sealed. A mismatch stops here; an unreadable check
     #    does not, and says so.

@@ -29,7 +29,7 @@ unset PYTEST_ADDOPTS
 # deliberate classification decision, not automatic -- unlike the rest of
 # the split (derived from pyproject.toml's testpaths below), this list is
 # not re-derived from anything and must be edited by hand.
-VALIDATOR_DIRS=("noah/core/tests" "scripts/tests" "verification/hand/test_reconcile_incentive_live.py")
+VALIDATOR_DIRS=("noah/core/tests" "noah/starter/tests" "noah/research/tests" "scripts/tests" "verification/hand/test_reconcile_incentive_live.py")
 
 # True (0) if "$1" is one of VALIDATOR_DIRS, false (1) otherwise.
 is_validator_dir() {

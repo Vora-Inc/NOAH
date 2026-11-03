@@ -1,5 +1,7 @@
 # Verify a score
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 You can check the arithmetic without a wallet, chain connection, or account.
 Checking the underlying earnings and deposits is a separate step.
 
@@ -91,7 +93,9 @@ For your miner, compare the published data with finalized chain records:
 - Spendable earnings and later unlocks, with no missing days silently treated as zero.
 - Each deposit's transaction and block, alpha amount, receiving coldkey, and destination validator.
 - The miner named by the receipt, including any wrapper or remark used for attribution.
-- The separate entry contribution and the ongoing contribution total.
+- Preserved historical entry credit, if any, separately from ongoing contributions.
+- Starter eligibility, lifetime allowance and the actual published overlay; a raw
+  daily score alone does not establish starter weight or a completed payout.
 
 A checksum proves that a downloaded file matches the published file. It does
 not establish that the contents are true. Historical reads also require a node

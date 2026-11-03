@@ -412,3 +412,41 @@ def test_midnight_refresh_does_not_exempt_unknown_or_invalid_evidence(tmp_path, 
         a._already_published_direct(201)
     assert len(c.calls) == 2
     assert not (tmp_path / "scores/day-1.submitted.json").exists()
+
+
+def test_new_unscored_seat_does_not_block_unchanged_refresh(tmp_path):
+    a, c = ready(tmp_path)
+    old = a.runner_chain.seat_hotkeys(99)
+    a.runner_chain.seat_hotkeys = lambda h: old if h == 99 else {**old, 6: "new-miner"}
+    daily = tmp_path / "scores/day-0.submitted.json"
+    before = daily.read_bytes()
+    assert republish(a, 200, 201) == "republished"
+    assert len(c.calls) == 2
+    assert daily.read_bytes() == before
+    path = tmp_path / "scores/epoch-publications/200/day-0.submitted.json"
+    receipt = json.loads(path.read_text())
+    assert receipt["submitted_weights_u16"] == {str(k): v for k, v in VECTOR.items()}
+    assert receipt["applied_weights_readback"]["confirmed"] is True
+    assert 6 not in dict(c.stored)
+
+
+@pytest.mark.parametrize("removed", [0, 3])
+def test_missing_existing_seat_blocks_refresh(tmp_path, removed):
+    a, c = ready(tmp_path)
+    old = a.runner_chain.seat_hotkeys(99)
+    current = {k: v for k, v in old.items() if k != removed}
+    a.runner_chain.seat_hotkeys = lambda h: old if h == 99 else current
+    with pytest.raises(PublicationStatusUnknown, match="identities changed"):
+        republish(a, 200, 201)
+    assert len(c.calls) == 1
+
+
+def test_preexisting_positive_vector_entry_cannot_pay_new_seat(tmp_path):
+    a, c = ready(tmp_path)
+    old = a.runner_chain.seat_hotkeys(99)
+    # The retained vector contains UID 5, but the scored roster does not.
+    scored = {k: v for k, v in old.items() if k != 5}
+    a.runner_chain.seat_hotkeys = lambda h: scored if h == 99 else old
+    with pytest.raises(PublicationStatusUnknown, match="identities changed"):
+        republish(a, 200, 201)
+    assert len(c.calls) == 1

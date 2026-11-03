@@ -1,5 +1,7 @@
 # Subnet 82 participation
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 Noah miners participate on Bittensor Finney mainnet, netuid 82. Follow the
 [miner quickstart](MINER_QUICKSTART.md) for wallet, registration, and Ark
 contribution steps. Check the [official Noah website](https://subnet82.com/)
@@ -9,14 +11,15 @@ for current network updates before signing a transaction.
 
 | Requirement | Mainnet policy |
 |---|---|
-| Entry contribution | 10 spendable NOAH per miner hotkey, separate from ongoing credit |
+| Starter entry | No upfront NOAH purchase or Ark deposit; registration and eligibility checks still apply |
+| Starter allocation | Shared limited pool with coldkey/hotkey lifetime allowances; no guaranteed payment |
 | Ongoing target | 50% of eligible spendable earnings |
 | Returned registration collateral | Excluded from mining earnings |
 | Additional minimum holding | None in the mainnet profile |
 | Qualifying contribution | Names the miner, transfers ownership to the Ark, and arrives delegated to the Ark Validator |
 | Additional reports | Requested, with no effect on eligibility or scores |
 
-The checked-in [mainnet profile](parameters/profiles/mainnet-production-v1.json)
+The checked-in [mainnet profile](parameters/profiles/mainnet-production-starter-25bps-v1.json)
 contains the scoring settings. Test fixtures can use other values and
 addresses. See [contribution rules](CONTRIBUTIONS.md)
 and the [mainnet address reference](reference/WALLET_ADDRESSES.md) before

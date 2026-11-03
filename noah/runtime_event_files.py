@@ -4,6 +4,7 @@ import fcntl
 import json
 import os
 import stat
+import time
 import uuid
 from contextlib import contextmanager
 
@@ -27,7 +28,20 @@ def locked_directory(path):
         )
         if not stat.S_ISREG(os.fstat(lock).st_mode) or os.fstat(lock).st_nlink != 1:
             raise ValueError("invalid diagnostic lock")
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # The guard and updater are separate processes sharing this log. Retry
+        # brief fsync/rotation contention only in their background writer; the
+        # application enqueue remains nonblocking. A stuck writer still drops
+        # the record with an explicit writer_busy diagnostic after this bound.
+        deadline = time.monotonic() + 0.25
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise
+                time.sleep(min(0.01, remaining))
         yield directory
     finally:
         if lock is not None:

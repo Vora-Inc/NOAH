@@ -127,7 +127,7 @@ class FakePublisher:
 
         return list(self.stored) if name == LIVE_MAP else []
 
-    def submit_direct(self, uids, values, netuid):
+    def submit_direct(self, uids, values, netuid, **kwargs):
         self.direct_submitted.append((tuple(uids), tuple(values), netuid))
         return {"error": None, "block": 1}
 

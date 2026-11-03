@@ -1,5 +1,7 @@
 # Scoring
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 Noah scores contributions against spendable mining earnings. The mainnet target
 is 50%. A miner who consistently meets that target receives approximately a
 1.0 contribution multiplier, subject to the configured cap and integer
@@ -9,7 +11,7 @@ credit, streaks, and eligibility.
 
 This page describes the included implementation. Test fixtures carry their own
 parameters; they are not the mainnet configuration. See the
-[mainnet profile](parameters/profiles/mainnet-production-v1.json).
+[mainnet profile](parameters/profiles/mainnet-production-starter-25bps-v1.json).
 
 ## The three parts
 
@@ -53,9 +55,14 @@ must therefore be represented correctly rather than silently assumed excused.
 
 ## New miners
 
-A qualifying 10 NOAH entry contribution adds starting credit. It is excluded
-from the ongoing contribution index and does not itself count as a daily
-streak contribution.
+New Mainnet miners do not buy or deposit NOAH to become starter-eligible. The
+[starter overlay](STARTER_ENTRY.md) supplies a bounded shared allocation after
+registration and history checks; it is separate from the ordinary formula below.
+Starter and ordinary weight are not stacked.
+
+The original ten-NOAH starting credit is preserved only for qualifying historical
+entries frozen at activation. It remains excluded from the ongoing contribution
+index and does not itself count as a daily streak contribution.
 
 The contribution multiplier is fixed at **1.0** from the miner's first activity
 through the day it first receives spendable mining earnings. Ordinary
@@ -66,7 +73,7 @@ assumption that the contribution index is 1.0. Eligibility checks still apply.
 
 At a 50% target, 100 NOAH of eligible earnings creates a 50 NOAH obligation.
 The examples below assume no other obligations or contributions and exclude
-the entry deposit.
+any preserved legacy entry credit.
 
 | Contributions against that obligation | Coverage result |
 |---|---|
@@ -118,7 +125,9 @@ pay weight = floor(integer_sqrt(score) × multiplier / 10^9)
 
 The slot factor is currently 1.0. Other-token credit is limited so it cannot
 exceed NOAH credit and does not satisfy NOAH contribution compliance. Eligible
-pay weights are converted into the chain's integer weight vector. These are
+pay weights are the ordinary base for the starter overlay. The overlay reserves
+up to 0.25% of submitted mining weight for eligible starters before the final
+chain integer vector is published. These are
 relative weights, not a promise of a particular daily payout.
 
 All normative arithmetic uses integers with floor division in a fixed order.
@@ -143,7 +152,7 @@ PCI = max(baseline age-adjusted PCI, surplus ratio)  # only if ratio > target
 multiplier = min((PCI / target) ^ harshness, cap)
 ```
 
-The entry contribution, other-token matching credit and draws from existing
+Preserved legacy entry credit, other-token matching credit and draws from existing
 coverage are **not** new regular deposits in this ratio. Locked pay enters the
 denominator only after it becomes spendable and reaches the next day's
 comparison. The evaluated day's newly spendable earnings enter that comparison
@@ -177,12 +186,17 @@ would be a separate scoring-rule change, not a documentation correction.
 
 ## Scoring-rule identity
 
-The surplus-bonus rule set is identified by
-`noah-scoring/surplus-bonus-v1`, with publication `version_key`
+The **ordinary** surplus-bonus rule set is identified by
+`noah-scoring/surplus-bonus-v1`, with legacy ordinary publication `version_key`
 `208370384225125`. [version.py](../noah/core/version.py) derives this number
 from the declared identifier. The previous identifier `noah-fixture/4`
 produced `201647293659568`; the identity update distinguishes the rule set
 without changing the already implemented surplus arithmetic.
+
+Starter-enabled publication uses the separate policy identifier and version
+from [starter policy](../noah/starter/runtime.py). Do not substitute the ordinary
+version key for the live starter publisher's version. The ordinary calculation
+remains the base; the starter overlay changes the final submitted vector.
 
 This publication identifier is separate from the input/output schemas and
 from the parameter profile. The input schema remains `noah-fixture/6` and the

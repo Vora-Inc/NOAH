@@ -1,5 +1,7 @@
 # Contribution rules
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 A Noah contribution transfers ownership of staked tokens to the Ark. Staking
 tokens to the Ark Validator while retaining them in your own wallet does not
 count. The validator checks both the transfer and the stake received.
@@ -50,24 +52,28 @@ it earns no qualifying mining credit. Every contribution must identify its
 miner, even when a wallet has only one miner.
 An unnamed deposit receives no mining credit.
 
-## Entry and ongoing contributions
+## Starter entry and ongoing contributions
 
-The entry contribution is **10 NOAH per miner hotkey**. It is required before
-the seat qualifies and supplies starting scoring credit. It is kept separate
-from the ongoing contribution calculation. Registration collateral is also
-separate: its return is not earnings, and locked collateral cannot fund a
-transfer to the Ark.
+Current Mainnet starter eligibility does not require an upfront NOAH purchase
+or Ark deposit. Register normally and follow the [starter policy](STARTER_ENTRY.md).
+Registration collateral is separate: its return is not earnings, and locked
+collateral cannot fund a contribution.
 
-Eligible NOAH deposits accumulate across UTC days for each miner hotkey. The
-starting credit is awarded for the day the cumulative total first reaches 10
-NOAH. For example, 3 NOAH on Monday plus 7 NOAH on Tuesday earns the 10 NOAH
-starting credit in Tuesday's score. Those same tokens are excluded from ordinary
-contribution credit on their original receipt days; any excess remains an
-ordinary contribution. Foreign tokens cannot complete entry.
+The ongoing target is **50% of eligible spendable earnings**, including starter
+earnings. Qualifying contributions accumulate with their actual receipt dates.
+Early contributions are retained, but do not stack ordinary weight with starter
+weight. After the starter allowance is exhausted, ordinary scoring determines
+rewards. Advance and catch-up deposits still require the correct Ark destination,
+Ark Validator delegation and miner attribution.
 
-After entry, the target is **50% of eligible spendable earnings**. Entry,
-ongoing, advance, and catch-up deposits all require the correct Ark destination
-and Ark Validator delegation.
+### Historical credit preserved at activation
+
+Before the cutoff, the legacy rule required ten NOAH per miner hotkey. The frozen
+snapshot preserves existing qualifying credit and its original dates; those same
+tokens are excluded from ongoing credit exactly once. This historical accounting
+explains the retained numeric field in the profile. It is **not** a payment
+instruction for a new miner. Post-cutoff contributions are not used to create a
+new legacy entry fee. See the [activation commitments](STARTER_ENTRY.md#mainnet-activation-and-reproduction).
 
 ## Shared wallets
 
@@ -105,8 +111,8 @@ advance coverage. No contribution can be spent twice in this accounting.
 For example, 100 NOAH of eligible earnings creates a 50 NOAH obligation. If
 you contribute 70 NOAH against it, 20 NOAH remains available for later
 obligations. If you first contribute 30 and later contribute 20, the later
-payment clears the 20 NOAH shortfall. These examples exclude the entry
-contribution and assume no other earnings or deposits in the interval.
+payment clears the 20 NOAH shortfall. These examples exclude any preserved
+legacy entry credit and assume no other earnings or deposits in the interval.
 
 That is the coverage calculation. Your score also depends on credit aging and
 streak history. Clearing a debt does not turn every previous missed day into

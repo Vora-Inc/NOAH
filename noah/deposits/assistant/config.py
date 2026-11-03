@@ -25,9 +25,9 @@ WRAPPED_DEPOSIT_NOTICE = (
     "deposit is recorded as unattributed, with a reason, and credits nobody (the chain "
     "itself shows no error). This helper sends NOAH directly, using "
     "transfer_stake_and_hotkey (stake_position = miner) or a top-level batch_all that "
-    "carries the remark (stake_position = validator), with optional proxy signing only for the miner position. The entry "
-    "deposit must name your miner hotkey the first time; an unnamed attempt is recorded as "
-    "unattributed and does not count as your entry."
+    "carries the remark (stake_position = validator), with optional proxy signing only for the miner position. "
+    "Every contribution must identify its miner; an unnamed attempt receives no mining credit. "
+    "Current Mainnet starters do not need an upfront NOAH purchase or Ark deposit."
 )
 
 STAKE_POSITION_HELP = (
@@ -50,9 +50,10 @@ EXAMPLE = """\
 # where it is not read, names no miner hotkey, so the deposit is recorded as unattributed, with
 # a reason, and credits nobody (the chain itself shows no error). This helper sends NOAH
 # directly, using transfer_stake_and_hotkey (stake_position = miner) or a top-level batch_all
-# that carries the remark (stake_position = validator), with optional proxy signing only for the miner position. The entry
-# deposit must name your miner hotkey the first time; an unnamed attempt is recorded as
-# unattributed and does not count as your entry.
+# that carries the remark (stake_position = validator), with optional proxy signing only for the miner position.
+# Every contribution must identify its miner; an unnamed attempt receives no mining credit.
+# Current Mainnet starters do not need an upfront NOAH purchase or Ark deposit.
+# This generic example selects a test network; see docs/MINER_QUICKSTART.md for Mainnet settings.
 
 [miner]
 network = private-test

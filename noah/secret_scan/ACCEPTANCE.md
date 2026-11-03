@@ -17,7 +17,7 @@ encryption, and a human always reads the first real bundle before it leaves.
 
 | Input | Format |
 |---|---|
-| Release tree | `.py .ts .tsx .js .sh .toml .yaml .yml .json .md .txt .cfg .ini .lock .css .html`, `.example` files (`.env.example`), `.sha256` manifests; bare names `LICENSE`, `.gitignore`, `Makefile`. Survey of the extractor's output tree: nothing else belongs in a release (venvs, `node_modules`, `.pyc`, `.so`, `.whl`, `.pem` are not release content). |
+| Release tree | `.py .ts .tsx .js .mjs .sh .toml .yaml .yml .json .md .txt .cfg .ini .lock .css .html`, `.example` files (`.env.example`), `.sha256` manifests; bare names `LICENSE`, `.gitignore`, `Makefile`. Survey of the extractor's output tree: nothing else belongs in a release (venvs, `node_modules`, `.pyc`, `.so`, `.whl`, `.pem` are not release content). |
 | Day bundles | `fixture.json score.json settings.json chain-refs.json MANIFEST.json README.txt SHA256SUMS` |
 | Addresses document | `WALLET_ADDRESSES.md` |
 | Backup inputs | `loop.json`, `commit-ledger.json`, `scores/day-N.json`, dials JSON, systemd `.service`/`.timer`/`.mount`/`.socket`/`.path`/`.conf` files, install manifests, the one-line `software-commit` file, `env-allowlisted.txt`. SQLite `history.db` / `daily-deposit-store.db`: today they are BINARY snapshots (refused, not opened). A text `.dump` does not exist yet; its `INSERT ... VALUES(...)` rows stay IN scope because a text dump is the likely future form. |
@@ -25,7 +25,7 @@ encryption, and a human always reads the first real bundle before it leaves.
 Allowed extensions (anything else is refused by name, never opened):
 base (bundles, backup): `.json .txt .conf .service .timer .mount .socket .path .sql .md`, bare names
 `SHA256SUMS`, `software-commit`;
-release adds: `.py .ts .tsx .js .sh .toml .yaml .yml .lock .example .cfg .ini .css .html .sha256`,
+release adds: `.py .ts .tsx .js .mjs .sh .toml .yaml .yml .lock .example .cfg .ini .css .html .sha256`,
 bare names `LICENSE`, `.gitignore`, `Makefile`.
 
 ## 2. How skipped files are reported (condition 1 and 2)
@@ -44,7 +44,15 @@ bare names `LICENSE`, `.gitignore`, `Makefile`.
   scanned is an error (exit 2), never clean.
 * `.git` directories, symlinks (also dangling), FIFOs/sockets, unreadable files and
   invalid UTF-8 in a text-extension file are findings.
-* Text files over 32 MiB are a finding (`file-too-large`).
+* Text files over 32 MiB are a finding (`file-too-large`), including files that grow
+  past that limit during reading. The reader consumes at most 32 MiB plus one byte.
+* Directory traversal and reads use checked no-follow file descriptors, including
+  intermediate directories. Concurrent replacement by a symlink, FIFO or different
+  regular inode cannot redirect a checked read. Renaming an already opened parent
+  keeps the scan anchored to that directory. Synthetic race regressions cover these
+  cases for both directory and explicit-file inputs; a FIFO regression has a process
+  timeout. Filesystem scans fail closed without POSIX support (Linux/macOS/WSL).
+  A scan is not an atomic snapshot of concurrently modified regular-file contents.
 * Output never contains matched text. Paths are printed with secret-looking components
   masked (token shapes, mixed case plus digits, a secret word with a random suffix,
   over 24 characters). Nothing derived from content is printed as a name.
@@ -120,3 +128,13 @@ corpus, and review every reported finding.
 From the source root, run `python -m noah.secret_scan.tests.battery`.
 The result records which specified cases pass. A passing synthetic corpus
 establishes only those cases; it does not certify a repository or backup.
+
+## Canonical calculation source inventory
+
+The existing canonical calculation-context normalization recognizes Python/TypeScript
+source labels plus the exact starter helper `noah/starter/verify-allocation.mjs`.
+It normalizes labels only after the inventory schema, canonical encoding and digest
+validate; digest values and all other fields remain scanned. Unknown or traversal
+MJS paths are not normalized. A regression constructs the actual `source_identity()`
+context so a legitimate newly included source cannot silently break plaintext backup
+inspection. This does not exempt a file or credential value from scanning.

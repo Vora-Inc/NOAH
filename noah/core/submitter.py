@@ -71,8 +71,10 @@ class Publisher:
         version_key=OUR_VERSION_KEY,
         submit_client=None,
         commit_identity=None,
+        transport_factory=None,
     ):
         self.client = client
+        self.transport_factory = transport_factory
         # Proxy route (noah.core.proxy_route): when set, the sealed commit is wrapped in
         # Proxy.proxy(real=<this identity>, ...) and the signer (self.wallet) is the
         # dedicated proxy signer, not the validator. None means the signer IS the validator.
@@ -235,7 +237,7 @@ class Publisher:
                 }
         return outcome
 
-    def submit_direct(self, uids, values, netuid):
+    def submit_direct(self, uids, values, netuid, *, persist=None, finalized_chain=None):
         """Compose and submit the open weight-setting call through the supplied client."""
         from bittensor._generated import calls
 
@@ -263,12 +265,20 @@ class Publisher:
             permitted_proxy_wrapper(
                 call.params["real"], self.commit_identity.ss58_address, DIRECT_MODULE, DIRECT_CALL
             )
+        from .prepared_transaction import SDKPreparedTransport
+        from .publish import PublicationRefused
+        transport = (self.transport_factory or SDKPreparedTransport)(self.submit_client, self.wallet)
         try:
-            # Inclusion and finalization are requested explicitly. A lost response may
-            # follow a successful send, so it must leave the durable intent open.
-            result = self.submit_client.submit_call(
-                call, self.wallet, wait_for_inclusion=True, wait_for_finalization=True
-            )
+            prepared = transport.prepare(call, finalized_chain)
+            persist(prepared.evidence)
+        except Exception as error:
+            # Nothing has crossed the transmission boundary. A failed durable
+            # write MUST stop the send; SDK preparation never submits.
+            raise PublicationRefused(
+                f"direct transaction preparation refused ({type(error).__name__}); nothing submitted"
+            ) from error
+        try:
+            result = transport.send(prepared, finalized_chain)
         except Exception as error:
             return {
                 "error": f"{type(error).__name__}: {error}",

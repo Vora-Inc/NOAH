@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import errno
 import hashlib
 import json
 import os
@@ -34,7 +35,7 @@ _MAX_FILE_BYTES = 32 * 1024 * 1024
 BASE_EXTS = frozenset({".json", ".txt", ".conf", ".service", ".timer", ".mount", ".socket", ".path", ".sql", ".md"})
 BASE_NAMES = frozenset({"SHA256SUMS", "software-commit"})
 RELEASE_EXTS = BASE_EXTS | frozenset({
-    ".py", ".ts", ".tsx", ".js", ".sh", ".toml", ".yaml", ".yml", ".lock", ".example", ".cfg", ".ini", ".css",
+    ".py", ".ts", ".tsx", ".js", ".mjs", ".sh", ".toml", ".yaml", ".yml", ".lock", ".example", ".cfg", ".ini", ".css",
     ".html", ".sha256",
 })
 RELEASE_NAMES = BASE_NAMES | frozenset({"LICENSE", ".gitignore", "Makefile", ".gitkeep"})
@@ -640,7 +641,8 @@ def _source_inventory_labels(text: str) -> str:
         folders = rf"(?:{component}/)*"
         source_path = (
             rf"(?:(?:noah|neurons)/{folders}{component}\.py"
-            rf"|verification/noah-ts/src/{folders}{component}\.ts)"
+            rf"|verification/noah-ts/src/{folders}{component}\.ts"
+            r"|noah/starter/verify-allocation\.mjs)"
         )
         for path, digest in files.items():
             if not re.fullmatch(source_path, path):
@@ -823,47 +825,138 @@ class ScanReport:
         )
 
 
-def _walk(root: Path, report: ScanReport):
-    """Yield ``(file, relative name)`` for regular files under ``root``; report (never
-    skip) symlinks, special files, ``.git`` directories and unreadable directories."""
+class _FileRefused(Exception):
+    def __init__(self, kind):
+        self.kind = kind
+
+
+# Filesystem scanning needs descriptor-relative, no-follow opens. Byte scanning
+# remains portable; do not silently weaken filesystem guarantees on other hosts.
+_SAFE_FILESYSTEM = (
+    os.name == "posix"
+    and all(hasattr(os, flag) for flag in ("O_NOFOLLOW", "O_DIRECTORY", "O_NONBLOCK"))
+    and os.open in os.supports_dir_fd
+    and os.stat in os.supports_dir_fd
+    and os.listdir in os.supports_fd
+)
+
+
+def _open_checked(parent_fd, name, expected, *, directory=False):
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    if directory:
+        flags |= os.O_DIRECTORY
     try:
-        mode = os.lstat(root).st_mode
-    except OSError:
-        report.findings.append(Finding(mask_path(root), 0, "unreadable"))
-        return
-    if stat.S_ISREG(mode):
-        yield root, root.name
-        return
-    if not stat.S_ISDIR(mode):
-        report.findings.append(Finding(mask_path(root), 0, "special-file-refused"))
-        return
+        fd = os.open(name, flags, dir_fd=parent_fd)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise _FileRefused("symlink-refused") from None
+        raise
+    try:
+        actual = os.fstat(fd)
+        if not (stat.S_ISDIR(actual.st_mode) if directory else stat.S_ISREG(actual.st_mode)):
+            raise _FileRefused("special-file-refused")
+        if not os.path.samestat(expected, actual):
+            raise _FileRefused("unreadable")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
 
-    def onerror(err):
-        report.findings.append(Finding(mask_path(getattr(err, "filename", root)), 0, "unreadable"))
 
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=onerror):
-        dirnames.sort()
-        for d in list(dirnames):
-            p = Path(dirpath, d)
-            if p.is_symlink():
-                report.findings.append(Finding(mask_path(p), 0, "symlink-refused"))
-                dirnames.remove(d)
-            elif d == ".git":
-                report.findings.append(Finding(mask_path(p), 0, "git-directory-refused"))
-                dirnames.remove(d)
-        for f in sorted(filenames):
-            p = Path(dirpath, f)
+def _anchor_parent(root):
+    # Resolve existing ancestor aliases once (e.g. macOS /tmp), then open each
+    # canonical component without following links. The selected root's inode is
+    # checked separately, so an ancestor swap cannot redirect the scan.
+    parent = root.absolute().parent.resolve(strict=True)
+    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in parent.parts[1:]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _walk(root: Path, report: ScanReport):
+    """Yield regular-file references anchored to held directory descriptors.
+
+    Names/extensions are checked by the caller before any file is opened. Every
+    child directory and file is checked again after opening, without following
+    symlinks; renamed ancestors cannot redirect subsequent reads.
+    """
+    def refused(path, exc):
+        kind = exc.kind if isinstance(exc, _FileRefused) else "unreadable"
+        report.findings.append(Finding(mask_path(path), 0, kind))
+
+    def children(directory_fd, path):
+        try:
+            entries = sorted(os.listdir(directory_fd))
+        except OSError as exc:
+            refused(path, exc)
+            return
+        for name in entries:
+            child = path / name
             try:
-                m = os.lstat(p).st_mode
-            except OSError:
-                report.findings.append(Finding(mask_path(p), 0, "unreadable"))
-                continue
-            if stat.S_ISLNK(m):
-                report.findings.append(Finding(mask_path(p), 0, "symlink-refused"))
-            elif not stat.S_ISREG(m):
-                report.findings.append(Finding(mask_path(p), 0, "special-file-refused"))
-            else:
-                yield p, str(p.relative_to(root)).replace(os.sep, "/")
+                info = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                if stat.S_ISLNK(info.st_mode):
+                    raise _FileRefused("symlink-refused")
+                if stat.S_ISDIR(info.st_mode):
+                    if name == ".git":
+                        raise _FileRefused("git-directory-refused")
+                    child_fd = _open_checked(directory_fd, name, info, directory=True)
+                    try:
+                        yield from children(child_fd, child)
+                    finally:
+                        os.close(child_fd)
+                elif stat.S_ISREG(info.st_mode):
+                    yield child, str(child.relative_to(root)).replace(os.sep, "/"), directory_fd, name, info
+                else:
+                    raise _FileRefused("special-file-refused")
+            except (OSError, _FileRefused) as exc:
+                refused(child, exc)
+
+    parent_fd = root_fd = None
+    try:
+        info = os.lstat(root)
+        if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
+            raise _FileRefused("special-file-refused")
+        parent_fd = _anchor_parent(root)
+        if stat.S_ISREG(info.st_mode):
+            yield root, root.name, parent_fd, root.absolute().name or ".", info
+        else:
+            root_fd = _open_checked(parent_fd, root.absolute().name or ".", info, directory=True)
+            yield from children(root_fd, root)
+    except (OSError, RuntimeError, _FileRefused) as exc:
+        refused(root, exc)
+    finally:
+        if root_fd is not None:
+            os.close(root_fd)
+        if parent_fd is not None:
+            os.close(parent_fd)
+
+
+def _read_checked(parent_fd, name, expected):
+    fd = _open_checked(parent_fd, name, expected)
+    try:
+        if os.fstat(fd).st_size > _MAX_FILE_BYTES:
+            raise _FileRefused("file-too-large")
+        # Enforce the same limit while reading: a writer can grow a regular file
+        # after fstat. Read at most one byte beyond the limit, never an entire file.
+        chunks, remaining = [], _MAX_FILE_BYTES + 1
+        while remaining:
+            chunk = os.read(fd, min(remaining, 64 * 1024))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if remaining == 0:
+            raise _FileRefused("file-too-large")
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
 
 
 def _allowed(name: str, exts, names) -> bool:
@@ -881,6 +974,8 @@ def scan(paths, *, scope: str = "base", excluded=(), expected_refused=(), strict
     that does not exist. ``report.exit_code`` is 2 when nothing was scanned."""
     if scope not in ("base", "release"):
         raise ScanError(f"unknown scope {scope!r}")
+    if not _SAFE_FILESYSTEM:
+        raise ScanError("filesystem scanning requires POSIX descriptor/no-follow support (Linux, macOS or WSL)")
     exts, names = (RELEASE_EXTS, RELEASE_NAMES) if scope == "release" else (BASE_EXTS, BASE_NAMES)
     excl = {str(e) for e in excluded}
     expected = {str(e) for e in expected_refused}
@@ -890,7 +985,7 @@ def scan(paths, *, scope: str = "base", excluded=(), expected_refused=(), strict
         root = Path(p)
         if not os.path.lexists(root):
             raise ScanError("a path to scan does not exist")
-        for f, rel in _walk(root, report):
+        for f, rel, parent_fd, name, expected_stat in _walk(root, report):
             shown = mask_path(f)
             if str(f) in excl or rel in excl:
                 report.excluded.append(shown)
@@ -909,12 +1004,10 @@ def scan(paths, *, scope: str = "base", excluded=(), expected_refused=(), strict
                 report.findings.append(Finding(shown, 0, "unexpected-file"))
                 continue
             try:
-                if os.stat(f).st_size > _MAX_FILE_BYTES:
-                    report.findings.append(Finding(shown, 0, "file-too-large"))
-                    continue
-                data = f.read_bytes()
-            except OSError:
-                report.findings.append(Finding(shown, 0, "unreadable"))
+                data = _read_checked(parent_fd, name, expected_stat)
+            except (OSError, _FileRefused) as exc:
+                kind = exc.kind if isinstance(exc, _FileRefused) else "unreadable"
+                report.findings.append(Finding(shown, 0, kind))
                 continue
             report.scanned += 1
             try:

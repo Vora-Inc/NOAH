@@ -12,6 +12,8 @@ sealed vector, so the period runner reports that reveal check as unverified.
 Operators must independently establish the commit and reveal result.
 """
 
+from ..starter.locking import serialized
+
 from ..chain.agreeing import AgreeingChain
 from ..chain.foreign_value import foreign_deposit_rule
 
@@ -991,6 +993,7 @@ class ChainAdapter:
         # of this parameter, including every fake/test chain built before it
         # existed.
         self.publish_mode = publish_mode
+        self.starter_entry_policy = None
         self.epoch_collection = False
         self.epoch_republication = False
         # Issue #334: the per-day sealed-commit ledger (noah.core.commit_ledger).
@@ -1574,6 +1577,7 @@ class ChainAdapter:
             # unattributed.
             attribute_deposits=True,
             progressive=self.epoch_collection,
+            sample_registered=self.starter_entry_policy is not None,
         )
         seats = self._seats_source(day, store)
         observe_seats(seats, day=day, height=height)
@@ -1628,35 +1632,29 @@ class ChainAdapter:
         # _entry_deposits_for below still uses for the fixture's own
         # entryDepositRao credit -- unifying those two sources is not part
         # of this ticket's own scope; see the handback report for that gap.
-        seats, self._dropped_unconfirmed_entry_deposits = exclude_unconfirmed_entries(
-            store, seats, as_of_day=day
-        )
-
-        # #570: registration_days and entry_deposits, wired for real rather
-        # than left unpassed -- build_fixture's own silent defaults credit
-        # every entry deposit as zero and every registration day as first
-        # activity, proven by execution (aecfe7e5) to completely zero a real
-        # foreign-matched pay_weight once foreign_rule is wired alone. See
-        # _registration_days_for and _entry_deposits_for's own docstrings.
-        #
-        # #112, D-138 reopened: both are now genuinely per-SEAT, nested
-        # {coldkey: {hotkey: value}} -- the same shape `build_fixture` now
-        # accepts for these two arguments (same design, landed separately
-        # in noah.chain.fixture_build), so they are forwarded below
-        # directly, with no coldkey-level collapsing needed.
-        registration_days = _registration_days_for(self.runner_chain, store, seats, to_block)
-        entry_deposits, entry_days = _entry_deposits_for(
-            store, registration_days, self.entry_deposit_rao, as_of_day=day
-        )
+        # An explicitly installed starter policy supplies an immutable entry
+        # allocation. Until its cutoff, the legacy path remains byte-for-byte
+        # equivalent. Ordinary engine inputs retain the original entry credit.
+        migration = None
+        if self.starter_entry_policy is not None:
+            migration = self.starter_entry_policy.inputs(self, store, seats, day, to_block)
+        if migration is None:
+            seats, self._dropped_unconfirmed_entry_deposits = exclude_unconfirmed_entries(
+                store, seats, as_of_day=day
+            )
+            registration_days = _registration_days_for(self.runner_chain, store, seats, to_block)
+            entry_deposits, entry_days = _entry_deposits_for(
+                store, registration_days, self.entry_deposit_rao, as_of_day=day
+            )
+            fixture_store = (
+                _ExcludingEntryDeposit(store, entry_deposits, entry_days) if entry_deposits else store
+            )
+        else:
+            fixture_store, registration_days, entry_deposits, entry_days = migration
+            self._dropped_unconfirmed_entry_deposits = []
         observe_entry_qualification(seats, self._dropped_unconfirmed_entry_deposits,
                                     entry_deposits, entry_days)
 
-        # Exclude the exact entry allocation on each original receipt day.
-        # The fixture's registrationDay triggers starting credit on the UTC
-        # threshold day; actual chain registration facts remain unchanged.
-        fixture_store = (
-            _ExcludingEntryDeposit(store, entry_deposits, entry_days) if entry_deposits else store
-        )
         fixture_registration_days = {
             coldkey: dict(per_hotkey) for coldkey, per_hotkey in registration_days.items()
         }
@@ -1813,6 +1811,12 @@ class ChainAdapter:
         emit("validator", "calculation.recorded", "validator.evidence", outcome="calculated")
         observe_prepared(agreed, vector, self.publish_mode, self.publisher)
         return self._calculation_reference
+
+    def prepare_starter_vector(self, vector):
+        if self.starter_entry_policy is None:
+            return vector
+        from ..starter.runtime import prepare_daily
+        return prepare_daily(self)
 
     def live_uids(self, height):
         return self.reader.live_uids(self.netuid)
@@ -2107,7 +2111,29 @@ class ChainAdapter:
     # called from the four delegates above them, on failure or otherwise.
 
     def submit_direct(self, uids, values, netuid):
-        result = self.publisher.submit_direct(uids, values, netuid)
+        if self._calculation_reference is not None:
+            # These checks run after intent creation, but before the transport
+            # is invoked. A refusal here proves no send occurred. Do not leave
+            # an impossible-to-reconcile intent blocking the expiry guard.
+            from .publish import PublicationRefused
+            try:
+                from ..starter.publication import check_before_send, verify_overlay
+                check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
+                proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
+                if proof is not None and proof['mode'] == 'starter-overlay':
+                    from ..starter.runtime import require_guard
+                    require_guard(self)
+            except (Exception, Refusal) as error:
+                raise PublicationRefused(
+                    f"pre-send evidence/guard check refused ({type(error).__name__}); "
+                    "nothing submitted"
+                ) from error
+        # Never include the transport in the definite-refusal exception scope:
+        # a lost reply must keep the durable intent and exact-call recovery.
+        result = self.publisher.submit_direct(
+            uids, values, netuid, persist=self._publish_intent.persist_prepared,
+            finalized_chain=self.runner_chain,
+        )
         # Failure to persist the response leaves the original marker intact.
         # Recovery then searches by signer, nonce and complete call.
         self._publish_intent.annotate(result=result)
@@ -2155,6 +2181,7 @@ class ChainAdapter:
                 "publication marker belongs to a different identity or mode"
             )
 
+    @serialized
     def _already_published_direct(self, height):
         import json
         from pathlib import Path
@@ -2256,12 +2283,16 @@ class ChainAdapter:
             self._failure_backoff.raise_if_blocked()
         return False
 
+    @serialized
     def _save_direct_confirmation(self, marker, evidence):
         reference = marker.get("calculation_evidence")
+        proof = None
         if reference is not None:
             from .calculation_record import verify
 
             manifest = verify(self._submitted_record_dir, reference)
+            from ..starter.publication import verify_overlay
+            proof = verify_overlay(self._submitted_record_dir, reference)
             if (manifest["day"] != marker["day"]
                     or manifest["publishable_weights_u16"] != marker["vector"]):
                 raise PublicationStatusUnknown(
@@ -2276,7 +2307,10 @@ class ChainAdapter:
         directory = self._submitted_record_dir
         if marker.get("refresh_epoch") is not None:
             from pathlib import Path
-            directory = Path(directory) / "epoch-publications" / str(marker["refresh_epoch"])
+            if proof is not None and marker.get("refresh_epoch") is not None:
+                directory = Path(directory) / "starter-publications" / str(marker["refresh_epoch"]) / marker["intent_id"]
+            else:
+                directory = Path(directory) / "epoch-publications" / str(marker["refresh_epoch"])
         write_submitted_record(
             directory,
             day=marker["day"],
@@ -2292,6 +2326,13 @@ class ChainAdapter:
             route=marker["route"],
         )
 
+        if self.starter_entry_policy is not None:
+            from .calculation_record import durable_write, encoded
+            from pathlib import Path
+            durable_write(Path(self._submitted_record_dir) / "starter-active.json",
+                          encoded({"reference": reference, "marker": marker}), replace=True)
+
+    @serialized
     def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None):
         """Persist the complete direct intent before sending, with restart guards."""
         import uuid
@@ -2315,6 +2356,9 @@ class ChainAdapter:
             if self._failure_backoff is not None:
                 self._failure_backoff.raise_if_blocked()
             day = source_day
+        if self._calculation_reference is not None:
+            from ..starter.publication import check_before_send
+            check_before_send(self, self._calculation_reference, vector)
         signer = self.publisher.signer_address
         context = self.publisher.send_context(signer)
         if (
@@ -2361,6 +2405,10 @@ class ChainAdapter:
         except Exception:
             self._publication_event(marker, "uncertain")
             raise
+        # Preparation bound the actual signed transaction into the marker.
+        # Reload it so every retained receipt carries that identity, not the
+        # earlier best-effort context gathered before preparation.
+        marker = self._publish_intent.load()
         # Retain the marker if this durable record fails. A restart will verify
         # the exact same transaction and write the record without sending again.
         try:

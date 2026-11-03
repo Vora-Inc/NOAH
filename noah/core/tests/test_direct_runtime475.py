@@ -1,6 +1,7 @@
 """Offline production-route tests. No live keys, RPC, finality or payout claims."""
 
 import copy
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest import mock
@@ -18,6 +19,12 @@ from ..submitter import Publisher
 from ._adapter_helpers import an_adapter
 from ._composed_call import ComposedCall, ComposesCalls, inner_call
 from .test_proxy_route import SIGNER, VALIDATOR
+
+@pytest.fixture(autouse=True)
+def prepared_boundary(monkeypatch):
+    from ._prepared_transport_fake import install
+    install(monkeypatch)
+
 
 VECTOR = {0: 0, 3: 30000, 4: 20000, 5: 15535}
 
@@ -54,6 +61,15 @@ class Client(ComposesCalls):
         self.extrinsics = []
         self.stored = []
         self.after_send = None
+        self._client = SimpleNamespace(_substrate=SimpleNamespace(raw=self))
+
+    def _call(self, awaitable):
+        return asyncio.run(awaitable)
+
+    async def rpc_request(self, method, params):
+        assert method == "chain_getBlock"
+        data = "0x" + b"offline-test-extrinsic".hex()
+        return {"block": {"extrinsics": [data, data, data]}}
 
     def block_info(self, block):
         return SimpleNamespace(
@@ -109,11 +125,13 @@ class Client(ComposesCalls):
 
 def adapter(tmp_path, client=None):
     client = client or Client()
+    from ._prepared_transport_fake import PreparedTransportFake
     publisher = Publisher(
         client,
         SimpleNamespace(ss58_address=SIGNER),
         netuid=82,
         commit_identity=CommitIdentity(VALIDATOR),
+        transport_factory=PreparedTransportFake,
     )
     built, _, _ = an_adapter(
         reader=ChainReader(client),
@@ -186,9 +204,12 @@ def test_inner_composition_failure_never_submits_and_keeps_intent(tmp_path):
 
 def test_crash_after_send_before_local_response_record_recovers(tmp_path):
     built, client = adapter(tmp_path)
-    with mock.patch.object(
-        built._publish_intent, "annotate", side_effect=OSError("disk interrupted")
-    ):
+    annotate = built._publish_intent.annotate
+    def fail_response(**fields):
+        if "result" in fields:
+            raise OSError("disk interrupted")
+        return annotate(**fields)
+    with mock.patch.object(built._publish_intent, "annotate", side_effect=fail_response):
         with pytest.raises(OSError):
             built.publish_direct(VECTOR, 99)
     rebuilt, _ = adapter(tmp_path, client)
@@ -461,4 +482,46 @@ def test_receipt_and_open_intent_reconciliation_precede_activity_hint(tmp_path, 
         assert built.already_published(99) is True
     hint.assert_not_called()
     assert built._publish_intent.load() is None
+    assert len(client.calls) == 1
+
+
+def test_persist_prepared_failure_never_crosses_send_boundary(tmp_path):
+    built, client = adapter(tmp_path)
+    with mock.patch.object(built._publish_intent, 'persist_prepared', side_effect=OSError('fsync failed')):
+        with pytest.raises(PublicationRefused): built.publish_direct(VECTOR, 99)
+    assert client.calls == []
+    assert built._publish_intent.load() is None
+
+
+def test_matching_logical_call_with_different_signed_bytes_refuses_confirmation(tmp_path):
+    built, client = adapter(tmp_path)
+    from .. import prepared_transaction
+    with mock.patch.object(prepared_transaction, 'signed_bytes_at', return_value=b'different-signature'):
+        with pytest.raises(NotOnChain): built.publish_direct(VECTOR, 99)
+    assert len(client.calls) == 1
+    assert built._publish_intent.load()['prepared_transaction']
+
+
+def test_exact_mortal_recovery_finds_old_send_without_resubmission(tmp_path):
+    built, client = adapter(tmp_path)
+    def lose(_): raise TimeoutError('lost')
+    client.after_send = lose
+    with pytest.raises(NotOnChain): built.publish_direct(VECTOR, 99)
+    client.finalized_head = 10_000
+    marker = built._publish_intent.load()
+    assert direct.reconcile(built.reader, marker, finalized_chain=built.runner_chain)['confirmed']
+    assert len(client.calls) == 1
+
+
+def test_expired_exact_send_without_match_remains_unknown(tmp_path):
+    built, client = adapter(tmp_path)
+    def lose(_): raise TimeoutError('lost')
+    client.after_send = lose
+    with pytest.raises(NotOnChain): built.publish_direct(VECTOR, 99)
+    client.extrinsics = []
+    client.finalized_head = 10_000
+    marker = built._publish_intent.load()
+    with pytest.raises(ChainUnreadable, match='no exact finalized match'):
+        direct.reconcile(built.reader, marker, finalized_chain=built.runner_chain)
+    assert built._publish_intent.load() == marker
     assert len(client.calls) == 1

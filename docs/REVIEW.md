@@ -31,11 +31,11 @@ Two independent chain sources
 
 ## Review the difficult cases
 
-Follow the same miner through registration, entry, its first earnings,
+Follow a newcomer through registration, starter eligibility, its first earnings,
 contribution, calculated score, submitted weight, and finalized chain result.
 Include a shared coldkey, wrong delegation, an unnamed transfer, locked and
 released collateral, advance coverage, catch-up contributions, and a replaced
-seat. Use the existing fixtures and tests before adding a new scenario.
+seat. Separately verify preservation of historical entry credit. Use the existing fixtures and tests before adding a new scenario.
 
 Newly scanned unnamed deposits receive no credit. Older stored rows have a
 compatibility path, so changing the reader does not rewrite historical records.

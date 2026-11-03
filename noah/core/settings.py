@@ -64,6 +64,7 @@ FALSE_SPELLINGS = ("false",)
 WHOLE_NUMBER = re.compile(r"^[0-9]+$")
 
 KEYS = (
+    "NOAH_STARTER_ENTRY_SNAPSHOT",
     "NOAH_WALLET_NAME",
     "NOAH_WALLET_HOTKEY",
     "NOAH_NETWORK",
@@ -419,6 +420,7 @@ class Settings:
     holding_stride_blocks: Optional[int]
     entry_deposit_rao: Optional[int]
     publish_mode: str
+    starter_entry_snapshot: Optional[str] = None
     epoch_collection: bool = False
     epoch_republication: bool = False
     mainnet_enable: Optional[str] = None
@@ -529,6 +531,7 @@ class Settings:
             publish_mode=_one_of_or_default(
                 mapping, "NOAH_PUBLISH_MODE", PUBLISH_MODES, PUBLISH_MODE_DEFAULT
             ),
+            starter_entry_snapshot=mapping.get("NOAH_STARTER_ENTRY_SNAPSHOT", "").strip() or None,
             epoch_collection=epoch_flags["NOAH_EPOCH_COLLECTION"],
             epoch_republication=epoch_flags["NOAH_EPOCH_REPUBLICATION"],
             mainnet_enable=mapping.get("NOAH_MAINNET_ENABLE", "").strip() or None,

@@ -16,9 +16,9 @@ NOTICE = (
     "where it is not read, names no miner hotkey, so the deposit is recorded as unattributed, "
     "with a reason, and credits nobody (the chain itself shows no error). This helper sends NOAH "
     "directly, using transfer_stake_and_hotkey (stake_position = miner) or a top-level batch_all "
-    "that carries the remark (stake_position = validator), with optional proxy signing only for the miner position. The entry "
-    "deposit must name your miner hotkey the first time; an unnamed attempt is recorded as "
-    "unattributed and does not count as your entry."
+    "that carries the remark (stake_position = validator), with optional proxy signing only for the miner position. "
+    "Every contribution must identify its miner; an unnamed attempt receives no mining credit. "
+    "Current Mainnet starters do not need an upfront NOAH purchase or Ark deposit."
 )
 OLD_BLANKET = "are not attributed to a specific miner hotkey. This helper sends NOAH directly"
 USAGE = Path(cli.__file__).with_name("USAGE.md")
@@ -67,7 +67,7 @@ def test_usage_guide_has_notice_and_not_in_this_helper_list():
         "No hardware-wallet path",
         "No setup wizard",
         "hand-supplied",
-        "10 NOAH entry contribution is a separate requirement",
+        "There is no fixed entry payment for current Mainnet starters",
     ):
         assert needle in text
 

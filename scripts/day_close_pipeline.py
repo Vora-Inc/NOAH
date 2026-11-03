@@ -19,7 +19,12 @@ results and return exit code 6. Other named refusals return 1; success returns 0
 
 Use the validator environment and configure both chain endpoints and durable
 state explicitly. --force-rescan is a deliberate re-read of a named day, not
-the normal unattended mode. For available arguments run this script with --help.
+the normal unattended mode. This manual pipeline does not implement starter-entry
+policy: when NOAH_STARTER_ENTRY_SNAPSHOT is configured, every mode (including dry
+run and --fixture) refuses with exit code 2 before connections, wallet access
+or evidence writes.
+Use the normal configured validator path; do not unset starter configuration to
+work around this refusal. For available arguments run this script with --help.
 """
 
 from __future__ import annotations
@@ -75,6 +80,21 @@ class PipelineStepFailed(Exception):
 _UNATTRIBUTED_LIST_LIMIT = 20
 
 
+def _require_ordinary_pipeline(adapter=None):
+    """The manual path cannot apply or retain the starter allocation policy."""
+    configured = bool(os.environ.get("NOAH_STARTER_ENTRY_SNAPSHOT", "").strip())
+    attached = adapter is not None and getattr(adapter, "starter_entry_policy", None) is not None
+    if configured or attached:
+        raise PipelineStepFailed(
+            "starter_policy",
+            RuntimeError(
+                "manual day-close pipeline does not support starter-entry policy, "
+                "including dry-run and fixture modes; use the normal configured validator "
+                "path. Do not unset NOAH_STARTER_ENTRY_SNAPSHOT to bypass this refusal."
+            ),
+        )
+
+
 def run_pipeline(
     adapter,
     height,
@@ -102,6 +122,7 @@ def run_pipeline(
     this module's own docstring, step 4, for why the two are not
     interchangeable.
     """
+    _require_ordinary_pipeline(adapter)
     if publish and publish_direct:
         raise ValueError(
             "publish and publish_direct are mutually exclusive: this pipeline runs at most "
@@ -409,6 +430,14 @@ def main(argv=None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+
+    # Refuse unsupported policy before connections, wallet access, output-directory
+    # creation, history scans or canonical evidence changes, even for a dry run.
+    try:
+        _require_ordinary_pipeline()
+    except PipelineStepFailed as error:
+        diagnostic(f"REFUSED: {error}", file=sys.stderr, severity="error")
+        return 2
 
     if args.publish or args.publish_direct:
         # The manual publisher refuses a mismatched bittensor/scalecodec set

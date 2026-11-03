@@ -12,10 +12,14 @@ import json
 import os
 import random
 import stat
+import subprocess
+import sys
+import threading
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import noah.secret_scan as m
 from noah.secret_scan import (
@@ -319,6 +323,211 @@ class Assignments(unittest.TestCase):
             self.assertIn("env-assignment", kinds(bad), bad[:30])
 
 
+class FilesystemRaces(unittest.TestCase):
+    """Real local replacements at the validation/open boundary, synthetic data only."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.d = Path(temp.name)
+        self.tree = self.d / "selected"
+        self.tree.mkdir()
+        self.file = self.tree / "input.txt"
+        self.file.write_text("ordinary input")
+        self.outside = self.d / "outside"
+        self.outside.mkdir()
+        (self.outside / "input.txt").write_text(PEM)
+
+    def scan_with_writer(self, root, trigger, change):
+        ready, done = threading.Event(), threading.Event()
+        errors, opened, closed = [], [], []
+        real_open, real_close = os.open, os.close
+
+        def writer():
+            if not ready.wait(5):
+                errors.append("writer was not triggered")
+                return
+            try:
+                change()
+            except Exception as exc:
+                errors.append(type(exc).__name__)
+            finally:
+                done.set()
+
+        thread = threading.Thread(target=writer, daemon=True)
+        thread.start()
+
+        def opening(name, flags, *args, **kwargs):
+            if not ready.is_set() and trigger(name, flags, kwargs):
+                ready.set()
+                self.assertTrue(done.wait(5), "writer did not finish")
+            fd = real_open(name, flags, *args, **kwargs)
+            opened.append(fd)
+            return fd
+
+        def closing(fd):
+            closed.append(fd)
+            return real_close(fd)
+
+        try:
+            with patch.object(m.os, "open", opening), patch.object(m.os, "close", closing):
+                report = scan([root])
+        finally:
+            ready.set()
+            thread.join(5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertCountEqual(opened, closed, "every opened descriptor is closed")
+        self.assertNotIn("private-key-header", [f.kind for f in report.findings])
+        return report
+
+    def test_file_symlink_swap_is_refused_for_tree_and_explicit_file(self):
+        for direct_file in (False, True):
+            with self.subTest(direct_file=direct_file):
+                if self.file.is_symlink():
+                    self.file.unlink()
+                    self.file.write_text("ordinary input")
+                def change():
+                    self.file.unlink()
+                    self.file.symlink_to(self.outside / self.file.name)
+                report = self.scan_with_writer(
+                    self.file if direct_file else self.tree,
+                    lambda name, flags, kw: name == "input.txt", change)
+                self.assertEqual(report.scanned, 0)
+                self.assertEqual([f.kind for f in report.findings], ["symlink-refused"])
+
+    def test_parent_swap_after_anchoring_keeps_original_file(self):
+        for direct_file in (False, True):
+            with self.subTest(direct_file=direct_file):
+                def change():
+                    self.tree.rename(self.d / "original")
+                    self.tree.symlink_to(self.outside, target_is_directory=True)
+                report = self.scan_with_writer(
+                    self.file if direct_file else self.tree,
+                    lambda name, flags, kw: name == "input.txt", change)
+                self.assertEqual(report.scanned, 1)
+                self.assertEqual(report.findings, [])
+                self.tree.unlink()
+                (self.d / "original").rename(self.tree)
+
+    def test_parent_swap_before_anchoring_is_refused(self):
+        # The root was lstat'ed, but its parent is swapped before traversal opens it.
+        def change():
+            self.tree.rename(self.d / "original")
+            self.tree.symlink_to(self.outside, target_is_directory=True)
+        report = self.scan_with_writer(
+            self.file, lambda name, flags, kw: name == "selected", change)
+        self.assertEqual(report.scanned, 0)
+        self.assertTrue(report.findings)
+
+    def test_root_swap_after_selection_is_refused(self):
+        def change():
+            self.tree.rename(self.d / "original")
+            self.tree.symlink_to(self.outside, target_is_directory=True)
+        report = self.scan_with_writer(
+            self.tree, lambda name, flags, kw: name == "selected", change)
+        self.assertEqual(report.scanned, 0)
+        self.assertTrue(report.findings)
+
+    def test_child_directory_swap_is_refused(self):
+        sub = self.tree / "child"
+        sub.mkdir()
+        self.file.rename(sub / self.file.name)
+        def change():
+            sub.rename(self.tree / "original")
+            sub.symlink_to(self.outside, target_is_directory=True)
+        report = self.scan_with_writer(
+            self.tree, lambda name, flags, kw: name == "child", change)
+        self.assertEqual(report.scanned, 0)
+        self.assertTrue(report.findings)
+
+    def test_different_regular_inode_is_refused(self):
+        replacement = self.d / "replacement.txt"
+        replacement.write_text(PEM)
+        report = self.scan_with_writer(
+            self.tree, lambda name, flags, kw: name == "input.txt",
+            lambda: replacement.replace(self.file))
+        self.assertEqual(report.scanned, 0)
+        self.assertEqual([f.kind for f in report.findings], ["unreadable"])
+
+    def test_growth_after_size_check_is_bounded(self):
+        real_read = os.read
+        read_sizes = []
+        def reading(fd, amount):
+            if not read_sizes:
+                with self.file.open("ab") as out:
+                    out.write(b"x" * 1000)
+            data = real_read(fd, amount)
+            read_sizes.append(len(data))
+            return data
+        with patch.object(m, "_MAX_FILE_BYTES", 40), patch.object(m.os, "read", reading):
+            report = scan([self.tree])
+        self.assertEqual(sum(read_sizes), 41)
+        self.assertEqual(report.scanned, 0)
+        self.assertEqual([f.kind for f in report.findings], ["file-too-large"])
+
+    def test_fifo_swap_cannot_block(self):
+        # A process timeout makes a regression to blocking open fail, not hang CI.
+        code = """
+import json, os, sys
+from pathlib import Path
+from unittest.mock import patch
+import noah.secret_scan as m
+root = Path(sys.argv[1])
+real_open = os.open
+changed = False
+def opening(name, flags, *args, **kwargs):
+    global changed
+    if name == 'input.txt' and not changed:
+        changed = True
+        (root / name).unlink()
+        os.mkfifo(root / name)
+    return real_open(name, flags, *args, **kwargs)
+with patch.object(m.os, 'open', opening):
+    report = m.scan([root])
+print(json.dumps({'changed': changed, 'scanned': report.scanned,
+                  'kinds': [f.kind for f in report.findings]}))
+"""
+        env = dict(os.environ, PYTHONPATH=str(SERVICE_ROOT))
+        result = subprocess.run([sys.executable, "-c", code, str(self.tree)],
+                                env=env, capture_output=True, text=True, timeout=5, check=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "changed": True, "scanned": 0, "kinds": ["special-file-refused"]})
+
+    def test_refused_excluded_and_expected_files_are_never_opened(self):
+        self.file.rename(self.tree / "wallet.dat")
+        (self.tree / "archive.zip").write_bytes(b"unknown")
+        (self.tree / "expected.db").write_bytes(b"database")
+        (self.tree / "excluded.txt").write_text("excluded")
+        real_open = os.open
+        def opening(name, flags, *args, **kwargs):
+            self.assertNotIn(name, {"wallet.dat", "archive.zip", "expected.db", "excluded.txt"})
+            return real_open(name, flags, *args, **kwargs)
+        with patch.object(m.os, "open", opening):
+            report = scan([self.tree], excluded=["excluded.txt"], expected_refused=["expected.db"])
+        self.assertEqual(len(report.refused_unexpected), 2)
+        self.assertEqual(len(report.refused_expected), 1)
+        self.assertEqual(len(report.excluded), 1)
+
+    def test_relative_dot_and_existing_ancestor_alias_work(self):
+        alias = self.d / "alias"
+        alias.symlink_to(self.tree, target_is_directory=True)
+        self.assertEqual(scan([alias / "input.txt"]).scanned, 1)
+        previous = Path.cwd()
+        try:
+            os.chdir(self.tree)
+            self.assertEqual(scan(["."]).scanned, 1)
+            self.assertEqual(scan(["input.txt"]).scanned, 1)
+        finally:
+            os.chdir(previous)
+
+    def test_unsupported_filesystem_platform_fails_closed(self):
+        with patch.object(m, "_SAFE_FILESYSTEM", False):
+            with self.assertRaisesRegex(ScanError, "requires POSIX"):
+                scan([self.tree])
+        self.assertEqual(scan_bytes(b"ordinary input", "input.txt"), [])
+
+
 class Files(unittest.TestCase):
     def setUp(self):
         t = tempfile.TemporaryDirectory()
@@ -400,6 +609,15 @@ class Reports(unittest.TestCase):
         self.addCleanup(t.cleanup)
         self.d = Path(t.name)
         (self.d / "ok.json").write_text("{}")
+
+    def test_release_mjs_is_scanned_and_secret_content_still_fails(self):
+        module = self.d / "module.mjs"
+        module.write_text("export const safe = 1;\n")
+        result = scan([module], scope="release", strict=True)
+        self.assertEqual((result.scanned, result.exit_code), (1, EXIT_CLEAN))
+        module.write_text(PEM)
+        self.assertIn("private-key-header", {hit.kind for hit in scan([module], scope="release").findings})
+        self.assertIn("unexpected-file", {hit.kind for hit in scan([module]).findings})
 
     def test_refused_by_name_is_never_opened_and_never_clean(self):
         text = " ".join(phrase(1, 12))
@@ -648,6 +866,36 @@ class CalculationSourceInventory(unittest.TestCase):
 
     def render(self, obj):
         return json.dumps(obj, sort_keys=True, indent=2) + "\n"
+
+    def test_actual_source_identity_context_is_scannable(self):
+        from noah.core.calculation_record import encoded, source_identity
+
+        obj = self.context()
+        obj["candidate"] = source_identity()
+        self.assertIn("noah/starter/verify-allocation.mjs", obj["candidate"]["files"])
+        raw = encoded(obj)
+        self.assertEqual(scan_bytes(raw, "context.json"), [])
+        normalized = m._source_inventory_labels(raw.decode())
+        self.assertNotEqual(normalized, raw.decode())
+        for digest in obj["candidate"]["files"].values():
+            self.assertIn(digest, normalized)
+
+    def test_only_known_starter_mjs_inventory_path_is_normalized(self):
+        for path in ("noah/starter/verify-allocation.mjs", "noah/starter/other.mjs",
+                     "noah/starter/../verify-allocation.mjs"):
+            with self.subTest(path=path):
+                obj = self.context()
+                obj["candidate"]["files"][path] = HEX32
+                obj["candidate"]["source_sha256"] = self.digest(obj["candidate"]["files"])
+                raw = self.render(obj)
+                if path == "noah/starter/verify-allocation.mjs":
+                    self.assertNotEqual(m._source_inventory_labels(raw), raw)
+                    self.assertEqual(kinds(raw), set())
+                    # The legitimate label is normalized, never other fields.
+                    obj["private_" + "key"] = HEX32
+                    self.assertIn("key-hex", kinds(self.render(obj)))
+                else:
+                    self.assertEqual(m._source_inventory_labels(raw), raw)
 
     def test_canonical_inventory_paths_are_labels_not_credentials(self):
         raw = self.render(self.context())
