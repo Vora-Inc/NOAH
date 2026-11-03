@@ -15,12 +15,27 @@ prints matched text.
 ## What it scans, what it refuses
 
 Scanned: `.json .txt .conf .service .timer .mount .socket .path .sql .md`, the names `SHA256SUMS` and
-`software-commit`; with `--release` also `.py .ts .tsx .js .sh .toml .yaml .yml .lock
+`software-commit`; with `--release` also `.py .ts .tsx .js .mjs .sh .toml .yaml .yml .lock
 .example .cfg .ini .css .html .sha256`, `LICENSE`, `.gitignore`, `Makefile`.
 
 Every other file (archives, `.gpg`, `.tar.gpg`, sqlite, unknown binaries) is refused by name
 and never opened. List the ones that are binary by design with `--expected-refused`; any
 other refusal fails the run. Ping-URL files are skipped only when named in `--excluded`.
+
+## Filesystem safety and platform support
+
+Filesystem scans require Linux, macOS or WSL with POSIX descriptor-relative and
+no-follow opens. Unsupported hosts fail closed; `scan_bytes` remains portable.
+Selected directories are held open during traversal. Each child directory and file
+is opened without following symlinks and checked against its selected inode and
+file type. A renamed parent cannot redirect a later read. Files are read through
+that checked descriptor, with a 32 MiB limit enforced both before and during reading;
+FIFOs are opened nonblocking and refused before reading.
+
+This is not an atomic filesystem snapshot. Stop writers or scan a private captured
+copy when the exact contents must remain stable across the whole scan. Existing
+ancestor aliases (such as macOS `/tmp`) are resolved once when anchoring a selected
+root; a symlink supplied as the selected root itself is still refused.
 
 ## What it can no longer catch
 

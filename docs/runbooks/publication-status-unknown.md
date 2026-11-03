@@ -22,12 +22,31 @@ Keep `loop.json`, `commit-ledger.json`, `publish-intent.json`,
 `publish-hold.json`, logs and the history database. Do not delete progress or
 switch to direct weights to get past a refusal.
 
+For this candidate's direct transport, also retain the private
+`signed-transactions/` directory beside the intent. Its files contain signed
+transactions, not merely public calculation evidence. Keep them private with
+the operational backup; do not attach them to public reports or score bundles.
+
 ## Establish what happened
 
 The intent marker records the day, subnet, signer and available send details.
 Newer markers can include the call, sealed-commit digest, reveal round,
 send time, observed nonce and head. They may not contain an extrinsic hash.
 Record missing information as missing.
+
+This candidate's new direct intents additionally contain `prepared_transaction`:
+the exact signed transaction hash, nonce, runtime versions, genesis and mortal
+birth/death context, plus the private sidecar filename. The transaction is
+prepared with an uncached nonce checked against both finalized readers; its
+signed bytes are durably saved before that same transaction is submitted once.
+Confirmation checks the included byte hash as well as call, events and weights.
+This applies to direct daily, refresh and starter-guard publication. It does not
+change sealed commit/reveal transport or repair missing evidence in old intents.
+
+For a new prepared intent, automatic recovery searches its actual 128-block
+mortal window even after a longer outage. A missing match still leaves it
+blocked: expiry is not an automatic retry or clearance. Legacy intents retain
+their existing bounded scan and operator-reconciliation requirement.
 
 Use a finalized chain source to inspect the entire relevant block range from
 the recorded send head to the current head. If that head was not recorded,
@@ -54,8 +73,8 @@ that an unfound transaction cannot still land. Either requires a complete chain
 scan taken after the evidence:
 
 - Decode the **actual signed transaction's** validity window and show that it
-  has expired. The marker's `era_period` is an assumed library default, not
-  proof of the signed transaction's lifetime.
+  has expired. In a legacy marker without prepared-transaction evidence,
+  `era_period` is an assumed library default, not proof of its lifetime.
 - Establish that its nonce has been consumed. The observed account nonce at
   send time is sufficient only if there were no other pending transactions
   or other signer activity that could make it differ from this send's nonce.
@@ -72,6 +91,11 @@ A backup cannot contain a submission made after it was taken. Establish a
 publication hold **before starting** a restored validator, even if the backup
 has no open intent marker. Keep the old publisher stopped so there is only
 one possible signer process.
+
+Restore a prepared intent together with its matching private signed sidecar.
+A missing or mismatched sidecar is incomplete recovery evidence; never recreate
+it by signing another transaction. Preserve newer local and finalized evidence
+before deciding which backup is suitable.
 
 The candidate includes `scripts/publication_hold.py` with `set`, `status`
 and `release` commands. Run it with the production service's actual environment

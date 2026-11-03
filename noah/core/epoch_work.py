@@ -23,6 +23,8 @@ def configure(adapter, settings):
     # Settings validates these before any connections or wallets are opened.
     adapter.epoch_collection = settings.epoch_collection
     adapter.epoch_republication = settings.epoch_republication
+    from ..starter.runtime import configure as configure_starter
+    configure_starter(adapter, settings)
 
 
 def collect(adapter, head):
@@ -74,6 +76,7 @@ def collect(adapter, head):
             attribute_deposits=True,
             progressive=True,
             finalize=False,
+            sample_registered=getattr(adapter, "starter_entry_policy", None) is not None,
         )
         return {"day": day, "collected_through": target, "target_head": head}
     finally:
@@ -81,7 +84,11 @@ def collect(adapter, head):
 
 
 def republish(adapter, epoch, head, *, before_send=lambda: None):
-    """Republish only today's verified closed-day result, with unchanged seats."""
+    """Republish verified weights; added unscored seats receive no old weight."""
+    if getattr(adapter, "starter_entry_policy", None) is not None:
+        from ..starter.runtime import republish as publish_starters
+        return publish_starters(adapter, epoch, head, before_send=before_send)
+
     from .submitted_record import submitted_record_path
 
     chain = adapter.runner_chain
@@ -129,11 +136,16 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
         raise PublicationStatusUnknown("scored finalized block changed")
     scored_seats = chain.seat_hotkeys(context["to_block"])
     live_seats = chain.seat_hotkeys(chain.head_block())
-    if scored_seats != live_seats:
+    vector = {int(k): v for k, v in marker["vector"].items()}
+    # New seats receive no weight from this unchanged closed-day vector.
+    # Existing seats must retain their identities, including zero-weight seats.
+    if (
+        any(live_seats.get(uid) != hotkey for uid, hotkey in scored_seats.items())
+        or any(weight != 0 and uid not in scored_seats for uid, weight in vector.items())
+    ):
         raise PublicationStatusUnknown(
             "miner identities changed; require a fresh daily calculation"
         )
-    vector = {int(k): v for k, v in marker["vector"].items()}
     if any(vector.get(uid, 0) for uid in adapter.owner_uids()):
         raise PublicationStatusUnknown("republication would pay an owner seat")
     # A daily publication or a reconciled refresh within this epoch counts.
@@ -167,31 +179,47 @@ def confirmed_refresh_block(adapter, block, scoring_day):
     indices = set()
     source_day = scoring_day - 1
     try:
-        for path in (root / "epoch-publications").glob(f"*/day-{source_day}.submitted.json"):
+        paths = list((root / "epoch-publications").glob(f"*/day-{source_day}.submitted.json"))
+        paths += list((root / "starter-publications").glob("*/*/day-*.submitted.json"))
+        for path in paths:
             record = json.loads(path.read_text())
             marker = record["direct_intent"]
             result = marker.get("result", {})
             if result.get("block") != block:
                 continue
             epoch = marker.get("refresh_epoch")
-            if (type(epoch) is not int or epoch <= 0 or path.parent.name != str(epoch)
-                    or marker.get("day") != source_day):
+            starter_path = "starter-publications" in path.relative_to(root).parts
+            record_day = marker.get("day")
+            if starter_path and type(record_day) is int and record_day > source_day:
+                continue
+            if (type(epoch) is not int or epoch <= 0
+                    or (path.parent.parent.name if starter_path else path.parent.name) != str(epoch)
+                    or (not starter_path and record_day != source_day)):
+                return False
+            if starter_path and path.parent.name != marker.get("intent_id"):
                 return False
             adapter._check_direct_identity(marker)
             reference = marker.get("calculation_evidence")
             if reference is None:
                 return False
             manifest = verify(root, reference)
-            if (manifest["day"] != source_day
+            if (manifest["day"] != record_day
                     or manifest["netuid"] != adapter.netuid
                     or manifest["genesis_hash"] != adapter.runner_chain.genesis_hash()
                     or manifest["publishable_weights_u16"] != marker["vector"]):
                 return False
-            source = json.loads(submitted_record_path(root, source_day).read_text())["direct_intent"]
+            source = json.loads(submitted_record_path(root, record_day).read_text())["direct_intent"]
             adapter._check_direct_identity(source)
-            if (source.get("day") != source_day or source.get("refresh_epoch") is not None
-                    or source.get("calculation_evidence") != reference
-                    or source.get("vector") != marker["vector"]):
+            from ..starter.publication import verify_overlay
+            proof = verify_overlay(root, reference)
+            if starter_path != (proof is not None):
+                return False
+            source_reference = proof["source"] if proof else reference
+            if (source.get("day") != record_day or source.get("refresh_epoch") is not None
+                    or (verify_overlay(root, source.get("calculation_evidence")) or {}).get("source", source.get("calculation_evidence")) != source_reference):
+                return False
+            source_manifest = verify(root, source["calculation_evidence"])
+            if source.get("vector") != source_manifest["publishable_weights_u16"]:
                 return False
             reconcile(adapter.reader, source, finalized_chain=adapter.runner_chain)
             evidence = reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
@@ -240,6 +268,13 @@ def maintain(adapter, lock_path):
             state = json.loads(path.read_text()) if path.exists() else {"identity": identity}
             if state.get("identity") != identity:
                 raise SettingsError("epoch maintenance state belongs to another validator")
+            if getattr(adapter, "starter_entry_policy", None) is not None:
+                result = collect(adapter, head)
+                state.update(result)
+                if result["collected_through"] != head:
+                    durable_write(path, encoded(state), replace=True)
+                    return
+                state["collected_epoch"] = epoch
             if (
                 getattr(adapter, "epoch_republication", False)
                 and state.get("published_epoch") != epoch
@@ -254,7 +289,7 @@ def maintain(adapter, lock_path):
                 try:
                     outcome = republish(adapter, epoch, head, before_send=before_send)
                     state["publication_status"] = outcome
-                    if outcome != "awaiting_daily_publication":
+                    if outcome not in ("awaiting_daily_publication", "awaiting_rate_limit"):
                         state["published_epoch"] = epoch
                 except (Exception, Refusal) as error:
                     state["publication_status"] = type(error).__name__

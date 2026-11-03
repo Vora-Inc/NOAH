@@ -6,6 +6,7 @@ nothing was submitted."""
 
 import json
 import os
+import stat
 from pathlib import Path
 
 from ..pathtext import plain_path_text
@@ -80,12 +81,70 @@ class PublishIntent:
         doc.update(fields)
         self._write(doc)
 
+    def persist_prepared(self, evidence):
+        """Fsync exact signed bytes privately before exposing the send boundary.
+
+        Submitted-score exports receive only hash/context, never usable signed
+        bytes. Sidecars are retained after completion for operator recovery.
+        """
+        from .prepared_transaction import transaction_hash
+
+        marker = self.load()
+        if marker is None or marker.get("prepared_transaction") is not None:
+            raise PublicationStatusUnknown("no fresh intent for prepared transaction")
+        identity = marker.get("intent_id")
+        if (
+            not isinstance(identity, str)
+            or not identity
+            or any(c not in "0123456789abcdef-" for c in identity)
+        ):
+            raise PublicationStatusUnknown("invalid prepared transaction identity")
+        data = bytes.fromhex(evidence["signed_hex"].removeprefix("0x"))
+        if transaction_hash(data) != evidence["extrinsic_hash"]:
+            raise PublicationStatusUnknown("prepared transaction hash mismatch")
+        directory = self.path.parent / "signed-transactions"
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        sidecar_name = identity + ".json"
+        try:
+            metadata = os.fstat(directory_fd)
+            if (
+                stat.S_IMODE(metadata.st_mode) != 0o700
+                or metadata.st_uid != os.geteuid()
+            ):
+                raise PublicationStatusUnknown(
+                    "signed transaction directory is not private/owned"
+                )
+            fd = os.open(
+                sidecar_name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
+            with os.fdopen(fd, "w") as handle:
+                json.dump(evidence, handle, sort_keys=True)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        public = {key: value for key, value in evidence.items() if key != "signed_hex"}
+        public["sidecar"] = sidecar_name
+        self.annotate(
+            prepared_transaction=public,
+            account_nonce_at_head=evidence["nonce"],
+            head_at_send=evidence["head_at_send"],
+            era_period=evidence["era"]["period"],
+        )
+
     def _write(self, doc, *, exclusive=False):
         import uuid
 
         tmp = self.path.with_name(self.path.name + f".tmp-{uuid.uuid4().hex}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(tmp, "w") as handle:
+        with os.fdopen(
+            os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w"
+        ) as handle:
             json.dump(doc, handle, sort_keys=True)
             handle.flush()
             os.fsync(handle.fileno())

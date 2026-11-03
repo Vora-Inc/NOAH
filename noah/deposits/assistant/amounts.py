@@ -5,9 +5,9 @@ with a plain-English reason. Nothing reads a chain, a file or a clock. A missing
 input is a refusal, never a zero: a blank earnings figure must not become "owe
 nothing", and a blank balance must not become "send everything".
 
-The 10 NOAH entry contribution is a separate, starting credit. It is never an
-input to any calculation here; ``Evidence.credited_contributions_rao`` is the
-ongoing, post-entry credited total only.
+Any preserved historical entry credit is separate. It is never an input to
+these calculations; ``Evidence.credited_contributions_rao`` contains ongoing
+credited contributions only. Current Mainnet starters have no new entry fee.
 """
 
 from dataclasses import dataclass, field
@@ -198,7 +198,7 @@ def wanted_amount(mode, *, amount_rao=None, percent_bp=None, evidence=None, pend
         f"Required so far: 50% of {format_noah(earned)} earnings through {evidence.through_day} "
         f"= {format_noah(required)}.",
         f"Already credited as qualifying: {format_noah(credited)} "
-        f"(the 10 NOAH entry contribution is counted separately and is not included).",
+        f"(any preserved historical entry credit is counted separately; new starters have no entry fee).",
     ]
     if pending_rao:
         expl.append(

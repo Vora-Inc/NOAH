@@ -29,6 +29,10 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
+import stat
+import tempfile
+from contextlib import contextmanager
 import sys
 from pathlib import Path
 
@@ -47,6 +51,67 @@ IDENTITY_KEYS = ("netuid", "ark_address", "genesis_hash")
 MANIFEST = "MANIFEST.json"
 SUMS = "SHA256SUMS"
 EXPECTED = set(DATA_FILES) | {MANIFEST, SUMS}
+# Match the secret scanner's per-file limit; at most eight bundle files + index.
+MAX_FILE_BYTES = 32 * 1024 * 1024
+
+
+def read_regular(path: Path, *, directory_fd=None) -> bytes:
+    """Bounded, nonblocking, no-follow read; never read a FIFO/device/symlink."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_FILE_BYTES:
+            raise ValueError("bundle input must be a bounded regular file")
+        data = handle.read(MAX_FILE_BYTES + 1)
+        if len(data) > MAX_FILE_BYTES:
+            raise ValueError("bundle input exceeds size limit")
+        return data
+
+
+@contextmanager
+def snapshot_bundle(bundle: Path):
+    """Verify private copies so later parsing/audit cannot race source swaps."""
+    fd = os.open(bundle, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        names = set(os.listdir(fd))
+        expected = EXPECTED | ({PUBLISHED} if PUBLISHED in names else set())
+        if names != expected:
+            raise ValueError("bundle file set differs from the expected names")
+        with tempfile.TemporaryDirectory(prefix="noah-verify-") as temporary:
+            snapshot = Path(temporary) / "bundle"
+            snapshot.mkdir()
+            for name in sorted(names):
+                (snapshot / name).write_bytes(read_regular(name, directory_fd=fd))
+            parent_fd = os.open("..", os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)
+            try:
+                try:
+                    index = read_regular("INDEX.json", directory_fd=parent_fd)
+                except FileNotFoundError:
+                    pass
+                else:
+                    (snapshot.parent / "INDEX.json").write_bytes(index)
+            finally:
+                os.close(parent_fd)
+            yield snapshot
+    finally:
+        os.close(fd)
+
+
+def read_text(path: Path) -> str:
+    return read_regular(path).decode("utf-8")
+
+
+def unique_object(pairs):
+    result = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError("duplicate JSON object key")
+        result[name] = value
+    return result
+
+
+def read_json(path: Path):
+    return json.loads(read_text(path), object_pairs_hook=unique_object)
 
 
 def data_files(bundle: Path) -> tuple:
@@ -55,7 +120,7 @@ def data_files(bundle: Path) -> tuple:
 
 
 def sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(read_regular(path)).hexdigest()
 
 
 def parse_sums(text: str) -> dict:
@@ -65,8 +130,9 @@ def parse_sums(text: str) -> dict:
         if not line.strip():
             continue
         digest, sep, name = line.partition("  ")
-        if not sep or len(digest) != 64:
-            raise ValueError(f"malformed SHA256SUMS line: {line!r}")
+        if (not sep or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)
+                or name in out):
+            raise ValueError("malformed or duplicate SHA256SUMS entry")
         out[name] = digest
     return out
 
@@ -85,23 +151,28 @@ def check_files(bundle: Path) -> list:
 def check_hashes(bundle: Path) -> list:
     problems = []
     try:
-        sums = parse_sums((bundle / SUMS).read_text(encoding="utf-8"))
-        manifest = json.loads((bundle / MANIFEST).read_text(encoding="utf-8"))
+        sums = parse_sums(read_text(bundle / SUMS))
+        manifest = read_json(bundle / MANIFEST)
     except (OSError, ValueError) as why:
         return [f"cannot read {SUMS} or {MANIFEST}: {why}"]
+    if not isinstance(manifest, dict):
+        return [f"{MANIFEST}: expected an object"]
     if manifest.get("schema") != BUNDLE_SCHEMA:
         problems.append(f"{MANIFEST}: schema is {manifest.get('schema')!r}, expected {BUNDLE_SCHEMA!r}")
     files = data_files(bundle)
     want_in_sums = (set(files) | {MANIFEST})
     if set(sums) != want_in_sums:
-        problems.append(f"{SUMS} lists {sorted(sums)}, expected {sorted(want_in_sums)}")
+        return [f"{SUMS}: unexpected, missing, or invalid file names"]
+    entries = manifest.get("files")
+    if (not isinstance(entries, list) or any(not isinstance(e, dict) for e in entries)
+            or any(not isinstance(e.get("name"), str) for e in entries)):
+        return [f"{MANIFEST}: invalid file list"]
+    listed = {e["name"]: e for e in entries}
+    if len(listed) != len(entries) or set(listed) != set(files):
+        return [f"{MANIFEST}: unexpected, duplicate, missing, or invalid file names"]
     for name, digest in sums.items():
-        f = bundle / name
-        if f.is_file() and sha256_file(f) != digest:
+        if sha256_file(bundle / name) != digest:
             problems.append(f"{SUMS}: hash mismatch for {name}")
-    listed = {e.get("name"): e for e in manifest.get("files", []) if isinstance(e, dict)}
-    if set(listed) != set(files):
-        problems.append(f"{MANIFEST}: files listed {sorted(listed)}, expected {sorted(files)}")
     has_pub = PUBLISHED in files
     if has_pub == (manifest.get("published_score") == "not recorded"):
         problems.append(f"{MANIFEST}: published_score field disagrees with whether {PUBLISHED} is present")
@@ -118,8 +189,8 @@ def check_hashes(bundle: Path) -> list:
             problems.append(f"{name}: {SUMS} and {MANIFEST} disagree")
     # Day consistency across the files a stranger reads.
     try:
-        fx = json.loads((bundle / "fixture.json").read_text(encoding="utf-8"))
-        sc = json.loads((bundle / "score.json").read_text(encoding="utf-8"))
+        fx = read_json(bundle / "fixture.json")
+        sc = read_json(bundle / "score.json")
         if str(manifest.get("eval_day")) != str(fx.get("evalDay")) or str(fx.get("evalDay")) != str(sc.get("evalDay")):
             problems.append(
                 f"eval day differs: manifest {manifest.get('eval_day')!r}, fixture {fx.get('evalDay')!r}, score {sc.get('evalDay')!r}"
@@ -131,7 +202,7 @@ def check_hashes(bundle: Path) -> list:
     index = bundle.resolve().parent / "INDEX.json"
     if index.is_file():
         try:
-            days = json.loads(index.read_text(encoding="utf-8")).get("days", [])
+            days = read_json(index).get("days", [])
             mine = [d for d in days if str(d.get("eval_day")) == str(manifest.get("eval_day"))]
             actual = sha256_file(bundle / MANIFEST)
             if not mine:
@@ -152,8 +223,8 @@ def check_published(bundle: Path) -> list:
     except ImportError as why:
         return [f"cannot check {PUBLISHED}: audit code not importable ({why})"]
     try:
-        pub = json.loads((bundle / PUBLISHED).read_text(encoding="utf-8"))
-        mine = (bundle / "score.json").read_text(encoding="utf-8")
+        pub = read_json(bundle / PUBLISHED)
+        mine = read_text(bundle / "score.json")
     except (OSError, ValueError) as why:
         return [f"cannot read {PUBLISHED} or score.json: {why}"]
     if not isinstance(pub, dict):
@@ -181,6 +252,20 @@ def run_audit(bundle: Path, out) -> int:
 
 
 def verify(bundle, out=sys.stdout) -> int:
+    bundle = Path(bundle)
+    if not bundle.exists():
+        print("NO VERDICT: the given bundle is not a directory.", file=out)
+        return EXIT_NO_VERDICT
+    try:
+        with snapshot_bundle(bundle) as snapshot:
+            return verify_snapshot(snapshot, out)
+    except (OSError, ValueError, TypeError, AttributeError, OverflowError, RecursionError):
+        # Do not echo attacker-controlled path names or file contents.
+        print("FAIL: unsafe, oversized, unreadable, or malformed bundle input.", file=out)
+        return EXIT_FAIL
+
+
+def verify_snapshot(bundle, out=sys.stdout) -> int:
     bundle = Path(bundle)
     if not bundle.is_dir():
         print("NO VERDICT: the given bundle is not a directory.", file=out)

@@ -142,6 +142,7 @@ def run_day(
     attribute_deposits=False,
     progressive=False,
     finalize=True,
+    sample_registered=False,
 ):
     """Read a block range into the day history and return its provenance.
 
@@ -167,9 +168,21 @@ def run_day(
 
         history_state(day=day, from_block=from_block, to_block=to_block, outcome="scanning")
         if may_resume and store.day_was_scanned(day):
-            # Resuming. The day is finished, so nothing is asked of the chain
-            # at all, which is what makes a resumed run cheap and what a test
-            # asserts by counting the questions.
+            if sample_registered:
+                # A pre-starter completed scan only sampled wallets with prior
+                # financial activity. Its marker cannot vouch for new entrants.
+                if store.scanned_range(day) != (from_block, to_block):
+                    raise RunRefused(
+                        "completed-day holding repair range differs from stored history"
+                    )
+                _sample_holdings(
+                    store, chain, day, from_block, to_block, holding_stride,
+                    chain.head_block(), provenance, None,
+                    designated_validator_hotkey=designated_validator_hotkey,
+                    sample_registered=True,
+                )
+            # Receipt/event collection is already complete. Legacy resumes do
+            # no reads; starter resumes also verify the wider holding cohort.
             provenance.configured(f"day {day}", "already read; this run skipped it")
             history_state(day=day, from_block=from_block, to_block=to_block,
                           outcome="already_scanned")
@@ -398,6 +411,7 @@ def run_day(
             designated_validator_hotkey=designated_validator_hotkey,
             progress=progress,
             finalize=finalize,
+            sample_registered=sample_registered,
         )
 
         if not finalize:
@@ -443,7 +457,9 @@ def run_day(
         ) from exc
 
 
-def _prove_staking_hotkeys_complete(store, chain, coldkey, block, listed, designated):
+def _prove_staking_hotkeys_complete(
+    store, chain, coldkey, block, listed, designated, registered_hotkeys=()
+):
     """Refuse if a known hotkey the wallet holds a position on is not in ``listed``.
 
     The position is read through the same metadata-gated ``alpha_share`` every
@@ -455,7 +471,7 @@ def _prove_staking_hotkeys_complete(store, chain, coldkey, block, listed, design
     """
     from .holdings import Share
 
-    known = set(store.known_hotkeys_of(coldkey))
+    known = set(store.known_hotkeys_of(coldkey)) | set(registered_hotkeys)
     if designated:
         known.add(designated)
     for hotkey in sorted(known - set(listed)):
@@ -486,8 +502,9 @@ def _sample_holdings(
     designated_validator_hotkey=None,
     progress=None,
     finalize=True,
+    sample_registered=False,
 ):
-    """Sample every observed wallet at a fixed stride through the requested day.
+    """Sample observed wallets, and opted-in registered owners, at pinned blocks.
 
     Retain each hotkey position so per-seat holding minima can be computed. Verify
     block identity before writing a sample and refuse an empty set of in-day samples."""
@@ -523,7 +540,7 @@ def _sample_holdings(
         )
 
     wallets = store.wallets_seen()
-    if not wallets:
+    if not wallets and not sample_registered:
         # Nobody earned and nobody contributed. Sampling nothing is the honest
         # answer, and marking the day sampled says the question was asked.
         if finalize:
@@ -538,6 +555,9 @@ def _sample_holdings(
     # name. Found by the same adversarial pass as the skip logic above.
     last_sample_time = None
     wrote_any = False
+    # Preserve the ordinary fixed sample grid and holding minima. A new wallet
+    # registered after the day's final stride waits for the next real sample;
+    # an off-grid endpoint would also change established wallets' inputs.
     for block in range(from_block, to_block + 1, stride):
         context = ReadContext(at_block=block, head_block=head)
         block_hash = chain.block_hash(block)
@@ -554,13 +574,23 @@ def _sample_holdings(
             block_timestamp = _block_time(chain, block, last_sample_time)
             if store.day_of(block_timestamp) == day:
                 in_target_day = True
-                for coldkey in wallets:
-                    if progress is not None and progress.sampled(coldkey, block, block_hash):
+                registered = {}
+                if sample_registered:
+                    hotkeys = list(chain.seat_hotkeys(block).values())
+                    owners = chain.hotkey_owners(hotkeys, block)
+                    for hotkey in hotkeys:
+                        registered.setdefault(owners[hotkey], set()).add(hotkey)
+                    provenance.read("registeredHoldingOwners", context)
+                for coldkey in sorted(set(wallets) | set(registered)):
+                    known = registered.get(coldkey, ())
+                    if progress is not None and progress.sampled(
+                        coldkey, block, block_hash, registered_hotkeys=known
+                    ):
                         continue
                     positions = []
                     listed = chain.staking_hotkeys(coldkey, block)
                     _prove_staking_hotkeys_complete(
-                        store, chain, coldkey, block, listed, designated_validator_hotkey
+                        store, chain, coldkey, block, listed, designated_validator_hotkey, known
                     )
                     for hotkey in listed:
                         share = chain.alpha_share(hotkey, coldkey, block)
@@ -590,7 +620,7 @@ def _sample_holdings(
                         }
                         for p in held.positions
                     ]
-                    rows.append((coldkey, held.total_rao, write_positions))
+                    rows.append((coldkey, held.total_rao, write_positions, known))
             # Genuinely in the adjacent day under its own real time (the
             # `else` this `if` has no explicit branch for): not this run's
             # to write -- see this function's own docstring -- but still
@@ -652,7 +682,7 @@ def _sample_holdings(
             continue
         wrote_any = True
 
-        for coldkey, total_rao, write_positions in rows:
+        for coldkey, total_rao, write_positions, known in rows:
             store.record_holding_sample(
                 coldkey=coldkey,
                 block_timestamp=block_timestamp,
@@ -664,7 +694,7 @@ def _sample_holdings(
                 positions=write_positions,
             )
             if progress is not None:
-                progress.mark_sample(coldkey, block, block_hash)
+                progress.mark_sample(coldkey, block, block_hash, registered_hotkeys=known)
             provenance.read("holdRao", context)
 
     if not wrote_any:

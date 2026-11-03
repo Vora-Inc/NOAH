@@ -159,6 +159,10 @@ class AgreeingChain:
             raise SourceDisagreement(f"genesisHash: sources disagree: {detail}")
         return values[0]
 
+    def signing_context(self, address, block):
+        return self._agreed("signingContext", block,
+                            lambda client: client.signing_context(address, block))
+
     def block_timestamp(self, block):
         # zero_is_impossible, because a block timestamp is milliseconds since the
         # epoch and no block we read has one. The canary already refuses a source
@@ -365,6 +369,11 @@ class AgreeingChain:
             lambda client: client.miner_collateral(hotkey, coldkey, block),
         )
 
+
+    def starter_epoch_info(self, block):
+        return self._agreed(
+            "starterEpochInfo", block, lambda client: client.starter_epoch_info(block)
+        )
 
     def first_emission_block(self, block):
         """Whether the subnet's start call has landed as of ``block``,

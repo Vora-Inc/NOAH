@@ -1,5 +1,6 @@
 """Application diagnostics must preserve business calls, results and exceptions."""
 
+import fcntl
 import json
 import os
 import subprocess
@@ -236,6 +237,29 @@ def test_queue_full_does_not_wait_for_stalled_writer(monkeypatch, tmp_path):
     rows = captured
     assert rows[-1]["source_dropped"] >= 20
     assert rows[-1]["source_sequence"] > len(rows)
+
+
+@pytest.mark.parametrize("release_lock", [True, False])
+def test_shared_guard_and_updater_diagnostics_tolerate_brief_contention(
+    monkeypatch, tmp_path, release_lock
+):
+    path = tmp_path.resolve() / "events.jsonl"
+    with path.with_name(path.name + ".lock").open("w") as owner:
+        fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        sink = enable(monkeypatch, path)
+        started = time.monotonic()
+        E.emit("validator", "stage.entered", "validator.tick")
+        assert time.monotonic() - started < 0.1
+        time.sleep(0.05)
+        if release_lock:
+            fcntl.flock(owner, fcntl.LOCK_UN)
+        assert sink.flush(2)
+        if release_lock:
+            assert sink.written == 1 and sink.dropped == 0
+            assert records(sink)[0]["stage"] == "validator.tick"
+        else:
+            assert sink.written == 0 and sink.dropped == 1
+            assert sink.last_error == "writer_busy"
 
 
 def test_cap_symlink_and_partial_tail_refuse_without_mutation(monkeypatch, tmp_path):

@@ -366,6 +366,19 @@ class LiveRunnerChain:
         """Chain identity for resumable collection; no genesis state read."""
         return self.block_hash(0)
 
+    def signing_context(self, address, block):
+        """Nonce and runtime at one finalized block, for exact direct publication."""
+        block_hash = self.block_hash(block)
+        def read():
+            account = _plain(self._connection.query("System", "Account", [address], block_hash=block_hash))
+            runtime = self._connection.get_block_runtime_info(block_hash)
+            result = {"nonce": account["nonce"], "specVersion": runtime["specVersion"],
+                      "transactionVersion": runtime["transactionVersion"]}
+            if any(type(value) is not int or value < 0 for value in result.values()):
+                raise ValueError("invalid signing context")
+            return result
+        return self._ask("finalized signing context", read)
+
     # -- the four questions asked of every block -----------------------------
 
     def head_block(self):
@@ -513,6 +526,17 @@ class LiveRunnerChain:
             f"MechanismCountCurrent[{self.netuid}] at block {block}",
             lambda: _mechanism_count_scalar(self._storage("MechanismCountCurrent", block)),
         )
+
+    def starter_epoch_info(self, block):
+        """Finalized scheduler facts. Amounts remain integer alpha rao."""
+        names = ("Tempo", "LastEpochBlock", "LastMechansimStepBlock", "LastYumaStepBlock", "PendingEpochAt",
+                 "BlocksSinceLastStep", "PendingServerEmission", "NetworkRegisteredAt", "WeightsVersionKey")
+        result = {name: _plain(self._storage(name, block)) for name in names}
+        for name, value in result.items():
+            if type(value) is not int or value < 0:
+                raise Refusal(f"starter scheduler {name} is not a nonnegative integer")
+        result["consensus"] = _plain(self._storage("SubnetEpochConsensus", block))
+        return result
 
     def incentive(self, block):
         """Read Incentive at this subnet's storage index.

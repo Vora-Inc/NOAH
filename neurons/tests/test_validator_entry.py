@@ -547,7 +547,8 @@ class MainPassesLedgerPath(unittest.TestCase):
         bt.wallet.return_value = wallet
         settings = mock.Mock(network="test", netuid=1, chain_endpoint="x",
                              wallet_name="w", wallet_hotkey="h", settle_blocks=1,
-                             log_level="info")
+                             log_level="info", epoch_collection=False,
+                             epoch_republication=False, starter_entry_snapshot=None)
         reader = mock.Mock()
         reader.current_block.return_value = 100
         with (

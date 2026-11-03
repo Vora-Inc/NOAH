@@ -1,5 +1,7 @@
 # Miner quickstart: Finney mainnet
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 This is the participant setup for Noah on Bittensor **Finney mainnet, netuid
 82**. It uses a public chain RPC and your own local wallet. There is no Noah
 miner daemon or axon to expose: registration and Ark contributions are signed
@@ -86,8 +88,8 @@ assistant's `wallet_name` and `hotkey_name` must match them too.
 ## 3. Fund and register the hotkey
 
 Fund your coldkey with **real mainnet TAO** through a method you trust. It
-needs enough for the current registration charge, acquiring at least the
-entry contribution's spendable NOAH stake, and transaction fees. Read the
+needs enough for the current registration charge and transaction fees. An
+upfront NOAH purchase or Ark deposit is not required. Read the
 live subnet and price before accepting a transaction:
 
 ```sh
@@ -110,234 +112,93 @@ btcli --network finney --wallet "$NOAH_WALLET_NAME" --wallet-hotkey "$NOAH_HOTKE
 At the confirmation prompt, `y` authorizes a **real** registration charge;
 `n` cancels. If a submission times out or reports an uncertain result, read
 the UID and coldkey balance before considering another attempt. A successful
-registration assigns a UID; it is not the Ark entry contribution.
+registration assigns a UID; it does not itself guarantee starter eligibility or a payout.
 
-## 4. Acquire spendable NOAH stake
+## 4. Wait for starter eligibility and verify the result
 
-Check your position before buying stake. Registration collateral may appear
-in the wallet's total NOAH but may not be transferable to the Ark. The entry
-needs **10 spendable NOAH**, plus any reserve you set in the helper. With the
-1 NOAH reserve shown below, have at least **11 spendable NOAH** and separate
-free TAO for network fees. The reserve stays in your wallet; it is not another
-entry charge.
+You do not need to buy NOAH or send an entry deposit. Keep the registered hotkey
+under your control and wait for its inclusion in the next completed UTC-day
+roster, followed by a finalized epoch allocation. An intraday registration does
+not receive a share from an older saved daily calculation.
+
+The [starter policy](STARTER_ENTRY.md) describes the shared pool, lifetime
+coldkey/hotkey allowance, exclusions and exhaustion rules. Registration is not
+a guarantee of positive weight or a particular payout. Missing history or
+unsettled chain evidence can delay allocation.
+
+Check the published daily inputs, your identity and eligibility, the submitted
+weight, finalized transaction and actual epoch payment. A local preview or a
+transaction receipt alone does not prove all of these. Use the
+[score verification guide](VERIFYING_SCORES.md).
+
+## 5. Make ongoing contributions when appropriate
+
+Starter earnings count toward the same **50% contribution target for eligible
+spendable earnings** as other qualifying earnings. Early contributions are
+retained; they do not buy another starter allowance or stack starter and ordinary
+weight. After the allowance is exhausted, ordinary scoring determines rewards;
+without qualifying contribution credit there is no ordinary score.
+
+Read the [contribution rules](CONTRIBUTIONS.md) and
+[deposit notices](DEPOSIT_NOTICES.md). To make a contribution, follow the
+[deposit helper guide](../noah/deposits/assistant/USAGE.md). Choose the amount from
+your actual earnings/credit evidence. There is no fixed onboarding payment.
+Keep enough free TAO for fees and review the spendable stake and reserve before
+signing. Returned or locked registration collateral is not mining earnings.
+
+The helper's ordinary deposit command transfers stake already owned by your
+wallet. It does not automatically purchase tokens or schedule sends. Use a stable
+contribution label and reconcile an uncertain result before considering a retry;
+do not send again merely because scoring credit is pending.
+
+Optional advanced paths: [proxy signing](MINER_PROXY.md) and
+[mixed deposit test workflow](MINER_MIXED.md). These are contribution tools,
+not steps required to register or become starter-eligible. Experimental purchase
+and conversion flows retain their documented network restrictions.
+
+## Optional Mainnet contribution configuration
+
+Use this only when you choose to make an ongoing contribution. It is not needed
+to register or receive starter eligibility. `init-config` writes a **generic test
+network** example; do not send using its defaults. Create your local file:
 
 ```sh
-btcli --network finney --wallet "$NOAH_WALLET_NAME" --wallet-hotkey "$NOAH_HOTKEY_NAME" wallet overview
-btcli --dry-run --network finney --wallet "$NOAH_WALLET_NAME" --wallet-hotkey "$NOAH_HOTKEY_NAME" tx add-stake --netuid 82 --amount-tao YOUR_REVIEWED_AMOUNT
-```
-
-Replace `YOUR_REVIEWED_AMOUNT` with an amount you choose after checking the
-live quote and available TAO. If the preview is right, repeat the command
-without `--dry-run`, then read `wallet overview` again. This buys stake for
-your miner hotkey; it does not yet move ownership to the Ark.
-
-## 5. Configure the deposit assistant
-
-Work in a private directory on your trusted signing machine. Keep this mainnet settings
-file and ledger separate from any test files:
-
-```sh
-mkdir -p "$HOME/noah-mainnet-miner"
-cd "$HOME/noah-mainnet-miner"
 noah-miner --config noah-mainnet-deposit.ini init-config
 ```
 
-Edit **all** of the generated `[miner]`, `[ark]`, `[deposit]`, `[evidence]`,
-and `[state]` sections. In particular, the generated local-node endpoint and
-test subnet values are examples, **not mainnet defaults**. Use the public
-addresses below only after checking them against Noah's current official
-announcement and on-chain records:
+Edit that file with the following network mapping and your own wallet details.
+Keep each comment on its own line. A label alone does not select a network.
 
-```ini
-[miner]
-network = mainnet
-endpoint = wss://entrypoint-finney.opentensor.ai:443
-netuid = 82
-miner_hotkey = YOUR_REGISTERED_HOTKEY_ADDRESS
-coldkey = YOUR_COLDKEY_ADDRESS
-wallet_name = noah-miner
-hotkey_name = default
-genesis_hash = 0x2f0555cc76fc2840a25a6ea3b9637146806f1f44b090c175ffde2a7e5ab36c03
-stake_position = miner
+| INI setting | Mainnet value |
+|---|---|
+| `[miner] network` | `mainnet` (label only) |
+| `endpoint` | Your verified Finney WebSocket RPC URL from step 1 |
+| `netuid` | `82` |
+| `genesis_hash` | `0x2f0555cc76fc2840a25a6ea3b9637146806f1f44b090c175ffde2a7e5ab36c03` |
+| `miner_hotkey`, `coldkey` | Your registered hotkey and owning coldkey public addresses |
+| `wallet_name`, `hotkey_name` | Your local wallet and hotkey names from step 2 |
+| `stake_position` | `miner` when contributing earnings staked to your miner hotkey |
+| `[ark] ark_coldkey` | `5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3` |
+| `designated_validator_hotkey` | `5DLQGc9DoabXWGp4s4vktHyGEA3itg8twResPfDZ4qw8RZJV` |
+| `[deposit] mode` | `custom` for an individually reviewed amount |
+| `amount_noah` | Your chosen ongoing contribution, based on actual earnings and credit |
+| `reserve_noah` | Your chosen amount to retain; the generic example reserves one NOAH |
+| `[state] dir` | A durable local ledger directory dedicated to this miner/network |
 
-[ark]
-ark_coldkey = 5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3
-designated_validator_hotkey = 5DLQGc9DoabXWGp4s4vktHyGEA3itg8twResPfDZ4qw8RZJV
+Verify the shared destination against the [address reference](reference/WALLET_ADDRESSES.md).
+Do not copy the example test subnet or leave the genesis unpinned. For percent or
+maintenance modes, supply complete earnings and credited-contribution evidence as
+described in the [helper guide](../noah/deposits/assistant/USAGE.md). Returned
+registration collateral is not earnings; only actual preserved historical entry
+credit is excluded from ongoing contributions.
 
-[deposit]
-mode = custom
-amount_noah = 10
-reserve_noah = 1
-
-[evidence]
-file = ./noah-mainnet-evidence.json
-
-[state]
-dir = ./noah-mainnet-deposit-state
-```
-
-If you use a different trusted, submission-capable Finney RPC for the helper,
-put its full URL in `endpoint` and verify that endpoint's genesis first.
-Replace the wallet names and both miner addresses with your own values from
-step 2; do not copy another miner's keys into the wallet.
-The assistant reads and submits through `[miner] endpoint`; it does not read
-`btcli`'s network setting. `network = mainnet` is a label and
-validator check, not an automatic connection selector. The pinned
-`genesis_hash` makes the assistant refuse a different chain before signing.
-The Ark addresses above are from the
-[mainnet address reference](reference/WALLET_ADDRESSES.md), which must be
-checked again before use. The Ark coldkey receives ownership;
-the designated validator hotkey receives delegation. Neither is your miner
-hotkey.
-
-`stake_position = miner` is for NOAH stake under your miner hotkey. If you
-already hold stake under a different validator hotkey, read the
-[helper's stake-position rules](../noah/deposits/assistant/USAGE.md#2-write-the-settings-file)
-before editing that field. The helper does not buy tokens.
-
-## 6. Preview, send once, and verify
-
-Run the preview from the directory containing your settings. It sends
-nothing and should show the correct chain, miner, Ark, amount, available
-spendable stake, and reserve:
+Validate and preview without signing:
 
 ```sh
-noah-miner --config noah-mainnet-deposit.ini preview
-```
-
-Stop if the preview refuses, the chain or addresses differ, the required
-transfer switch is off, or the proposal is not what you intend. The helper
-does not estimate the TAO network fee. When the preview matches your intended
-transfer, the manual send is:
-
-```sh
-noah-miner --config noah-mainnet-deposit.ini deposit --label entry
-```
-
-Check the receipt:
-
-```sh
-noah-miner --config noah-mainnet-deposit.ini status
-```
-
-`noah-miner deposit` requires an exact typed confirmation and your wallet password.
-An on-chain `finalized` receipt means the transfer qualified in the helper's
-readback; scoring credit still needs a published daily record. If the outcome
-is uncertain, run `status` before trying any further transfer. Never resend
-the 10 NOAH entry merely because credit is pending.
-
-Keep the transaction identifier and compare its amount, ownership transfer,
-delegation, and miner attribution against finalized chain records. Then check
-the next applicable published contribution and score record as described in
-[score verification](VERIFYING_SCORES.md). A `credited` helper status compares
-totals you supplied; it is not proof that this particular receipt earned credit.
-
-## 7. Continue after entry
-
-The mainnet profile specifies a **50% ongoing contribution target** for
-eligible earnings. This is a scoring target, not an automatic wallet debit.
-Daily contributions are requested. The helper supports `custom`, `fixed`,
-`percent`, and `maintenance` amount modes. Its `percent` and `maintenance`
-modes require a complete external
-earnings and credited-contribution evidence file; see the
-[deposit helper guide](../noah/deposits/assistant/USAGE.md). Each send is
-manual and needs confirmation. Review the finalized receipt, attributed
-contribution, day-specific score, published weight, and actual emissions as
-separate results. Do not schedule `noah-miner deposit` unattended. The
-[contribution rules](CONTRIBUTIONS.md) explain advance and catch-up credit,
-including shared wallets.
-
-## Inspect your active settings
-
-Each miner uses one active INI. Its `[miner]`, `[ark]`, `[deposit]` and `[state]`
-sections hold the base settings; optional `[signing]`, `[signer]` and `[mixed]`
-sections belong in that same file. Separate files are useful for different miners
-or disposable test scenarios, not required for different actions. Combined proxy
-and mixed execution remains unsupported.
-
-Show the actual configured sections, even while placeholders remain:
-
-```sh
-noah-miner --config noah-mainnet-deposit.ini config
-```
-
-This is a display-only INI view: credentials and endpoint URL details are redacted;
-comments are omitted. It neither unlocks keys nor contacts the chain. Do not store
-private keys or passwords in the INI. Use `config --json` for validated JSON settings
-or `check-config` to validate without contacting the chain.
-
-Edit your INI using `VISUAL` or `EDITOR` (default `nano`):
-
-```sh
-noah-miner --config noah-mainnet-deposit.ini config edit
-```
-
-The command edits a private draft, validates it locally, and saves a backup
-before replacing your settings. Invalid edits leave the original unchanged.
-It does not contact the chain or sign. The INI must be a writable regular file;
-for a managed installation, have its operator update the source settings.
-
-
-## Optional proxy signing
-
-The same deposit command can use a delegate while the real coldkey stays
-offline. Keep your original owner and miner hotkey in `[miner]`; choose proxy
-signing in the same active INI. See [proxy deposits](MINER_PROXY.md) for the one-time
-delegation and constrained signer setup.
-
-```sh
+noah-miner --config noah-mainnet-deposit.ini check-config
 noah-miner --config noah-mainnet-deposit.ini deposit --preview
 ```
 
-```sh
-noah-miner --config noah-mainnet-deposit.ini deposit --label entry
-```
-
-## Conversion followed by mixed deposits
-
-The `convert-deposit` command is currently restricted to disposable private-test
-work. Production mixed deposits are not supported in this release.
-See the [mixed deposit guide](MINER_MIXED.md) for settings and the three-step
-workflow. Use the active INI of a disposable private-test miner, not the mainnet
-INI above. Each target still has one INI containing all of its settings:
-
-```sh
-noah-miner --config /path/to/private-test/deposit.ini convert-deposit --preview --label mixed-test-01
-```
-
-### Mixed workflow outcomes
-
-`delivery_complete: true` means all three transfers were verified at finalized
-blocks; it does not establish scoring credit.
-
-A `not_submitted` step with `error_code: quote_expired` means its quote expired
-before the submission call. A conversion refused this way closes that label
-permanently, preserves its record, and sends neither deposit. Review a fresh
-preview and choose a new label for a new attempt. A later deposit leg refused
-before submission keeps earlier completed steps; rerunning the original label
-asks for approval and attempts only the unsent leg.
-
-An `uncertain` step remains blocked. Check status using the **original label**;
-do not change labels, delete state, or assume a timeout means failure. The
-output records the last phase and whether submission was started. A saved
-transaction hash alone does not prove that the node received it.
-
-## Fixed purchase using free TAO
-
-For disposable private-test accounts, `purchase-deposit` buys the configured
-asset using a fixed TAO cap, deposits the fixed NOAH amount, and then transfers
-only the purchased asset quantity established by its finalized receipt.
-See the [purchase settings and proxy requirements](../noah/deposits/assistant/USAGE.md#fixed-free-tao-purchase-rehearsal).
-Production execution is not supported in this release.
-
-```sh
-noah-miner --config noah-deposit.ini purchase-deposit --preview --label purchase-test-01
-```
-
-```sh
-noah-miner --config noah-deposit.ini purchase-deposit --label purchase-test-01
-```
-
-```sh
-noah-miner --config noah-deposit.ini purchase-deposit --status --label purchase-test-01
-```
+The preview contacts the chain. Stop on an unexpected network, identity, amount
+or refusal. An actual send requires the helper's separate confirmation; follow
+the [ongoing contribution procedure](../noah/deposits/assistant/USAGE.md#3-choose-an-ongoing-contribution).

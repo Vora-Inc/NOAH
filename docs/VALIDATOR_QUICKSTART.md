@@ -1,5 +1,7 @@
 # Validator guide
 
+> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+
 The Noah Validator reads chain history, calculates miner scores, checks the
 Python and TypeScript results, and publishes weights. Its local history store
 preserves the records needed to score earlier earnings and contributions.
@@ -79,12 +81,14 @@ An unfinished example is refused. Check the following settings:
 | `NOAH_WALLET_NAME`, `NOAH_WALLET_HOTKEY` | Local proxy wallet and key labels |
 | `NOAH_EXPECTED_SIGNER_ADDRESS` | Your registered publishing hotkey that owns the seat and publishes weights |
 | `NOAH_PROXY_SIGNER_ADDRESS` | Separate operational key signing the transaction |
-| `NOAH_PUBLISH_MODE` | `direct` for the selected Null policy; uses the configured proxy and requires commit-reveal off |
+| `NOAH_PUBLISH_MODE` | `direct` for the selected single-mechanism Yuma policy; uses the configured proxy and requires commit-reveal off |
 | `NOAH_SUBMIT_ENDPOINT` | Submission connection; empty uses the primary endpoint |
 | `NOAH_ARK_ADDRESS` | Ark receiving coldkey |
 | `NOAH_VALIDATOR_HOTKEY` | Designated Ark Validator hotkey for qualifying deposits |
 | `NOAH_DIALS_JSON`, `NOAH_PARAMETERS_JSON` | Approved scoring and eligibility configuration |
-| `NOAH_ENTRY_DEPOSIT_RAO` | Entry amount matching the parameters profile |
+| `NOAH_ENTRY_DEPOSIT_RAO` | Historical entry accounting: keep `10000000000`; this is not a new-miner fee |
+| `NOAH_STARTER_ENTRY_SNAPSHOT` | Verified original cutoff snapshot; required for the live starter profile |
+| `NOAH_EPOCH_COLLECTION`, `NOAH_EPOCH_REPUBLICATION` | Both `true` for the live starter profile |
 | `NOAH_HOLDING_STRIDE_BLOCKS` | Interval between holding samples |
 | `NOAH_HISTORY_DB`, `NOAH_RUNTIME_ROOT` | Durable history, progress, and score evidence locations |
 
@@ -99,11 +103,12 @@ Publishing is not restricted to Noah's owner identity.
 Keep the shared Ark receiving address and designated Ark Validator unchanged:
 these select qualifying deposits, not the operator publishing the scores.
 
-**Null still elects exactly one publishing permit holder**, the registered UID
-with the highest stake weight. Configuring a different identity does not grant
-that permit. Startup refuses publication without it, even for the subnet owner.
-Other operators can reproduce scores with the [verification tools](VERIFYING_SCORES.md);
-this change does not enable simultaneous publishers or switch consensus to Yuma.
+Mainnet uses single-mechanism **Yuma** with direct publication and commit-reveal
+disabled. The publisher must have the chain's validator permit and pass the
+configured identity and proxy checks. Setting an address does not grant a permit.
+Other validators and Yuma consensus can affect actual rewards; this validator's
+submitted weight cap is not a chain-wide payout guarantee. Other operators can
+reproduce scores with the [verification tools](VERIFYING_SCORES.md).
 
 Use separate history, runtime and publication-ledger paths for each publisher.
 Do not reuse another publisher's pending attempts or submitted-day records.
@@ -157,13 +162,18 @@ Generate the scoring settings from the included profile rather than copying
 values by hand. Choose an output location outside the source checkout:
 
 ```bash
-NOAH_PARAMETERS_JSON="$PWD/docs/parameters/profiles/mainnet-production-v1.json" \
+NOAH_PARAMETERS_JSON="$PWD/docs/parameters/profiles/mainnet-production-starter-25bps-v1.json" \
   .venv-validator/bin/python scripts/mainnet_dials_from_profile.py
 ```
 
 This prints the seven settings as JSON without connecting to the chain. Save
 that output to the location used by `NOAH_DIALS_JSON`; use the same profile
 for `NOAH_PARAMETERS_JSON` in the environment file.
+
+Before startup, reproduce and verify the **original** cutoff snapshot using
+[these instructions](MAINNET_STARTER_SNAPSHOT.md). Set
+`NOAH_STARTER_ENTRY_SNAPSHOT` to that file and keep both epoch flags enabled.
+The legacy profile and a freshly frozen cutoff are not substitutes.
 
 For the completed configuration, run the startup check:
 
@@ -179,6 +189,42 @@ cycle. Leave the startup safeguards in place. The selected mainnet profile uses
 direct publication through the configured proxy, with commit-reveal disabled,
 matching network identities and the expected signer;
 successful configuration does not authorize a real submission.
+
+## Start the guard and validator
+
+Use two independently supervised processes under the same service account, with
+the same completed environment file, wallet, Node.js installation, runtime root,
+score directory and verified snapshot. Retain durable history and publication
+intents across restarts. The installer does not install these services for you.
+
+Start the guard first, using the real validator entry point:
+
+```bash
+.venv-validator/bin/python -m neurons.validator --env .env.validator --starter-guard
+```
+
+In another terminal, confirm its heartbeat. Replace the example path with the
+same `NOAH_RUNTIME_ROOT` selected in the environment file:
+
+```bash
+.venv-validator/bin/python -m noah.starter.health \
+  --scores-dir /path/to/runtime/ticket-16/scores
+```
+
+Only after health succeeds, start the ordinary scoring/publishing process:
+
+```bash
+.venv-validator/bin/python -m neurons.validator --env .env.validator
+```
+
+These two startup commands enable real publication with the configured proxy.
+The health command is read-only. The guard can publish an ordinary-only fallback
+when a starter allocation expires; `python -m noah.starter.guard` is an offline
+arithmetic tool, not this live guard. Supervise both processes independently and
+run the health check every 30 seconds. Starter publication requires a successful
+guard heartbeat no older than 120 seconds. A failed check needs investigation;
+do not disable the guard, clear an unknown send or unset the snapshot to bypass it.
+See [outage behavior](STARTER_ENTRY.md#outage-behavior-and-limits).
 
 ## Ark reference and first scoring period
 
@@ -226,6 +272,21 @@ fresh checks remain in place.
 Keep history and validator progress outside a replaceable checkout and back
 both up. Restarting a validator must not discard its previous publications or
 miners' contribution records.
+
+The startup history probe is a minimum connection check, not a complete retention
+contract. Daily fixture construction can re-read prices at old foreign-token
+receipt blocks even after those receipts are in the local history database.
+Those reads are not restricted to the previous day. Both independent readers
+must retain that state for every supported scoring and recovery path. Verify
+actual required blocks before selecting a retention window or changing readers;
+matching headers and a current head do not prove state is available.
+
+A large RocksDB pruning window can itself require substantial RAM for pruning
+metadata. Spare disk capacity does not establish enough RAM. Qualify the chosen
+backend, retained history, cold start and a complete normal collection/scoring
+cycle under measured resource limits. Changing a database flag is not a database
+conversion, and raising a retention number cannot recover already discarded
+state. Preserve a consistent recovery copy before any migration or pruning.
 
 A node's retained chain state and Noah's history database are different things.
 The node can only answer historical reads it still holds. The database keeps
@@ -370,9 +431,10 @@ this scan may read earlier epochs, and it does not establish which publication
 was applicable, reconcile expected payouts, or classify returned collateral
 principal as earnings. These events alone do not prove settlement.
 
-## Optional epoch maintenance
+## Epoch maintenance and starter publication
 
-[Daily scoring with epoch maintenance](EPOCH_MAINTENANCE.md) describes the
-opt-in collection and republication settings. Both default to false. They
-do not change the daily scoring formula or UTC cutoff. Review and rehearse
-them before enabling; each extra publication incurs a transaction fee.
+Current Mainnet requires both epoch flags enabled. Collection retains finalized
+history throughout the day; starter publication builds a fresh guarded overlay
+from the latest completed daily calculation. The ordinary daily formula and UTC
+cutoff remain unchanged. [Epoch maintenance](EPOCH_MAINTENANCE.md) separately
+documents the legacy non-starter path and its default-disabled options.

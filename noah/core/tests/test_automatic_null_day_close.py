@@ -5,6 +5,7 @@ miners retain the requested 8/18/32 cohort sizes, not historical attribution or
 observed earnings. Native finality and payouts require separate acceptance.
 """
 
+import asyncio
 import json
 from types import SimpleNamespace
 
@@ -15,10 +16,12 @@ from ...chain.dayblocks import day_block_range
 from ..calculation_record import verify
 from ..chain_adapter import ChainAdapter
 from ..loop import run_forever
+from ..prepared_transaction import transaction_hash
 from ..proxy_route import CommitIdentity
 from ..reader import ChainReader
 from ..submitter import Publisher
 from ._composed_call import ComposesCalls, inner_call
+from ._prepared_transport_fake import PreparedTransportFake
 from .test_direct_runtime475 import decoded, event
 from .test_proxy_route import SIGNER, VALIDATOR
 
@@ -88,6 +91,19 @@ def fixture(day):
     }
 
 
+class LedgerTransport(PreparedTransportFake):
+    """Simulate signing only; production persistence and confirmation stay real."""
+
+    def prepare(self, call, chain):
+        prepared = super().prepare(call, chain)
+        data = json.dumps({"call": decoded(call), "nonce": self.client.nonce,
+                           "signer": self.wallet.ss58_address}, sort_keys=True).encode()
+        prepared.signed.data = data
+        prepared.evidence.update(signed_hex="0x" + data.hex(),
+                                 extrinsic_hash=transaction_hash(data))
+        return prepared
+
+
 class Ledger(ComposesCalls):
     """SDK-shaped in-memory blocks; no signing or runtime execution."""
 
@@ -97,6 +113,15 @@ class Ledger(ComposesCalls):
         self.blocks = {}
         self.calls = []
         self.after_send = None
+        self._client = SimpleNamespace(_substrate=SimpleNamespace(raw=self))
+
+    def _call(self, awaitable):
+        return asyncio.run(awaitable)
+
+    async def rpc_request(self, method, params):
+        assert method == "chain_getBlock"
+        block = int(params[0], 16)
+        return {"block": {"extrinsics": ["0x00", "0x00", self.blocks[block]["encoded"]]}}
 
     def block_info(self, block):
         return SimpleNamespace(
@@ -137,9 +162,20 @@ class Ledger(ComposesCalls):
         assert kwargs == {"wait_for_inclusion": True, "wait_for_finalization": True}
         inner = inner_call(call)
         assert inner.function == "set_mechanism_weights" and inner.params["netuid"] == 2
+        # Exercise the real pre-send durable boundary, not a mocked callback.
+        marker = json.loads(self.intent_path.read_text())
+        prepared = marker["prepared_transaction"]
+        sidecar = self.intent_path.parent / "signed-transactions" / prepared["sidecar"]
+        evidence = json.loads(sidecar.read_text())
+        encoded = bytes.fromhex(evidence["signed_hex"][2:])
+        assert transaction_hash(encoded) == prepared["extrinsic_hash"]
+        assert json.loads(encoded) == {"call": decoded(call), "nonce": self.nonce,
+                                      "signer": wallet.ss58_address}
+        assert sidecar.stat().st_mode & 0o777 == 0o600
         self.calls.append(call)
         self.block += 1
         self.blocks[self.block] = {
+            "encoded": evidence["signed_hex"],
             "extrinsics": [{}, {}, {"address": SIGNER, "nonce": self.nonce, "call": decoded(call)}],
             "events": [
                 event("SubtensorModule", "WeightsSet", [2, 0]),
@@ -181,6 +217,7 @@ class Source:
 
 
 def make_adapter(directory, ledger):
+    ledger.intent_path = directory / "intent.json"
     chain = AgreeingChain(
         sources={"a": Source(ledger), "b": Source(ledger)},
         endpoints={"a": "https://first.invalid", "b": "https://second.invalid"},
@@ -192,6 +229,7 @@ def make_adapter(directory, ledger):
             SimpleNamespace(ss58_address=SIGNER),
             netuid=2,
             commit_identity=CommitIdentity(VALIDATOR),
+            transport_factory=LedgerTransport,
         ),
         runner_chain=chain,
         netuid=2,
@@ -289,6 +327,8 @@ def test_lost_reply_recovery_requires_restored_calculation_and_never_sends_twice
     manifest = verify(tmp_path / "scores", marker["calculation_evidence"])
     artifact = tmp_path / "scores" / manifest["artifacts"]["agreed_score"]["path"]
     original = artifact.read_bytes()
+    sidecar = tmp_path / "signed-transactions" / marker["prepared_transaction"]["sidecar"]
+    signed_before = sidecar.read_bytes()
     artifact.unlink()
     from ..publish_intent import PublicationStatusUnknown
 
@@ -300,6 +340,8 @@ def test_lost_reply_recovery_requires_restored_calculation_and_never_sends_twice
     assert len(ledger.calls) == 1 and not (tmp_path / "intent.json").exists()
     record = json.loads((tmp_path / "scores/day-0.submitted.json").read_text())
     assert record["calculation_evidence"] == marker["calculation_evidence"]
+    assert sidecar.read_bytes() == signed_before
+    assert "signed_hex" not in json.dumps(record)
     assert record["applied_weights_readback"]["consensus"] == "Null"
 
 
@@ -338,3 +380,21 @@ def test_closed_day_refuses_before_send_when_evidence_or_reader_agreement_fails(
     assert not list((tmp_path / "scores").glob("*.submitted.json"))
     assert not (tmp_path / "intent.json").exists()
     assert all(r.outcome != "published" for r in results)
+
+
+def test_same_logical_publication_with_different_included_bytes_stays_unknown(tmp_path):
+    ledger = Ledger()
+
+    def alter_included_bytes(client):
+        client.blocks[client.block]["encoded"] = "0x00"
+
+    ledger.after_send = alter_included_bytes
+    run(tmp_path, ledger, [DAY_BLOCKS - 1, DAY_BLOCKS])
+    assert len(ledger.calls) == 1
+    marker = json.loads((tmp_path / "intent.json").read_text())
+    assert marker["prepared_transaction"]["extrinsic_hash"] != transaction_hash(b"\x00")
+    from ..publish_intent import PublicationStatusUnknown
+
+    with pytest.raises(PublicationStatusUnknown):
+        make_adapter(tmp_path, ledger).already_published(DAY_BLOCKS - 1)
+    assert len(ledger.calls) == 1 and (tmp_path / "intent.json").exists()

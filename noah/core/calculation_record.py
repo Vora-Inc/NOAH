@@ -98,6 +98,7 @@ def source_identity():
     files = {}
     for folder, pattern in (
         ("noah", "*.py"),
+        ("noah/starter", "*.mjs"),
         ("neurons", "*.py"),
         ("verification/noah-ts/src", "*.ts"),
     ):
@@ -108,7 +109,7 @@ def source_identity():
     return {"declared_commit": revision, "source_sha256": digest(encoded(files)), "files": files}
 
 
-def retain(directory, *, fixture, agreed_text, vector, context):
+def retain(directory, *, fixture, agreed_text, vector, context, canonical_day=True):
     """Commit all evidence before returning the immutable publication reference."""
     directory = Path(directory)
     score = json.loads(agreed_text)
@@ -157,8 +158,9 @@ def retain(directory, *, fixture, agreed_text, vector, context):
         "ark_address": context["ark_address"],
         "publishable_weights_u16": manifest["publishable_weights_u16"],
     }
-    durable_write(directory / f"day-{day}.fixture.json", encoded(fixture))
-    durable_write(directory / f"day-{day}.json", encoded(canonical))
+    if canonical_day:
+        durable_write(directory / f"day-{day}.fixture.json", encoded(fixture))
+        durable_write(directory / f"day-{day}.json", encoded(canonical))
     reference = {
         "path": relative,
         "sha256": sha,
@@ -166,17 +168,18 @@ def retain(directory, *, fixture, agreed_text, vector, context):
         "genesis_hash": context["genesis_hash"],
         "candidate_sha256": context.get("candidate", {}).get("source_sha256"),
     }
-    durable_write(
-        directory / f"day-{day}.calculation.json",
-        encoded(
-            {
-                **manifest,
-                "reference": reference,
-                "recorded_at": datetime.now(timezone.utc).isoformat(),
-            }
-        ),
-        replace=True,
-    )
+    if canonical_day:
+        durable_write(
+            directory / f"day-{day}.calculation.json",
+            encoded(
+                {
+                    **manifest,
+                    "reference": reference,
+                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
+            replace=True,
+        )
     return reference
 
 

@@ -28,7 +28,9 @@ under `Transfer`; a proxy relationship alone does not establish that permission.
 ## Configure a bounded signer
 
 Use your existing active deposit INI (called `noah-deposit.ini` below). Keep its original `[miner]` and
-`[ark]` addresses. For this example use a fixed 10 NOAH deposit and add:
+`[ark]` addresses. This is an optional ongoing-contribution example, not an entry
+requirement. For an illustrative one-NOAH contribution, set `[deposit] mode = fixed`
+and `amount_noah = 1`, then add:
 
 ```ini
 [signing]
@@ -44,8 +46,8 @@ signer_socket = /ABSOLUTE/PRIVATE/DIRECTORY/noah-signer.sock
 policy_id = my-miner
 runtime_code_hash = REVIEWED_RUNTIME_CODE_HASH
 spec_version = REVIEWED_RUNTIME_SPEC_VERSION
-max_amount_rao = 10000000000
-max_total_rao = 10000000000
+max_amount_rao = 1000000000
+max_total_rao = 1000000000
 max_fee_rao = YOUR_REVIEWED_MAXIMUM_FEE_IN_RAO
 ```
 
@@ -85,7 +87,7 @@ It sends nothing and does not unlock the delegate wallet. Then submit the
 reviewed deposit:
 
 ```sh
-noah-miner --config noah-deposit.ini deposit --label entry
+noah-miner --config noah-deposit.ini deposit --label contribution-01
 ```
 
 Verify its result:

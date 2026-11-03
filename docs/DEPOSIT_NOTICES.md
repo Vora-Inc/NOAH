@@ -33,10 +33,11 @@ continued ownership of a miner seat are not guaranteed.
 
 ## What makes a contribution count
 
-For Noah mining, the entry contribution is **10 NOAH per miner**. The ongoing
-target is **50% of eligible spendable mining earnings**. The entry contribution
-is separate and does not pay down that ongoing target. Returned registration
-collateral is not mining earnings.
+Current Mainnet starter eligibility requires no upfront NOAH purchase or Ark
+deposit. The ongoing target remains **50% of eligible spendable mining earnings**,
+including starter earnings. Any preserved legacy entry credit is separate and
+does not pay down that target. Returned registration collateral is not mining
+earnings. See [starter entry](STARTER_ENTRY.md) for eligibility and limits.
 
 A contribution must reach the [Ark receiving address](CONTRIBUTIONS.md#address-map),
 with the required Ark Validator delegation, and identify the miner it should

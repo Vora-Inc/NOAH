@@ -125,6 +125,12 @@ def confirm(reader, intent, result, *, finalized_chain):
         raise ChainUnreadable("direct inclusion block hash changed")
     if index >= len(info.extrinsics) or not matches_call(info.extrinsics[index], intent):
         raise ChainUnreadable("included transaction differs from the intended direct publication")
+    prepared = intent.get("prepared_transaction")
+    if prepared is not None:
+        from .prepared_transaction import signed_bytes_at, transaction_hash
+        raw = signed_bytes_at(reader.client, info.hash, index)
+        if transaction_hash(raw) != prepared.get("extrinsic_hash"):
+            raise ChainUnreadable("included transaction differs from the exact prepared bytes")
     hotkey = reader._query("Keys", [intent["netuid"], intent["uid"]], block=block)
     if not same_address(hotkey, intent["hotkey"]):
         raise ChainUnreadable("Noah no longer holds the intended publication seat")
@@ -176,10 +182,10 @@ def confirm(reader, intent, result, *, finalized_chain):
 def reconcile(reader, intent, *, finalized_chain):
     """Search an uncertain send without ever resubmitting it.
 
-    The pre-send account nonce plus complete call identifies the candidate. It is
-    not a pool nonce or a signed-extrinsic mortality proof. A missing match always
-    leaves the intent open for operator reconciliation, including after the scan
-    limit; it never authorizes a retry.
+    Legacy intents record an observed nonce and complete call, not actual signed
+    mortality. New intents additionally bind exact signed bytes and their bounded
+    mortal lifetime. A missing match always leaves either intent open for operator
+    reconciliation; it never authorizes a retry.
     """
     result = intent.get("result")
     if result and result.get("block") is not None and result.get("extrinsic_index") is not None:
@@ -188,10 +194,21 @@ def reconcile(reader, intent, *, finalized_chain):
     if type(start) is not int or type(intent.get("account_nonce_at_head")) is not int:
         raise ChainUnreadable("uncertain direct send lacks a pre-send head or signer nonce")
     head = finalized_chain.head_block()
-    # Bounded RPC work. An older unresolved send needs an explicit operator readback.
-    if head - start > 4096:
+    prepared = intent.get("prepared_transaction")
+    end = head
+    if prepared is not None:
+        birth, death = prepared.get("birth"), prepared.get("death")
+        if (type(birth) is not int or type(death) is not int
+                or death - birth != 128 or birth < start
+                or prepared.get("nonce") != intent["account_nonce_at_head"]
+                or finalized_chain.block_hash(birth) != prepared.get("birth_hash")):
+            raise ChainUnreadable("prepared transaction recovery context is inconsistent")
+        # Actual mortal bytes bound the search even much later. No match still
+        # leaves the intent open: this path never re-signs, clears or resends.
+        start, end = max(start, birth - 1), min(head, death - 1)
+    elif head - start > 4096:
         raise ChainUnreadable("uncertain direct send exceeds the 4096-block reconciliation window")
-    for block in range(start + 1, head + 1):
+    for block in range(start + 1, end + 1):
         info = reader.client.block_info(block)
         if info is None:
             raise ChainUnreadable("uncertain direct send block could not be read")

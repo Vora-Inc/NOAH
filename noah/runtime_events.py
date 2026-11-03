@@ -207,7 +207,7 @@ def _fields(values):
 
 
 class EventSink:
-    """One process/run, bounded queue, append-only shared log with nonblocking lock."""
+    """Nonblocking application queue; bounded background waits on a shared log."""
 
     def __init__(self, path):
         self.path = Path(path)
