@@ -192,14 +192,18 @@ def run_day(
         if not finalize and not progressive:
             raise RunRefused("partial collection requires progressive mode")
         progress = None
+        # A forced replay must revisit receipt blocks and holding samples.
+        # A finished progressive cursor otherwise skips the whole day even
+        # when may_resume=False bypasses the completed-day shortcut.
         if progressive and not needs_rescan:
-            from .collection import CollectionProgress
-            progress = CollectionProgress(store, chain, day, from_block, to_block, {
-                "version": 1, "genesis": chain.genesis_hash(), "netuid": netuid,
-                "ark": ark_coldkey, "validator": designated_validator_hotkey,
-                "holding_stride": holding_stride, "read_collateral": read_collateral,
-                "attribute_deposits": attribute_deposits,
-            })
+            if may_resume:
+                from .collection import CollectionProgress
+                progress = CollectionProgress(store, chain, day, from_block, to_block, {
+                    "version": 1, "genesis": chain.genesis_hash(), "netuid": netuid,
+                    "ark": ark_coldkey, "validator": designated_validator_hotkey,
+                    "holding_stride": holding_stride, "read_collateral": read_collateral,
+                    "attribute_deposits": attribute_deposits,
+                })
             for boundary in (from_block, to_block):
                 if store.day_of(_block_time(chain, boundary, None)) != day:
                     raise RunRefused("progressive range crosses its UTC day")
@@ -260,7 +264,7 @@ def run_day(
                 )
             )
             is_epoch = pay_event_present(events, netuid=netuid)
-            registered_hotkeys = collateral_locked_at_registration(events)
+            registered_hotkeys = collateral_locked_at_registration(events, netuid=netuid)
 
             # The timestamp decides which day something falls in, so a block
             # with nothing in it does not need one. Fetching it for every block
@@ -304,7 +308,7 @@ def run_day(
                             coldkeys=sorted(
                                 {coldkey for _uid, _hotkey, coldkey, _amount in attribution.paid}
                             ),
-                            moved_by_hand=collateral_moved_by_hand(events),
+                            moved_by_hand=collateral_moved_by_hand(events, netuid=netuid),
                             read_collateral=read_collateral,
                         )
                         if attribution is not None

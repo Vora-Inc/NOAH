@@ -211,3 +211,15 @@ def test_incomplete_cache_schema_refuses_reopen(tmp_path):
     s.close()
     with pytest.raises(SchemaTooOld):
         a_store(tmp_path)
+
+
+def test_forced_replay_revisits_completed_cursor_and_is_idempotent(tmp_path):
+    recovered, clean = a_store(tmp_path, "recovered.db"), a_store(tmp_path, "clean.db")
+    deposits = {FIRST + 1: a_deposit(), FIRST + 7: a_deposit(xt=8)}
+    collect(recovered, FinalizedChain(deposits=deposits), finalize=True)
+    full(clean, FinalizedChain(deposits=deposits))
+    for _ in range(2):
+        chain = FinalizedChain(deposits=deposits)
+        collect(recovered, chain, finalize=True, may_resume=False)
+        assert [x[1] for x in chain.asked if x[0] == "events"] == list(range(FIRST, LAST + 1))
+        assert facts(recovered) == facts(clean)
