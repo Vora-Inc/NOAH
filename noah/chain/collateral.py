@@ -133,8 +133,49 @@ def lock_total_rao(*, coldkey, block, aggregate_rao, positions):
 BY_HAND = ("CollateralLocked", "MinCollateralSet")
 
 
-def collateral_moved_by_hand(events):
+class CollateralEventUnreadable(Refusal):
+    """A relevant event cannot be assigned to a definite subnet."""
+
+
+def _in_subnet(event, netuid):
+    module = event.get("module_id")
+    if not isinstance(module, str) or not module:
+        raise CollateralEventUnreadable("collateral event has no valid pallet identity")
+    if module != "SubtensorModule":
+        return False
+    attributes = event.get("attributes")
+    if isinstance(attributes, dict):
+        observed = attributes.get("netuid")
+    elif isinstance(attributes, (tuple, list)) and attributes:
+        observed = attributes[0]
+    else:
+        observed = None
+    if type(netuid) is not int or not 0 <= netuid < 2**16:
+        raise CollateralEventUnreadable("collateral reader needs a valid subnet number")
+    if type(observed) is not int or not 0 <= observed < 2**16:
+        raise CollateralEventUnreadable(
+            f"{event.get('event_id')} has no valid subnet number; collateral is unreadable"
+        )
+    if observed != netuid:
+        return False
+    if event.get("event_id") == "NeuronRegistered":
+        if not isinstance(attributes, (tuple, list)) or len(attributes) != 3:
+            raise CollateralEventUnreadable("registration event has an unsupported shape")
+        if not isinstance(attributes[2], str) or not attributes[2]:
+            raise CollateralEventUnreadable("registration event has no hotkey")
+    elif not isinstance(attributes, dict):
+        raise CollateralEventUnreadable("collateral event has an unsupported shape")
+    elif not isinstance(attributes.get("hotkey"), str) or not attributes["hotkey"]:
+        raise CollateralEventUnreadable("collateral event has no valid hotkey")
+    return True
+
+
+def collateral_moved_by_hand(events, *, netuid):
     """The hotkeys whose collateral a miner changed by hand in this block.
+
+    Only events belonging to ``netuid`` participate. A foreign subnet cannot
+    change this subnet's collateral maps. Missing/malformed subnet identity
+    refuses instead of silently treating a relevant movement as absent.
 
     Returned as hotkeys rather than wallets, because **the event does not carry
     the coldkey** (`macros/events.rs:773-782`) and the lock is keyed by one. Nor
@@ -149,7 +190,7 @@ def collateral_moved_by_hand(events):
     """
     moved = set()
     for event in events:
-        if event.get("event_id") in BY_HAND:
+        if event.get("event_id") in BY_HAND and _in_subnet(event, netuid):
             attributes = event.get("attributes") or {}
             hotkey = attributes.get("hotkey")
             if hotkey is not None:
@@ -161,14 +202,15 @@ def collateral_moved_by_hand(events):
     return moved
 
 
-def collateral_locked_at_registration(events):
+def collateral_locked_at_registration(events, *, netuid):
     """Identify miner hotkeys whose registration locked collateral in this block.
 
+    Both the registration and lock must belong to ``netuid``.
     Match the chain event shape; unrelated balance or collateral changes are not
     registration evidence."""
     registered = set()
     for event in events:
-        if event.get("event_id") != "NeuronRegistered":
+        if event.get("event_id") != "NeuronRegistered" or not _in_subnet(event, netuid):
             continue
         attributes = event.get("attributes")
         if isinstance(attributes, (tuple, list)) and len(attributes) == 3:
@@ -177,7 +219,7 @@ def collateral_locked_at_registration(events):
         return set()
     locked = set()
     for event in events:
-        if event.get("event_id") != "CollateralLocked":
+        if event.get("event_id") != "CollateralLocked" or not _in_subnet(event, netuid):
             continue
         attributes = event.get("attributes")
         hotkey = attributes.get("hotkey") if isinstance(attributes, dict) else None

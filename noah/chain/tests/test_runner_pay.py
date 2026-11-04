@@ -1669,9 +1669,10 @@ def test_a_miner_moving_collateral_in_the_epoch_block_holds_the_day_out(tmp_path
     """
     store = a_store(tmp_path)
     by_hand = {
+        "module_id": "SubtensorModule",
         "event_id": "CollateralLocked",
         "ordinal_in_block": 9,
-        "attributes": {"hotkey": ALICE_HOT, "locked": 500},
+        "attributes": {"netuid": NETUID, "hotkey": ALICE_HOT, "locked": 500},
     }
     chain = Chain(events={EPOCH: [pay_event([700, 300]), by_hand]})
     chain.locks = {(ALICE_COLD, EPOCH - 1): 0, (ALICE_COLD, EPOCH): 500}
