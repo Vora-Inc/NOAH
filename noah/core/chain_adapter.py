@@ -2116,13 +2116,17 @@ class ChainAdapter:
             # is invoked. A refusal here proves no send occurred. Do not leave
             # an impossible-to-reconcile intent blocking the expiry guard.
             from .publish import PublicationRefused
+            from .publication_diagnostics import publication_phase
             try:
                 from ..starter.publication import check_before_send, verify_overlay
-                check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
-                proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
+                with publication_phase("pre_send_evidence"):
+                    check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
+                with publication_phase("pre_send_overlay"):
+                    proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
                 if proof is not None and proof['mode'] == 'starter-overlay':
                     from ..starter.runtime import require_guard
-                    require_guard(self)
+                    with publication_phase("pre_send_guard"):
+                        require_guard(self)
             except (Exception, Refusal) as error:
                 raise PublicationRefused(
                     f"pre-send evidence/guard check refused ({type(error).__name__}); "
