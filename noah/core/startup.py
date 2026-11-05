@@ -39,6 +39,14 @@ class NotRegistered(SettingsError):
 class CannotPublishYet(SettingsError):
     """The chain will not accept weights from this seat yet. Waiting, not broken."""
 
+    def __init__(self, *args, current_block=None, last_update=None,
+                 rate_limit=None, remaining_blocks=None):
+        super().__init__(*args)
+        self.current_block = current_block
+        self.last_update = last_update
+        self.rate_limit = rate_limit
+        self.remaining_blocks = remaining_blocks
+
 
 class NotArchiveCapable(SettingsError):
     """The node cannot answer reads deep enough for scoring to replay history."""
@@ -115,7 +123,9 @@ def check_can_publish_yet(chain, uid, netuid):
             f"limit is {limit} blocks between publications, and the clock starts when a "
             f"seat is REGISTERED rather than when it first publishes, so a newly "
             f"registered validator waits out the full period before its first one. "
-            f"Wait, then start. This is not a fault and nothing needs changing."
+            f"Wait, then start. This is not a fault and nothing needs changing.",
+            current_block=current, last_update=last_update, rate_limit=limit,
+            remaining_blocks=remaining,
         )
     return 0
 

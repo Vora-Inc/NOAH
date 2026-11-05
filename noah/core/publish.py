@@ -145,28 +145,34 @@ def publish_weights(chain, *, vector, uid, netuid, hotkey):
 
 def publish_weights_direct(chain, *, vector, uid, netuid, hotkey):
     """Submit the selected direct route and verify its exact finalized transaction."""
+    from .publication_diagnostics import publication_phase
+
     try:
-        check_can_publish_yet(chain, uid=uid, netuid=netuid)
+        with publication_phase("rate_limit"):
+            check_can_publish_yet(chain, uid=uid, netuid=netuid)
     except CannotPublishYet as error:
         raise PublicationRefused(str(error)) from error
-    uids, values = _validated_vector(vector)
-    result = chain.submit_direct(uids, values, netuid)
-    if result.get("indeterminate"):
-        raise NotOnChain(
-            f"direct publication outcome is unknown: {result.get('error')}. "
-            "Reconcile the durable intent before another send."
-        )
-    if result.get("error"):
-        raise CommitRejected(f"the chain refused this direct publication: {result['error']}")
-    try:
-        evidence = chain.confirm_direct(vector=vector, result=result)
-    except Exception as error:
-        raise NotOnChain(
-            f"direct publication could not be confirmed ({type(error).__name__}: {error}). "
-            "The send may have succeeded; reconcile before another send."
-        ) from error
-    if not evidence or evidence.get("confirmed") is not True:
-        raise NotOnChain("no matching finalized direct transaction and exact applied weights")
+    with publication_phase("validate_vector"):
+        uids, values = _validated_vector(vector)
+    with publication_phase("submit"):
+        result = chain.submit_direct(uids, values, netuid)
+        if result.get("indeterminate"):
+            raise NotOnChain(
+                f"direct publication outcome is unknown: {result.get('error')}. "
+                "Reconcile the durable intent before another send."
+            )
+        if result.get("error"):
+            raise CommitRejected(f"the chain refused this direct publication: {result['error']}")
+    with publication_phase("confirm"):
+        try:
+            evidence = chain.confirm_direct(vector=vector, result=result)
+        except Exception as error:
+            raise NotOnChain(
+                f"direct publication could not be confirmed ({type(error).__name__}: {error}). "
+                "The send may have succeeded; reconcile before another send."
+            ) from error
+        if not evidence or evidence.get("confirmed") is not True:
+            raise NotOnChain("no matching finalized direct transaction and exact applied weights")
     return {
         "applied_weights_readback": evidence,
         "seats": len(uids),

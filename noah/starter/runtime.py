@@ -8,6 +8,7 @@ from ..chain.sources import Refusal
 from ..core.calculation_record import durable_write, encoded
 from ..core.direct import reconcile
 from ..core.publish_intent import PublicationStatusUnknown
+from ..core.publication_diagnostics import failure_details, guard_context
 from ..core.settings import SettingsError
 from ..core.submitted_record import submitted_record_path
 from ..core.writer_lock import LockHeld
@@ -166,36 +167,50 @@ def guard_tick(adapter, *, remove_now=False):
     """One independent guard pass. Failures are recorded and never clear intent."""
     root = Path(adapter._submitted_record_dir)
     status = "blocked"
+    stage, head = "publication_lock", None
     try:
         with publication_lock(adapter):
+            stage = "hold"
             if adapter._publish_hold is not None:
                 adapter._publish_hold.raise_if_held()
+            stage = "recover_pending"
             recover(adapter)
             chain = adapter.runner_chain
+            stage = "read_head"
             head = chain.head_block()
             active = root / "starter-active.json"
             status = "idle"
             if active.exists():
+                stage = "read_active"
                 saved = json.loads(active.read_text())
+                stage = "verify_overlay"
                 proof = verify_overlay(root, saved["reference"]) if saved["reference"] else None
                 status = "ordinary"
                 if proof is not None and proof["mode"] == "starter-overlay":
                     status = "watching"
                     snap = proof["input"]["snapshot"]
+                    stage = "read_epoch"
                     epoch = chain.starter_epoch_info(head)["LastEpochBlock"]
                     if remove_now or head >= snap["nextEpochBlock"] or epoch > snap["epoch"]:
                         marker = saved["marker"]
+                        stage = "check_identity"
                         adapter._check_direct_identity(marker)
+                        stage = "reconcile_active"
                         reconcile(adapter.reader, marker, finalized_chain=chain)
+                        stage = "check_latest_update"
                         if (
                             adapter.last_update(adapter.uid, adapter.netuid)
                             > marker["result"]["block"]
                         ):
                             raise PublicationStatusUnknown("unrecognized newer weight publication")
+                        stage = "compute_fallback"
                         result = preview(proof["input"], proof["previous"])
+                        stage = "read_seats"
                         seats = chain.seat_hotkeys(head)
                         rows = proof["input"]["snapshot"]["seats"]
+                        stage = "read_owners"
                         owners = chain.hotkey_owners([row["hotkey"] for row in rows], head)
+                        stage = "read_owner_uids"
                         owner_uids = adapter.owner_uids()
                         removed = [
                             row["uid"]
@@ -206,6 +221,7 @@ def guard_tick(adapter, *, remove_now=False):
                                 or row["uid"] in owner_uids
                             )
                         ]
+                        stage = "retain_fallback"
                         ref = retain_overlay(
                             root,
                             proof["source"],
@@ -215,6 +231,7 @@ def guard_tick(adapter, *, remove_now=False):
                             removed_uids=removed,
                         )
                         adapter._calculation_reference = ref
+                        stage = "publish_fallback"
                         adapter.publish_direct(
                             {
                                 int(k): (0 if int(k) in removed else v)
@@ -225,17 +242,20 @@ def guard_tick(adapter, *, remove_now=False):
                             source_day=marker["day"],
                         )
                         status = "replaced"
+        stage = "record_health"
         health = dict(identity=identity(adapter), observed_at=time.time(), head=head, status=status)
         durable_write(root / "starter-guard.json", encoded(health), replace=True)
         return health
-    except LockHeld:
+    except LockHeld as exc:
         # The active sender owns the short lock. Do not poison its recent guard check.
+        guard_context(exc, stage, head)
         raise
     except (Exception, Refusal) as exc:
         # Do not preserve a fresh-looking success heartbeat after a refused pass.
+        guard_context(exc, stage, head)
         durable_write(
             root / "starter-guard.json",
-            encoded(dict(observed_at=time.time(), status="blocked", error=type(exc).__name__)),
+            encoded(dict(observed_at=time.time(), status="blocked", **failure_details(exc))),
             replace=True,
         )
         raise
@@ -250,8 +270,10 @@ def run_guard(adapter, *, poll_seconds=10, iterations=None, sleep=time.sleep):
             health = guard_tick(adapter)
             diagnostic(f"[starter-guard] {health['status']} at finalized block {health['head']}")
         except (Exception, Refusal) as exc:
+            details = failure_details(exc)
             diagnostic(
-                f"[starter-guard] blocked: {type(exc).__name__}; inspect retained state",
+                f"[starter-guard] blocked: {details['error']}; "
+                f"details={json.dumps(details, sort_keys=True)}",
                 severity="error",
             )
         count += 1
