@@ -18,7 +18,7 @@ See [reproduce the Mainnet entry snapshot](MAINNET_STARTER_SNAPSHOT.md) for the
 fixed block hash, content commitments and a read-only reconstruction procedure.
 Do not create a new cutoff using today's date. The validator and independent
 guard must share the verified original snapshot; see
-[guard startup](VALIDATOR_QUICKSTART.md#start-the-guard-and-validator).
+[historical guard startup](LEGACY_VALIDATOR_QUICKSTART.md#start-the-guard-and-validator).
 
 ## For miners
 

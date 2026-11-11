@@ -41,8 +41,8 @@ Configured owner-seat exclusions remain enforced.
 ### Contribution bonus
 
 At 50% cumulative contribution the bonus is zero. At 60% it is 16 points.
-At 75% or more it is 40 points. Depositing above 75% buys no additional
-contribution bonus, but surplus still covers future obligations.
+At 75% or more it is 40 points. Contributions above 75% do not increase the
+contribution bonus. Surplus credit still covers future obligations.
 
     bonus = clamp(160 × cumulative credited contributions / due earnings − 80, 0, 40)
 
@@ -60,8 +60,9 @@ A 15-day payment streak earns 10 consistency points; 30 days earns 40.
 Day zero and the first qualifying earning day have 1% maturity; qualifying day
 90 reaches 100%. These are earning/compliance days, not simply calendar age.
 
-Prepaid coverage can advance maturity on a positive-earning day. It cannot
-pretend a payment occurred. An earning day without a real payment of at least
+Prepaid coverage can advance maturity on a day with positive earnings. Prepaid
+coverage does not count as an actual payment toward the consistency streak.
+An earning day without a real payment of at least
 the new daily obligation resets the consistency streak, even if prepaid credit
 covers the obligation. A zero-new-earnings day adds no streak or maturity day
 and preserves the streak if there is no debt. Previously earned maturity is
@@ -108,8 +109,9 @@ The reference is the finalized block immediately before the deposit. Root TAO
 has a price numerator of one TAO. The selected chain EMA source is pinned by
 the preserved pricing policy. There is no separate root-token bonus, no native
 matching requirement and no change to the predecessor EMA policy in this update.
-Unsupported or unverifiable assets are not arbitrary credits: their evidence
-and status must remain visible. Missing/contradictory required evidence prevents
+Credit requires an eligible asset and the required verification. Records must
+retain the evidence and status of unsupported or unverifiable receipts.
+Missing/contradictory required evidence prevents
 a new verified daily calculation; it does not silently erase debt or invent prices.
 
 Historical accepted credits and balances retain their migration treatment.
