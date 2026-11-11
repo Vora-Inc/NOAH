@@ -52,6 +52,17 @@ def ready(tmp_path, genesis="genesis"):
     )
     a.owner_uids = lambda: {0}
     a.epoch_republication = True
+    if raw["fixture"].get("schema") == "noah-points-fixture/1":
+        from noah.points.engine import POLICY
+        from noah.points.mode import MODE
+
+        a.scoring_mode = MODE
+        a.ark_coldkey = "ark"
+        a.designated_validator_hotkey = "validator"
+        a.points_policy = SimpleNamespace(
+            manifest=dict(policy=POLICY, sha256="pinned-policy", cutoff_day=0),
+            migration=dict(cutoff_day=0),
+        )
     ordinary = preview(raw)["ordinaryOutput"]
     source = retain(
         a._submitted_record_dir,
@@ -65,6 +76,8 @@ def ready(tmp_path, genesis="genesis"):
             netuid=82,
             ark_address="ark",
             designated_validator_hotkey="validator",
+            scoring_mode=getattr(a, "scoring_mode", "legacy"),
+            points_policy=getattr(getattr(a, "points_policy", None), "manifest", None),
         ),
     )
     a._calculation_reference = source

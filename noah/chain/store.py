@@ -1052,21 +1052,41 @@ class Store:
         :meth:`foreign_deposit_equivalent`. A rule that refuses (a price it cannot
         read) propagates; it is never read as zero.
         """
+        total = 0
+        for record in self.foreign_receipt_records_for_hotkey(coldkey, hotkey, day):
+            if hasattr(rule, "for_receipt"):
+                converted = rule.for_receipt(record)
+            else:
+                converted = rule(record["amount_rao"], record["token_netuid"], record["block"], record["block_hash"])
+            total += _whole_amount(converted, "converted amount")
+        return total
+
+    def foreign_receipts_for_hotkey(self, coldkey, hotkey, day):
+        """Exact ordered attributed inputs shared by valuation and precollection.
+
+        Do not deduplicate contributions: distinct event ordinals may carry
+        identical amounts/assets in the same block.
+        """
         _identifier(coldkey, "wallet")
         _identifier(hotkey, "hotkey")
         self._require_scanned(day)
+        return [(row['amount_rao'], row['token_netuid'], row['block'], row['block_hash'])
+                for row in self.foreign_receipt_records_for_hotkey(coldkey, hotkey, day)]
+
+    def foreign_receipt_records_for_hotkey(self, coldkey, hotkey, day):
+        """Identical selector plus exact event identity for retained dispositions."""
+        _identifier(coldkey, "wallet")
+        _identifier(hotkey, "hotkey")
+        self._require_scanned(day)
+        names = ('amount_rao', 'token_netuid', 'block', 'block_hash', 'event_ordinal',
+                 'extrinsic_index', 'block_timestamp', 'coldkey', 'origin_hotkey', 'hotkey', 'day')
         rows = self._conn.execute(
-            "SELECT amount_rao, token_netuid, block, block_hash FROM foreign_deposit "
+            "SELECT " + ','.join(names) + " FROM foreign_deposit "
             "WHERE coldkey = ? AND day = ? AND unattributed_reason IS NULL "
             "AND origin_hotkey = ? AND owner_at_deposit = coldkey "
             "AND hotkey IS NOT NULL AND block_timestamp IS NOT NULL "
-            "ORDER BY block, event_ordinal",
-            (coldkey, day, hotkey),
-        ).fetchall()
-        total = 0
-        for amount, token_netuid, block, block_hash in rows:
-            total += _whole_amount(rule(amount, token_netuid, block, block_hash), "converted amount")
-        return total
+            "ORDER BY block, event_ordinal", (coldkey, day, hotkey)).fetchall()
+        return [dict(zip(names, row, strict=True)) for row in rows]
 
     def record_attributed_pay(
         self, coldkey, hotkey, uid, block_timestamp, amount_rao, block, block_hash
@@ -3303,6 +3323,61 @@ class Store:
             (coldkey, day),
         ).fetchone()
         return row is not None
+
+    def financial_lineage_inventory(self, through_day):
+        """Complete attributed financial lineage set, without inventing active UIDs.
+
+        Same attribution predicates as the per-hotkey accounting readers. The
+        event digest pins the population used by a read-only migration capture.
+        Shared wallet-level collateral samples are deliberately not identities.
+        """
+        import hashlib
+        import json
+
+        self._require_scanned(through_day)
+        queries = {
+            "earnings": ("SELECT coldkey,hotkey,day,amount_rao,block,block_hash,uid "
+                         "FROM attributed_pay WHERE day<=? AND amount_rao>0 ORDER BY block,uid"),
+            "native": ("SELECT coldkey,COALESCE(origin_hotkey,hotkey),day,amount_rao,block,block_hash,event_ordinal "
+                       "FROM noah_deposit WHERE day<=? AND amount_rao>0 AND unattributed_reason IS NULL "
+                       "AND COALESCE(origin_hotkey,hotkey) IS NOT NULL ORDER BY block,event_ordinal"),
+            "foreign": ("SELECT coldkey,origin_hotkey,day,amount_rao,block,block_hash,event_ordinal "
+                        "FROM foreign_deposit WHERE day<=? AND amount_rao>0 AND unattributed_reason IS NULL "
+                        "AND origin_hotkey IS NOT NULL AND owner_at_deposit=coldkey "
+                        "AND hotkey IS NOT NULL AND block_timestamp IS NOT NULL ORDER BY block,event_ordinal"),
+        }
+        records = {kind: [list(row) for row in self._conn.execute(query, (through_day,))]
+                   for kind, query in queries.items()}
+        grouped = {}
+        for kind, rows in records.items():
+            for row in rows:
+                grouped.setdefault((row[0], row[1]), []).append((kind, row))
+        inventory_pairs = []
+        for (cold, hot), own in sorted(grouped.items()):
+            kind, anchor = max(own, key=lambda item: item[1][4])
+            lineage = dict(coldkey=cold, hotkey=hot, first_day=min(row[2] for _, row in own),
+                           block=anchor[4], block_hash=anchor[5])
+            if kind == "native":
+                receipt = self._conn.execute(
+                    "SELECT carried_by,extrinsic_index,hotkey,origin_hotkey,owner_at_deposit "
+                    "FROM noah_deposit WHERE block=? AND event_ordinal=?",
+                    (anchor[4], anchor[6]),
+                ).fetchone()
+                if receipt[0] == "StakeAndHotkeyTransferred":
+                    if receipt[3] != hot or receipt[4] != cold or not receipt[2]:
+                        raise ValueError("native position-transfer anchor lacks recorded attribution")
+                    # Stake position ownership is distinct from global hotkey
+                    # ownership. Runtime re-decodes this exact finalized receipt.
+                    lineage["receipt"] = dict(
+                        kind="native-stake-and-hotkey-transfer", day=anchor[2],
+                        event_ordinal=anchor[6], extrinsic_index=receipt[1],
+                        amount_rao=str(anchor[3]), destination_hotkey=receipt[2],
+                    )
+            inventory_pairs.append(lineage)
+        return dict(pairs=inventory_pairs,
+                    counts={kind: len(rows) for kind, rows in records.items()},
+                    events_sha256=hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+
 
     def wallets_seen(self):
         """Every wallet this store has observed doing anything, in one order.

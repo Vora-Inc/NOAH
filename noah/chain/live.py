@@ -366,6 +366,11 @@ class LiveRunnerChain:
         """Chain identity for resumable collection; no genesis state read."""
         return self.block_hash(0)
 
+    def refresh_read_connection(self):
+        """Close this read session; the next SDK read reconnects to the same endpoint."""
+        self._canary_hash = None
+        self._connection.close()
+
     def signing_context(self, address, block):
         """Nonce and runtime at one finalized block, for exact direct publication."""
         block_hash = self.block_hash(block)
@@ -947,6 +952,43 @@ class LiveRunnerChain:
         )
 
     # -- how anything is asked ------------------------------------------------
+
+    def token_reference_context(self, block, netuids):
+        from .token_context import read
+        block_hash = self.block_hash(block)
+        if not hasattr(self, '_token_metadata'):
+            self._token_metadata = {}
+        return self._ask('token reference lifecycle', lambda: read(
+            self._connection, block, block_hash, tuple(netuids), self._token_metadata))
+
+    def ema_price_snapshot(self, block, netuids, *, expected_block_hash, ema_source):
+        """Raw selected EMA and runtime-correct spot at one authenticated state."""
+        from .ema_context import read, source
+        from .token_context import require
+        source(ema_source)
+        block_hash = self.block_hash(block)
+        require(block_hash == expected_block_hash)
+        if not hasattr(self, '_token_metadata'):
+            self._token_metadata = {}
+        result = self._ask('selected EMA reference snapshot', lambda: read(
+            self._connection, block, block_hash, tuple(netuids), self._token_metadata, ema_source))
+        require(self.block_hash(block) == expected_block_hash)
+        return result
+
+    def reference_price_at(self, block, netuid, *, expected_block_hash):
+        """Raw successful zero is evidence; unavailable/malformed is never zero."""
+        from .token_context import require
+        block_hash = self.block_hash(block)
+        require(block_hash == expected_block_hash)
+        def read():
+            value = _plain(self._connection.runtime_call(
+                "SwapRuntimeApi", "current_alpha_price", [(netuid,)], block_hash=block_hash))
+            # None is absence of an answer, never an authenticated zero.
+            if value is None:
+                raise AlphaPriceUnreadable('reference price answer unavailable')
+            require(type(value) is int and 0 <= value < 2**64)
+            return value
+        return self._ask('successful reference price including zero', read)
 
     def alpha_price_at(self, block, netuid=None, *, expected_block_hash=None):
         """Read a subnet's positive integer spot alpha price at exactly the requested block.

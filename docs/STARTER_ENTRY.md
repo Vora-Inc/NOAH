@@ -1,3 +1,5 @@
+> Version scope: this document retains predecessor rules and receipt/history details. For candidate `points-204040-v5`, [ordinary scoring](ORDINARY_SCORING.md) governs onboarding, contribution, bonuses and publication. Historical starter descriptions below do not activate a pool in V5.
+
 # Starter entry policy: shared 0.25% pool
 
 Mainnet activated this policy on November 3, 2026. New miners do not need

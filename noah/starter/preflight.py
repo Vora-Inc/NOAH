@@ -131,7 +131,7 @@ def main():
                     "starter activation requires single-mechanism Yuma and direct epoch maintenance"
                 )
             key = version_key_for("noah-scoring/surplus-bonus-v1/" + POLICY_ID)
-            if key < result["version_floor"]:
+            if settings.scoring_mode == "legacy" and key < result["version_floor"]:
                 raise ValueError("starter publication version is below chain floor")
         else:
             save_new(args.freeze, frozen)

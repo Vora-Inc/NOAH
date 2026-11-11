@@ -74,9 +74,9 @@ def ready(tmp_path):
     a.owner_uids = lambda: {0}
     a._calculation_reference = retain(
         a._submitted_record_dir,
-        fixture={"evalDay": 0},
+        fixture={"schema": "noah-fixture/6", "evalDay": 0},
         agreed_text=json.dumps(
-            {"evalDay": 0, "weightsU16": {str(k): v for k, v in VECTOR.items()}}
+            {"schema": "noah-score-output/6", "evalDay": 0, "weightsU16": {str(k): v for k, v in VECTOR.items()}}
         ),
         vector=VECTOR,
         context={
@@ -359,8 +359,8 @@ def test_midnight_inclusion_allows_fresh_daily_once(tmp_path, lost_response, res
     # New daily publication uses a new retained calculation, not the refresh.
     a._calculation_reference = retain(
         a._submitted_record_dir,
-        fixture={"evalDay": 1},
-        agreed_text=json.dumps({"evalDay": 1, "weightsU16": {str(k): v for k, v in VECTOR.items()}}),
+        fixture={"schema": "noah-fixture/6", "evalDay": 1},
+        agreed_text=json.dumps({"schema": "noah-score-output/6", "evalDay": 1, "weightsU16": {str(k): v for k, v in VECTOR.items()}}),
         vector=VECTOR,
         context={"day": 1, "height": 201, "netuid": 82, "genesis_hash": "genesis", "ark_address": a.ark_coldkey},
     )

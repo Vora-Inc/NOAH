@@ -7,8 +7,8 @@ from pathlib import Path
 from ..chain.sources import Refusal
 from ..core.calculation_record import durable_write, encoded
 from ..core.direct import reconcile
-from ..core.publish_intent import PublicationStatusUnknown
 from ..core.publication_diagnostics import failure_details, guard_context
+from ..core.publish_intent import PublicationStatusUnknown
 from ..core.settings import SettingsError
 from ..core.submitted_record import submitted_record_path
 from ..core.writer_lock import LockHeld
@@ -22,12 +22,16 @@ from .reader import current_input
 
 
 def identity(adapter):
-    return [
+    result = [
         adapter.runner_chain.genesis_hash(),
         adapter.netuid,
         adapter.wallet_hotkey.ss58_address,
         adapter.starter_entry_policy.snapshot["sha256"],
     ]
+    policy = getattr(adapter, "points_policy", None)
+    if policy is not None:
+        result.append(policy.manifest)
+    return result
 
 
 def configure(adapter, settings):
@@ -49,12 +53,14 @@ def configure(adapter, settings):
         from .allocation import POLICY_ID
 
         parameters = load_parameters()
-        if parameters.profile_version != "mainnet-production-starter-25bps-v1":
+        if parameters.profile_version not in ("mainnet-production-starter-25bps-v1", "mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5"):
             raise SettingsError("starter entry requires its separately versioned parameter profile")
+        if parameters.profile_version in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and not getattr(settings,"points_policy",None):
+            raise SettingsError("points profile requires NOAH_POINTS_POLICY")
         key = version_key_for("noah-scoring/surplus-bonus-v1/" + POLICY_ID)
         head = adapter.runner_chain.head_block()
         floor = adapter.runner_chain.starter_epoch_info(head)["WeightsVersionKey"]
-        if type(floor) is not int or key < floor:
+        if type(floor) is not int or (parameters.profile_version not in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and key < floor):
             raise SettingsError("starter publication version is below the chain floor")
         adapter.publisher.version_key = key
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -121,6 +127,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
         day = (chain.block_timestamp(head) - adapter.day_anchor_ts) // 86400 - 1
         path = submitted_record_path(adapter._submitted_record_dir, day)
         if not path.exists():
+            if getattr(adapter, "points_policy", None):
+                from ..points.outage import republish as outage_refresh
+                return outage_refresh(adapter, epoch, head, before_send=before_send)
             return "awaiting_daily_publication"
         marker = json.loads(path.read_text())["direct_intent"]
         adapter._check_direct_identity(marker)
@@ -145,6 +154,12 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
             if head - last < adapter.rate_limit(adapter.netuid):
                 return "awaiting_rate_limit"
         source = ordinary_reference(adapter, marker["calculation_evidence"])
+        from ..points.mode import check_publication_mode, source_mode
+        points = getattr(adapter, "points_policy", None)
+        mode, _, manifest = source_mode(adapter._submitted_record_dir, source)
+        if points is not None and mode == "legacy" and manifest["day"] <= points.migration["cutoff_day"]:
+            return "awaiting_points_first_day"
+        check_publication_mode(adapter, source)
         raw = current_input(adapter, source, head)
         state_path = Path(adapter._submitted_record_dir) / "starter-state.json"
         previous = json.loads(state_path.read_text()) if state_path.exists() else None
@@ -165,6 +180,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
 
 def guard_tick(adapter, *, remove_now=False):
     """One independent guard pass. Failures are recorded and never clear intent."""
+    from ..points.onboarding import enabled
+    if enabled(adapter):
+        return dict(status="disabled-no-pool", head=None)
     root = Path(adapter._submitted_record_dir)
     status = "blocked"
     stage, head = "publication_lock", None

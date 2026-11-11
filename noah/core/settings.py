@@ -64,6 +64,8 @@ FALSE_SPELLINGS = ("false",)
 WHOLE_NUMBER = re.compile(r"^[0-9]+$")
 
 KEYS = (
+    "NOAH_SCORING_MODE",
+    "NOAH_POINTS_POLICY",
     "NOAH_STARTER_ENTRY_SNAPSHOT",
     "NOAH_WALLET_NAME",
     "NOAH_WALLET_HOTKEY",
@@ -420,6 +422,8 @@ class Settings:
     holding_stride_blocks: Optional[int]
     entry_deposit_rao: Optional[int]
     publish_mode: str
+    scoring_mode: str = "legacy"
+    points_policy: Optional[str] = None
     starter_entry_snapshot: Optional[str] = None
     epoch_collection: bool = False
     epoch_republication: bool = False
@@ -463,6 +467,12 @@ class Settings:
         if (epoch_flags["NOAH_EPOCH_REPUBLICATION"]
                 and mapping.get("NOAH_PUBLISH_MODE", PUBLISH_MODE_DEFAULT) != "direct"):
             raise BadSetting("epoch republication requires direct publication mode")
+        scoring_mode = _one_of_or_default(
+            mapping, "NOAH_SCORING_MODE", ("legacy", "points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5"), "legacy"
+        )
+        points_policy = mapping.get("NOAH_POINTS_POLICY", "").strip() or None
+        if (scoring_mode in ("points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5")) != bool(points_policy):
+            raise BadSetting("points scoring mode and NOAH_POINTS_POLICY must be selected together")
 
         endpoint = mapping.get("NOAH_CHAIN_ENDPOINT", "").strip()
         second_endpoint = _second_endpoint(mapping)
@@ -531,6 +541,8 @@ class Settings:
             publish_mode=_one_of_or_default(
                 mapping, "NOAH_PUBLISH_MODE", PUBLISH_MODES, PUBLISH_MODE_DEFAULT
             ),
+            points_policy=points_policy,
+            scoring_mode=scoring_mode,
             starter_entry_snapshot=mapping.get("NOAH_STARTER_ENTRY_SNAPSHOT", "").strip() or None,
             epoch_collection=epoch_flags["NOAH_EPOCH_COLLECTION"],
             epoch_republication=epoch_flags["NOAH_EPOCH_REPUBLICATION"],

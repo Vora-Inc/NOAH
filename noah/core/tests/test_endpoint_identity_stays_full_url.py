@@ -68,7 +68,7 @@ class TheAdapterKeepsTheFullUrlForIdentity(unittest.TestCase):
         class Wallet:
             hotkey = TrivialHotkey()
 
-        with mock.patch("async_substrate_interface.SubstrateInterface", Fake):
+        with mock.patch("noah.chain.read_connection.ReadSubstrateInterface", Fake):
             return build_chain_adapter(
                 client=object(),
                 settings=Cfg(),
