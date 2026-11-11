@@ -16,6 +16,10 @@ PUBLICATION_STAGES = frozenset({
     "pre_send_evidence", "pre_send_overlay", "pre_send_guard",
 })
 
+PREPARATION_PREDICATES = frozenset({
+    "identity", "runtime", "nonce", "era", "mortality", "birth_hash", "call_bytes",
+})
+
 
 @contextmanager
 def publication_phase(name):
@@ -98,6 +102,16 @@ def _failure_details(exc):
         phase = getattr(error, "_noah_publication_phase", None)
         if type(phase) is str and phase in PUBLICATION_STAGES:
             result["publication_stage"] = phase
+        predicate = getattr(error, "_noah_preparation_predicate", None)
+        if type(predicate) is str and predicate in PREPARATION_PREDICATES:
+            result["preparation_predicate"] = predicate
+            heads = getattr(error, "_noah_preparation_heads", None)
+            if (type(heads) is dict and set(heads) == {"before", "prepared", "after"}
+                    and all(number(value) for value in heads.values())):
+                result["preparation_heads"] = dict(heads)
+            refreshed = getattr(error, "_noah_reader_refresh", None)
+            if type(refreshed) is str and refreshed in {"closed", "failed"}:
+                result["reader_refresh"] = refreshed
         if isinstance(error, CannotPublishYet):
             result["reason"] = "rate_limited"
             values = {name: getattr(error, name, None) for name in

@@ -72,6 +72,7 @@ testpaths = [
     "noah/chain/tests",
     "noah/core/tests",
     "noah/starter/tests",
+    "noah/points/tests",
     "noah/research/tests",
     "noah/config/tests",
     "noah/secret_scan/tests",

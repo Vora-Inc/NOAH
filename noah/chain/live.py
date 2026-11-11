@@ -366,6 +366,11 @@ class LiveRunnerChain:
         """Chain identity for resumable collection; no genesis state read."""
         return self.block_hash(0)
 
+    def refresh_read_connection(self):
+        """Close this read session; the next SDK read reconnects to the same endpoint."""
+        self._canary_hash = None
+        self._connection.close()
+
     def signing_context(self, address, block):
         """Nonce and runtime at one finalized block, for exact direct publication."""
         block_hash = self.block_hash(block)
@@ -771,6 +776,32 @@ class LiveRunnerChain:
         v2 = self._share_component(v2_name, params, block, block_hash=block_hash)
         return v1, v2
 
+    def publication_state(self, netuid, uid, block, mecid=0):
+        """Exact finalized full row and LastUpdate for recovery, never a send."""
+        block_hash = self.block_hash(block)
+
+        def question():
+            weights = _plain(self._connection.query(
+                "SubtensorModule", "Weights", [netuid + 4096 * mecid, uid], block_hash=block_hash))
+            updates = _plain(self._connection.query(
+                "SubtensorModule", "LastUpdate", [netuid], block_hash=block_hash))
+            if (not isinstance(weights, (list, tuple)) or not isinstance(updates, (list, tuple))
+                    or type(uid) is not int or not 0 <= uid < len(updates)
+                    or type(updates[uid]) is not int or updates[uid] < 0):
+                raise ChainUnavailable("publication row or LastUpdate unreadable")
+            if any(not isinstance(p, (list, tuple)) or len(p) != 2
+                   or any(type(v) is not int or not 0 <= v <= 65535 for v in p) for p in weights):
+                raise ChainUnavailable("publication row is not a complete u16 vector")
+            row = sorted([list(p) for p in weights])
+            if len({p[0] for p in row}) != len(row):
+                raise ChainUnavailable("publication row repeats a UID")
+            return dict(weights=row, last_update=updates[uid])
+
+        result = self._ask("publication recovery state", question)
+        if self.block_hash(block) != block_hash:
+            raise ChainUnavailable("publication recovery block changed")
+        return result
+
     def _share_component(self, name, params, block, block_hash=None):
         """Read a historical share component and independently check raw key presence.
 
@@ -947,6 +978,43 @@ class LiveRunnerChain:
         )
 
     # -- how anything is asked ------------------------------------------------
+
+    def token_reference_context(self, block, netuids):
+        from .token_context import read
+        block_hash = self.block_hash(block)
+        if not hasattr(self, '_token_metadata'):
+            self._token_metadata = {}
+        return self._ask('token reference lifecycle', lambda: read(
+            self._connection, block, block_hash, tuple(netuids), self._token_metadata))
+
+    def ema_price_snapshot(self, block, netuids, *, expected_block_hash, ema_source):
+        """Raw selected EMA and runtime-correct spot at one authenticated state."""
+        from .ema_context import read, source
+        from .token_context import require
+        source(ema_source)
+        block_hash = self.block_hash(block)
+        require(block_hash == expected_block_hash)
+        if not hasattr(self, '_token_metadata'):
+            self._token_metadata = {}
+        result = self._ask('selected EMA reference snapshot', lambda: read(
+            self._connection, block, block_hash, tuple(netuids), self._token_metadata, ema_source))
+        require(self.block_hash(block) == expected_block_hash)
+        return result
+
+    def reference_price_at(self, block, netuid, *, expected_block_hash):
+        """Raw successful zero is evidence; unavailable/malformed is never zero."""
+        from .token_context import require
+        block_hash = self.block_hash(block)
+        require(block_hash == expected_block_hash)
+        def read():
+            value = _plain(self._connection.runtime_call(
+                "SwapRuntimeApi", "current_alpha_price", [(netuid,)], block_hash=block_hash))
+            # None is absence of an answer, never an authenticated zero.
+            if value is None:
+                raise AlphaPriceUnreadable('reference price answer unavailable')
+            require(type(value) is int and 0 <= value < 2**64)
+            return value
+        return self._ask('successful reference price including zero', read)
 
     def alpha_price_at(self, block, netuid=None, *, expected_block_hash=None):
         """Read a subnet's positive integer spot alpha price at exactly the requested block.

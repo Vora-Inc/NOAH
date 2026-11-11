@@ -7,8 +7,8 @@ from pathlib import Path
 from ..chain.sources import Refusal
 from ..core.calculation_record import durable_write, encoded
 from ..core.direct import reconcile
-from ..core.publish_intent import PublicationStatusUnknown
 from ..core.publication_diagnostics import failure_details, guard_context
+from ..core.publish_intent import PublicationStatusUnknown
 from ..core.settings import SettingsError
 from ..core.submitted_record import submitted_record_path
 from ..core.writer_lock import LockHeld
@@ -22,12 +22,16 @@ from .reader import current_input
 
 
 def identity(adapter):
-    return [
+    result = [
         adapter.runner_chain.genesis_hash(),
         adapter.netuid,
         adapter.wallet_hotkey.ss58_address,
         adapter.starter_entry_policy.snapshot["sha256"],
     ]
+    policy = getattr(adapter, "points_policy", None)
+    if policy is not None:
+        result.append(policy.manifest)
+    return result
 
 
 def configure(adapter, settings):
@@ -49,12 +53,14 @@ def configure(adapter, settings):
         from .allocation import POLICY_ID
 
         parameters = load_parameters()
-        if parameters.profile_version != "mainnet-production-starter-25bps-v1":
+        if parameters.profile_version not in ("mainnet-production-starter-25bps-v1", "mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5"):
             raise SettingsError("starter entry requires its separately versioned parameter profile")
+        if parameters.profile_version in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and not getattr(settings,"points_policy",None):
+            raise SettingsError("points profile requires NOAH_POINTS_POLICY")
         key = version_key_for("noah-scoring/surplus-bonus-v1/" + POLICY_ID)
         head = adapter.runner_chain.head_block()
         floor = adapter.runner_chain.starter_epoch_info(head)["WeightsVersionKey"]
-        if type(floor) is not int or key < floor:
+        if type(floor) is not int or (parameters.profile_version not in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and key < floor):
             raise SettingsError("starter publication version is below the chain floor")
         adapter.publisher.version_key = key
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -96,17 +102,35 @@ def prepare_daily(adapter):
     # Pin once and collect before taking the short publication lock. The daily
     # tick precedes maintenance, and a later head would invalidate the cursor.
     # Bounded catch-up is a retryable read wait, not a permanently refused day.
+    if (getattr(adapter, "_fresh_daily_recovery", None) is not None
+            and adapter._publish_intent.load() is not None):
+        raise PublicationStatusUnknown("fresh daily recovery has an unresolved publication")
+    adapter._fresh_daily_recovery = None
     head = adapter.runner_chain.head_block()
     collected = collect(adapter, head)
     if collected["collected_through"] != head:
         raise ChainUnreadable("starter daily history catch-up is incomplete; wait for collection")
-    require_guard(adapter)
     with publication_lock(adapter):
+        from ..points.daily_recovery import expired_active
+        recovery = expired_active(adapter)
+        if recovery is None:
+            require_guard(adapter)
         source = adapter._calculation_reference
         raw = current_input(adapter, source, head)
         state_path = Path(adapter._submitted_record_dir) / "starter-state.json"
         previous = json.loads(state_path.read_text()) if state_path.exists() else None
         result = preview(raw, previous)
+        if recovery is not None:
+            # Only fresh ordinary weights replace an expired overlay. Never
+            # advance pool allocation state before a confirmed publication.
+            ref = retain_overlay(
+                adapter._submitted_record_dir, source, raw, previous, fallback=True
+            )
+            adapter._calculation_reference = ref
+            adapter._fresh_daily_recovery = dict(
+                reference=ref, active_sha256=recovery["active_sha256"]
+            )
+            return {int(k): v for k, v in result["ordinaryFallbackWeightsU16"].items()}
         ref = retain_overlay(adapter._submitted_record_dir, source, raw, previous)
         durable_write(state_path, encoded(result["state"]), replace=True)
         adapter._calculation_reference = ref
@@ -121,6 +145,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
         day = (chain.block_timestamp(head) - adapter.day_anchor_ts) // 86400 - 1
         path = submitted_record_path(adapter._submitted_record_dir, day)
         if not path.exists():
+            if getattr(adapter, "points_policy", None):
+                from ..points.outage import republish as outage_refresh
+                return outage_refresh(adapter, epoch, head, before_send=before_send)
             return "awaiting_daily_publication"
         marker = json.loads(path.read_text())["direct_intent"]
         adapter._check_direct_identity(marker)
@@ -145,6 +172,12 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
             if head - last < adapter.rate_limit(adapter.netuid):
                 return "awaiting_rate_limit"
         source = ordinary_reference(adapter, marker["calculation_evidence"])
+        from ..points.mode import check_publication_mode, source_mode
+        points = getattr(adapter, "points_policy", None)
+        mode, _, manifest = source_mode(adapter._submitted_record_dir, source)
+        if points is not None and mode == "legacy" and manifest["day"] <= points.migration["cutoff_day"]:
+            return "awaiting_points_first_day"
+        check_publication_mode(adapter, source)
         raw = current_input(adapter, source, head)
         state_path = Path(adapter._submitted_record_dir) / "starter-state.json"
         previous = json.loads(state_path.read_text()) if state_path.exists() else None
@@ -165,6 +198,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
 
 def guard_tick(adapter, *, remove_now=False):
     """One independent guard pass. Failures are recorded and never clear intent."""
+    from ..points.onboarding import enabled
+    if enabled(adapter):
+        return dict(status="disabled-no-pool", head=None)
     root = Path(adapter._submitted_record_dir)
     status = "blocked"
     stage, head = "publication_lock", None
@@ -203,6 +239,18 @@ def guard_tick(adapter, *, remove_now=False):
                             > marker["result"]["block"]
                         ):
                             raise PublicationStatusUnknown("unrecognized newer weight publication")
+                        from ..points.daily_recovery import STATUS, expired_active, validate_health
+                        recovery = expired_active(adapter)
+                        if recovery is not None:
+                            health = dict(
+                                identity=identity(adapter), observed_at=time.time(),
+                                head=recovery["checked_head"], status=STATUS, recovery=recovery
+                            )
+                            validate_health(health, root, adapter.points_policy.manifest)
+                            durable_write(
+                                root / "starter-guard.json", encoded(health), replace=True
+                            )
+                            return health
                         stage = "compute_fallback"
                         result = preview(proof["input"], proof["previous"])
                         stage = "read_seats"

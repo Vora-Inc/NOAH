@@ -1,5 +1,7 @@
 # Noah & the Ark — Bittensor Subnet 82
 
+> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+
 Noah scores registered miners on eligible NOAH earnings and qualifying
 contributions to the Ark. The Noah Validator reads finalized chain records,
 calculates daily scores, and publishes weights. The Ark Validator is a separate
@@ -21,7 +23,7 @@ before signing a transaction.
 | Test conversion followed by mixed deposits | [Mixed deposit test workflow](docs/MINER_MIXED.md) |
 | Check official wallet addresses | [Mainnet address reference](docs/reference/WALLET_ADDRESSES.md) |
 | Check the Ark addresses and qualifying receipts | [Contribution rules](docs/CONTRIBUTIONS.md) |
-| Understand daily scores | [Scoring](docs/SCORING.md) |
+| Understand daily scores | [Ordinary scoring candidate](docs/ORDINARY_SCORING.md) |
 | Reproduce a published score | [Score verification](docs/VERIFYING_SCORES.md) |
 | Review the validator | [Validator guide](docs/VALIDATOR_QUICKSTART.md) |
 | Run repository checks | [Testing](docs/TESTING.md) |
@@ -32,22 +34,13 @@ weights, and Noah's two validator roles.
 
 ## Miner participation
 
-A new miner registers a hotkey on Subnet 82. **No upfront NOAH purchase or
-Ark deposit is required for starter eligibility.** Registration charges and
-transaction fees still apply. Starter entry is active from UTC day 1324
-(November 3, 2026), after cutoff block **9,421,694**.
-
-Registration does not guarantee immediate weight. The miner must appear in a
-completed UTC-day roster and pass finalized eligibility/allocation checks.
-Eligible newcomers share a small starter pool, subject to wallet/hotkey lifetime
-allowances; no payout amount is guaranteed. Read [starter entry](docs/STARTER_ENTRY.md)
-for limits, preserved historical credit and the activation commitments.
-
-There is no Noah miner daemon or axon to run. Starter earnings count toward the
-same **50% target for eligible spendable earnings** as other qualifying earnings.
-After the starter allowance is exhausted, ordinary contribution-based scoring
-determines rewards. Early contributions are retained; starter and ordinary
-weights are not stacked.
+**This source includes the review candidate `points-204040-v5`; it is not an
+activation announcement.** See [ordinary scoring](docs/ORDINARY_SCORING.md) for
+its rules and examples. A new eligible miner begins with 0.2 ordinary points,
+without an upfront purchase, entry deposit, starter pool or five-NOAH allowance.
+Actual earnings are subject to a 50% contribution obligation the following UTC day.
+NOAH is not mandatory: correctly attributed, valued foreign subnet tokens or
+root TAO can also satisfy it. There is no miner daemon or axon to run.
 
 The optional [deposit helper](noah/deposits/assistant/USAGE.md) is for ongoing
 contributions, not registration or an entry payment. It previews each proposed
@@ -71,8 +64,9 @@ After `./scripts/install.sh`, run this wallet-free saved example:
 code version. It does not verify those inputs against the chain or prove that
 weights were published. See [score verification](docs/VERIFYING_SCORES.md).
 
-The mainnet settings are in
-[mainnet-production-starter-25bps-v1.json](docs/parameters/profiles/mainnet-production-starter-25bps-v1.json).
+The candidate profile is
+[mainnet-production-points-204040-v5.json](docs/parameters/profiles/mainnet-production-points-204040-v5.json).
+Historical modes remain available for replay; verify the mode in live calculation evidence.
 Public role addresses are in the [address reference](docs/reference/WALLET_ADDRESSES.md).
 Check current chain state and announcements before using either for a live
 transaction. Code and tests alone do not establish an operating validator.

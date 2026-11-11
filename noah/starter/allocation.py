@@ -21,28 +21,7 @@ SHARED_POOL_UNITS = U16 * SHARED_POOL_BPS // 10000
 POLICY_ID = "noah-starter-5noah-shared-25bps-v1"
 
 
-def integer(value, name, minimum=0):
-    if type(value) is not int or value < minimum:
-        raise ValueError(f"{name}: integer >= {minimum} required")
-    return value
-
-
-def fields(obj, names, name):
-    if not isinstance(obj, dict) or set(obj) != set(names.split()):
-        raise ValueError(f"{name}: exact fields required: {names}")
-
-
-def text(value, name):
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{name}: nonempty string required")
-    return value
-
-
-def digest(value):
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-
+from ..chain.migration_fields import digest, fields, integer, text  # noqa: F401
 
 def apportion(weights, units):
     total = sum(weights.values())
@@ -80,6 +59,8 @@ def equal_capped(requests, budget):
 
 
 def preview(raw, previous=None):
+    if isinstance(raw, dict) and isinstance(raw.get("fixture"), dict) and "pointsRules" in raw["fixture"]:
+        raise ValueError("ordinary onboarding has no starter pool")
     fields(raw, "schema policyId fixture scoredHotkeys snapshot lifetimeEarnings", "preview input")
     live_clock = raw["schema"] == "noah-starter-epoch-preview/4"
     if raw["schema"] not in ("noah-starter-epoch-preview/3", "noah-starter-epoch-preview/4"):
@@ -87,8 +68,11 @@ def preview(raw, previous=None):
     if raw["policyId"] != POLICY_ID:
         raise ValueError("starter policy mismatch; expected five NOAH and shared 25 bps")
     # Legacy fixture parsing and full ordinary engine are deliberately unchanged.
-    fx = parse_fixture(raw["fixture"])
-    ordinary = score_fixture(fx)
+    from ..points.engine import INPUT_SCHEMA, AMENDED_INPUT_SCHEMA, evaluate, legacy_shape
+    from ..points.ema_policy import INPUT_SCHEMA as EMA_INPUT_SCHEMA
+    is_points = raw["fixture"].get("schema") in (INPUT_SCHEMA, AMENDED_INPUT_SCHEMA, EMA_INPUT_SCHEMA)
+    fx = parse_fixture(legacy_shape(raw["fixture"]) if is_points else raw["fixture"])
+    ordinary = evaluate(raw["fixture"]) if is_points else score_fixture(fx)
     snap = raw["snapshot"]
     fields(
         snap,
@@ -262,7 +246,16 @@ def preview(raw, previous=None):
     if seen != set(live):
         raise ValueError("snapshot must include every scored live identity")
     reports, proposed, targets = [], {}, {}
-    results = {u: score_miner(m, fx.dials, fx.eval_day) for u, m in live.items()}
+    if is_points:
+        from types import SimpleNamespace
+        results = {}
+        for row in ordinary["miners"]:
+            # Starter qualification is not the 40-point nominal base. It requires
+            # an earned, covered obligation and actual positive ordinary points.
+            point = int(row["payWeightFp"])
+            results[row["uid"]] = SimpleNamespace(base_fp=point, pay_weight_fp=point, door_open=True)
+    else:
+        results = {u: score_miner(m, fx.dials, fx.eval_day) for u, m in live.items()}
     for seat in sorted(snap["seats"], key=lambda x: x["uid"]):
         uid, cold, hot = seat["uid"], seat["coldkey"], seat["hotkey"]
         if cold in invalid:

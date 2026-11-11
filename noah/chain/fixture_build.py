@@ -5,6 +5,8 @@ present. Entry qualification and attribution are per miner hotkey, including whe
 several seats share a coldkey. Unreadable inputs produce refusals or explicitly
 withheld rows, not fabricated zero balances."""
 
+from dataclasses import dataclass
+
 from .foreign_value import ForeignDepositUnpriced
 from .history_check import require_whole_history
 from .nofault import EmissionStateNotObserved, no_fault_for
@@ -23,6 +25,43 @@ class UnaccountedDeposit(Refusal):
 
     Abort the fixture build instead of treating this as an isolated missing-input row.
     Unexplained value must remain visible for investigation."""
+
+
+@dataclass(frozen=True)
+class _ForeignField:
+    """Internal request only; resolved before a fixture can leave this module."""
+
+    coldkey: str
+    hotkeys: tuple
+    day: int
+    read: object
+
+
+def _resolve_foreign_fields(store, miners, precollect, eval_day):
+    fields = [
+        record
+        for row in miners
+        for record in row["days"].values()
+        if isinstance(record["foreignDepositNoahEquivRao"], _ForeignField)
+    ]
+    requests = [record["foreignDepositNoahEquivRao"] for record in fields]
+    # Only accepted rows contribute dependencies. Preserve every receipt and
+    # its order; only the collector deduplicates complete price-series work.
+    receipts = [
+        receipt
+        for field in requests
+        for hotkey in field.hotkeys
+        for receipt in store.foreign_receipts_for_hotkey(field.coldkey, hotkey, field.day)
+    ]
+    try:
+        precollect(receipts)
+        for record, field in zip(fields, requests):
+            record["foreignDepositNoahEquivRao"] = str(
+                sum(field.read(hotkey, field.day) for hotkey in field.hotkeys)
+            )
+    except ForeignDepositUnpriced as refusal:
+        refusal.day = eval_day
+        raise
 
 
 def _text(value, what):
@@ -68,11 +107,15 @@ def build_fixture(
     foreign_rule=None,
     entry_deposits=None,
     registration_days=None,
+    foreign_without_noah_from_day=None,
+    foreign_precollect=None,
 ):
     """Build a fixture from complete stored history and validated seat inputs.
 
     The requested anchor must equal the store anchor. Required days and each seat's
     entry evidence must be available; missing reads are not replaced by zero."""
+    if foreign_without_noah_from_day is not None:
+        _whole(foreign_without_noah_from_day, "foreign-only activation day")
     _text(name, "the fixture name")
     _whole(eval_day, "the evaluation day")
     _whole(day_epoch_ts, "the day anchor")
@@ -180,6 +223,8 @@ def build_fixture(
             foreign_rule,
             entry_deposits,
             registration_days,
+            foreign_without_noah_from_day,
+            defer_foreign=foreign_precollect is not None,
         )
         if reason is not None:
             # Same fail-closed extension as `_lock_hold_out` just above,
@@ -194,6 +239,9 @@ def build_fixture(
 
     if entry_deposit_refusals:
         raise MissingFromStore("this fixture cannot be built: " + "; ".join(entry_deposit_refusals))
+
+    if foreign_precollect is not None:
+        _resolve_foreign_fields(store, miners, foreign_precollect, eval_day)
 
     return {
         "schema": SCHEMA,
@@ -214,6 +262,7 @@ def withheld_from(
     foreign_rule=None,
     entry_deposits=None,
     registration_days=None,
+    foreign_without_noah_from_day=None,
 ):
     """Describe miners withheld from a fixture and the recorded reason for each."""
     _whole(eval_day, "the evaluation day")
@@ -272,6 +321,7 @@ def withheld_from(
                 foreign_rule,
                 entry_deposits,
                 registration_days,
+                foreign_without_noah_from_day,
             )
         if reason is not None:
             missing.append({"coldkey": coldkey, "reason": reason})
@@ -372,6 +422,9 @@ def _rows_for_coldkey(
     foreign_rule,
     entry_deposits,
     registration_days,
+    foreign_without_noah_from_day=None,
+    lineage_only=False,
+    defer_foreign=False,
 ):
     """Produce one fixture row per current seat and separate unclaimed historical pay."""
     hotkey_uids = seats.get(coldkey, {})
@@ -424,7 +477,10 @@ def _rows_for_coldkey(
         and the figure is a stated zero."""
         if foreign_rule is None:
             return 0
-        if store.cumulative_noah_deposits_for_hotkey(coldkey, hotkey, day) == 0:
+        legacy_native_gate = (
+            foreign_without_noah_from_day is None or day < foreign_without_noah_from_day
+        )
+        if legacy_native_gate and store.cumulative_noah_deposits_for_hotkey(coldkey, hotkey, day) == 0:
             # No genuine NOAH from this seat through this day, so the engine's cap leaves
             # it no room: its foreign receipts earn nothing and are not even priced, so a
             # receipt nobody can earn from cannot hold up a day.
@@ -436,6 +492,18 @@ def _rows_for_coldkey(
             # the missing input. The receipt keeps its original UTC day.
             refusal.day = eval_day
             raise
+
+    def foreign_field(hotkeys, day):
+        # Historical/frozen and legacy fields retain their scalar path. The
+        # prospective path has no native-deposit gate and is deferred only
+        # after exactly the same seat/null-row ownership selection below.
+        if (
+            defer_foreign and foreign_rule is not None and hotkeys
+            and foreign_without_noah_from_day is not None
+            and day >= foreign_without_noah_from_day
+        ):
+            return _ForeignField(coldkey, tuple(hotkeys), day, foreign_for)
+        return str(sum(foreign_for(hotkey, day) for hotkey in hotkeys))
 
     per_hotkey_deposits = entry_deposits.get(coldkey, {})
     per_hotkey_registrations = registration_days.get(coldkey, {})
@@ -473,22 +541,25 @@ def _rows_for_coldkey(
 
     vacated_hotkeys = sorted(ever_seen_through[eval_day] - current_hotkeys)
 
-    def _vacated(day, per_hotkey):
+    def _vacated_hotkeys(day):
         if single_hotkey_forever:
             if only_ever_hotkey is not None and only_ever_hotkey not in current_hotkeys:
-                return per_hotkey(only_ever_hotkey, day)
-            return 0
+                return (only_ever_hotkey,)
+            return ()
         seen_by_day = ever_seen_through[day]
         if len(seen_by_day) > 1:
-            return sum(per_hotkey(hotkey, day) for hotkey in vacated_hotkeys)
+            return tuple(vacated_hotkeys)
         if len(seen_by_day) == 1:
             (only_hotkey,) = seen_by_day
             if only_hotkey not in current_hotkeys:
                 # That one hotkey is not a live seat today: its own
                 # deposits belong on this, the null row, not a live seat
                 # that did not exist yet as of this day.
-                return per_hotkey(only_hotkey, day)
-        return 0
+                return (only_hotkey,)
+        return ()
+
+    def _vacated(day, per_hotkey):
+        return sum(per_hotkey(hotkey, day) for hotkey in _vacated_hotkeys(day))
 
     def _vacated_deposit(day):
         return _vacated(
@@ -500,7 +571,7 @@ def _rows_for_coldkey(
     rows = []
     if hotkey_uids:
         try:
-            holding_by_hotkey = store.holding_by_hotkey(coldkey, eval_day)
+            holding_by_hotkey = {} if lineage_only else store.holding_by_hotkey(coldkey, eval_day)
         except ColdkeyNotSampled as exc:
             # The store already told the two cases apart (see
             # Store.holding_by_hotkey): a wallet with no sample at all this
@@ -518,7 +589,7 @@ def _rows_for_coldkey(
         # engines already sort their output by, and the fixture's own row
         # order is not otherwise part of the contract, so this keeps the two
         # aligned.
-        for hotkey, uid in sorted(hotkey_uids.items(), key=lambda pair: pair[1]):
+        for hotkey, uid in sorted(hotkey_uids.items(), key=lambda pair: (pair[1] is None, pair[1] or 0, pair[0])):
             # A hotkey missing here is one `holding_by_hotkey` sampled and
             # found holding nothing across the whole day (the
             # wallet-never-sampled case already raised above), so it is
@@ -554,8 +625,8 @@ def _rows_for_coldkey(
                     # else: exactly one hotkey existed as of this day and it IS
                     # this one: its own named deposits, nothing wallet-wide.
                 record["noahDepositRao"] = own_deposit if claims_own else "0"
-                record["foreignDepositNoahEquivRao"] = str(
-                    foreign_for(hotkey, day) if claims_own else 0
+                record["foreignDepositNoahEquivRao"] = foreign_field(
+                    (hotkey,) if claims_own else (), day
                 )
                 days[str(day)] = record
             rows.append(
@@ -578,7 +649,7 @@ def _rows_for_coldkey(
         )
         for day in range(first, eval_day + 1)
     }
-    if not hotkey_uids or any(orphaned_paid.values()) or any(vacated_deposits.values()):
+    if not lineage_only and (not hotkey_uids or any(orphaned_paid.values()) or any(vacated_deposits.values())):
         days = {}
         for day in range(first, eval_day + 1):
             record = dict(shared_days[day], paidRao=str(orphaned_paid[day]))
@@ -591,8 +662,8 @@ def _rows_for_coldkey(
             # existed. A deposit is credited to a live seat's row or parked
             # here, never both, and one that names no hotkey credits nobody.
             record["noahDepositRao"] = str(vacated_deposits[day])
-            record["foreignDepositNoahEquivRao"] = str(
-                _vacated(day, foreign_for) if foreign_rule is not None else 0
+            record["foreignDepositNoahEquivRao"] = foreign_field(
+                _vacated_hotkeys(day) if foreign_rule is not None else (), day
             )
             days[str(day)] = record
         rows.append(
@@ -626,7 +697,9 @@ def _rows_for_coldkey(
 
 
 def _try_rows_for_coldkey(
-    store, coldkey, first, eval_day, seats, foreign_rule, entry_deposits, registration_days
+    store, coldkey, first, eval_day, seats, foreign_rule, entry_deposits, registration_days,
+    foreign_without_noah_from_day=None,
+    defer_foreign=False,
 ):
     """`_rows_for_coldkey`, with its refusal turned into a return value.
 
@@ -648,6 +721,8 @@ def _try_rows_for_coldkey(
             foreign_rule,
             entry_deposits,
             registration_days,
+            foreign_without_noah_from_day,
+            defer_foreign=defer_foreign,
         )
     except MissingFromStore as exc:
         return None, str(exc)

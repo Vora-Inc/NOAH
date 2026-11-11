@@ -18,6 +18,15 @@ class AlreadyPublished(SettingsError):
     """This period already has a publication on chain."""
 
 
+class AccountedNotPublished(SettingsError):
+    """Verified stale points accounting retained; no transaction was prepared."""
+
+    def __init__(self, reference, next_pending):
+        super().__init__(f"day {reference['day']} accounted, not published")
+        self.reference = reference
+        self.next_pending = next_pending
+
+
 class HeightNotPinned(SettingsError):
     """The height to score at could not be fixed, so nothing was scored."""
 
@@ -127,6 +136,14 @@ def run_period(chain):
                 f"calculation evidence could not be retained ({type(error).__name__}); "
                 "nothing was submitted"
             ) from error
+
+    # Points replay includes every financial day. Stale daily weights must not
+    # consume today's publication window; retain an explicit non-send outcome.
+    account = getattr(chain, "account_stale_day", None)
+    if callable(account):
+        disposition = account(height)
+        if disposition is not None:
+            raise AccountedNotPublished(*disposition)
 
     # Starter entry changes eligibility/allocation, never either scoring engine.
     prepare_starters = getattr(chain, "prepare_starter_vector", None)

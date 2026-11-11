@@ -4,6 +4,7 @@ import argparse
 import json
 import time
 from pathlib import Path
+from ..core.publish_intent import PublicationStatusUnknown
 
 # The serialized send waits for finalized inclusion while the guard cannot take
 # the publication lock. Thirty seconds is shorter than a normal live-chain wait.
@@ -15,6 +16,12 @@ def inspect(directory, now=None):
     now = time.time() if now is None else now
     try:
         record = json.loads((Path(directory) / "starter-guard.json").read_text())
+        if record.get("status") == "awaiting_fresh_daily":
+            from ..points.daily_recovery import validate_health
+            validate_health(record, directory, record["identity"][4])
+            if not 0 <= now - record["observed_at"] <= GUARD_MAX_AGE:
+                raise ValueError("stale recovery wait")
+            return dict(ok=False, status="awaiting_fresh_daily", finalizedBlock=record["head"])
         if (
             record.get("status") not in ("idle", "watching", "ordinary", "replaced")
             or not 0 <= now - record["observed_at"] <= GUARD_MAX_AGE
@@ -22,7 +29,7 @@ def inspect(directory, now=None):
         ):
             raise ValueError("guard is stale or blocked")
         return dict(ok=True, status=record["status"], finalizedBlock=record["head"])
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, IndexError, PublicationStatusUnknown):
         return dict(ok=False, status="missing-stale-or-blocked")
 
 

@@ -12,7 +12,8 @@ sealed vector, so the period runner reports that reveal check as unverified.
 Operators must independently establish the commit and reveal result.
 """
 
-from ..starter.locking import serialized
+from .publication_lock import publication_lock, serialized
+from ..chain.entry_history import selected as entry_history
 
 from ..chain.agreeing import AgreeingChain
 from ..chain.foreign_value import foreign_deposit_rule
@@ -1100,6 +1101,7 @@ class ChainAdapter:
         # seat map the last read(height) SCORED (the day's last scanned block).
         # fixture_hotkeys(height) answers from it, see there.
         self._scored_seat_hotkeys = None
+        self._scored_seat_coldkeys = None
 
     def close(self):
         """Close both reader and runner connections, even if one close raises.
@@ -1351,6 +1353,17 @@ class ChainAdapter:
         )
 
     def read(self, height):
+        try:
+            result = self._read_verified(height)
+            from ..points.outage import record_recovery
+            record_recovery(self)
+            return result
+        except (Exception, Refusal) as error:
+            from ..points.outage import record_failure
+            record_failure(self, error)
+            raise
+
+    def _read_verified(self, height):
         """See this module's own docstring, "What became real tonight, and
         what still refuses loudly rather than pretending". Proves
         the two configured sources genuinely agree on the height about to be
@@ -1577,12 +1590,15 @@ class ChainAdapter:
             # unattributed.
             attribute_deposits=True,
             progressive=self.epoch_collection,
-            sample_registered=self.starter_entry_policy is not None,
+            sample_registered=entry_history(self) is not None,
         )
         seats = self._seats_source(day, store)
         observe_seats(seats, day=day, height=height)
         scored_seat_hotkeys = {
             uid: hotkey for per_hotkey in seats.values() for hotkey, uid in per_hotkey.items()
+        }
+        scored_seat_coldkeys = {
+            uid: coldkey for coldkey, per_hotkey in seats.items() for uid in per_hotkey.values()
         }
 
         # Multiple live seats per coldkey are permitted. Qualification is
@@ -1636,8 +1652,8 @@ class ChainAdapter:
         # allocation. Until its cutoff, the legacy path remains byte-for-byte
         # equivalent. Ordinary engine inputs retain the original entry credit.
         migration = None
-        if self.starter_entry_policy is not None:
-            migration = self.starter_entry_policy.inputs(self, store, seats, day, to_block)
+        if entry_history(self) is not None:
+            migration = entry_history(self).inputs(self, store, seats, day, to_block)
         if migration is None:
             seats, self._dropped_unconfirmed_entry_deposits = exclude_unconfirmed_entries(
                 store, seats, as_of_day=day
@@ -1674,6 +1690,9 @@ class ChainAdapter:
         foreign_rule = foreign_deposit_rule(
             self.runner_chain, self.netuid, evidence=self._foreign_valuation_evidence
         )
+        points = getattr(self, "points_policy", None)
+        if points is not None:
+            foreign_rule = points.foreign_rule(self, foreign_rule)
 
         # Rule B (#338): deposits that moved alpha into the Ark but credit
         # nobody (no miner hotkey named, or the wrong validator), as of this
@@ -1694,13 +1713,44 @@ class ChainAdapter:
             dials=self.dials,
             seats=seats,
             foreign_rule=foreign_rule,
+            foreign_precollect=(points.precollect_foreign if points else None),
+            foreign_without_noah_from_day=(points.migration["cutoff_day"] + 1 if points else None),
             entry_deposits=entry_deposits,
             registration_days=fixture_registration_days,
         )
+        self._points_lineage_capture = None
+        if getattr(self, "capture_points_lineages", False):
+            if points is not None or entry_history(self) is None:
+                raise ValueError("complete lineage capture requires the installed legacy starter policy")
+            from ..points.lineages import capture
+            self._points_lineage_capture = capture(
+                self, store, fixture_store, fixture, seats, scored_seat_hotkeys,
+                foreign_deposit_rule(self.runner_chain, self.netuid),
+                entry_deposits, fixture_registration_days, to_block,
+            )
         # Issue #291: remember which hotkey held each uid in the seat map just
         # scored (taken before exclude_unconfirmed_entries, which only removes
         # seats; an unscored seat publishes 0 anyway).
         self._scored_seat_hotkeys = (height, scored_seat_hotkeys)
+        self._scored_seat_coldkeys = (height, scored_seat_coldkeys)
+        if points is not None:
+            if points.check_snapshot(self, fixture, scored_seat_hotkeys):
+                fixture["schema"] = points.input_schema
+                if getattr(points, "no_pool", False):
+                    from ..points.onboarding import RULES
+                    fixture["pointsRules"] = dict(RULES)
+                    fixture["pointsExcludedUids"] = sorted(self.owner_uids())
+                if getattr(points, "amended", False):
+                    from ..points.receipts import from_evidence
+                    fixture["pointsReceipts"] = from_evidence(self._foreign_valuation_evidence, ema=getattr(points, "ema", False))
+                    if getattr(points, "ema", False):
+                        from ..points.ema_policy import fixture_boundary
+                        fixture["pointsPricingBoundary"] = fixture_boundary(points.ema_document, self.netuid)
+                        wanted = {r["reference_proof"]["sha256"] for r in fixture["pointsReceipts"] if r["block"] >= points.ema_document["effective_block"]}
+                        fixture["pointsPricing"] = {sha: points.ema_collector.documents[sha] for sha in sorted(wanted)}
+                    fixture["pointsHotkeys"] = {str(uid): hotkey for uid, hotkey in scored_seat_hotkeys.items()}
+                    fixture["pointsOwners"] = {str(uid): coldkey for uid, coldkey in scored_seat_coldkeys.items()}
+                fixture["pointsMigration"] = points.fixture_migration(fixture, scored_seat_hotkeys)
         return fixture
 
     def score(self, observations):
@@ -1711,6 +1761,9 @@ class ChainAdapter:
         """
         from ..scoring.fixture_io import parse_fixture
 
+        if observations.get("schema") in ("noah-points-fixture/1", "noah-points-fixture/2", "noah-points-fixture/3"):
+            from ..points.engine import evaluate
+            return evaluate(observations)
         return score_fixture(parse_fixture(observations))
 
     def agree(self, observations):
@@ -1737,9 +1790,15 @@ class ChainAdapter:
         from .ts_engine import render_with_ts_engine
 
         def python_engine(raw):
+            if raw.get("schema") in ("noah-points-fixture/1", "noah-points-fixture/2", "noah-points-fixture/3"):
+                from ..points.engine import evaluate
+                return render_output(evaluate(raw))
             return render_output(score_fixture(parse_fixture(raw)))
 
         def typescript_engine(raw):
+            if raw.get("schema") in ("noah-points-fixture/1", "noah-points-fixture/2", "noah-points-fixture/3"):
+                from ..points.run import typescript_text
+                return typescript_text(raw)
             return render_with_ts_engine(raw)
 
         from .calculation_record import digest, encoded
@@ -1772,6 +1831,11 @@ class ChainAdapter:
         if from_engine_output(json.loads(saved[1])) != agreed:
             raise CalculationEvidenceRefused("agreed vector differs from the retained calculation")
         day, first, last = self._day_window(height)
+        if observations.get("schema") in ("noah-points-fixture/2", "noah-points-fixture/3"):
+            for field, remembered in (("pointsHotkeys", self._scored_seat_hotkeys),
+                                      ("pointsOwners", self._scored_seat_coldkeys)):
+                if remembered is None or remembered[0] != height or observations.get(field) != {str(k): v for k,v in remembered[1].items()}:
+                    raise CalculationEvidenceRefused("amended fixture roster differs from authenticated read")
         profile_snapshot = load_parameters_snapshot()
         context = {
             "day": day,
@@ -1794,8 +1858,15 @@ class ChainAdapter:
             "profile_capture": "configured_file_at_evidence_time",
             "scoring_dials": self.dials,
             "candidate": source_identity(),
+            "points_policy": getattr(getattr(self, "points_policy", None), "manifest", None),
+            "scoring_mode": getattr(self, "scoring_mode", "legacy"),
+            **({"publisher_uid": self.uid} if getattr(self, "points_policy", None) else {}),
             "foreign_valuations": getattr(self, "_foreign_valuation_evidence", []),
+            **({"scored_coldkeys": {str(k): v for k,v in self._scored_seat_coldkeys[1].items()}} if observations.get("schema") in ("noah-points-fixture/2", "noah-points-fixture/3") else {}),
+            "scored_hotkeys": {str(k): v for k, v in (self._scored_seat_hotkeys[1] if self._scored_seat_hotkeys else {}).items()},
         }
+        if getattr(self, "_points_lineage_capture", None) is not None:
+            context["points_lineage_capture"] = self._points_lineage_capture
         self._calculation_reference = retain(
             self._submitted_record_dir,
             fixture=observations,
@@ -1812,8 +1883,20 @@ class ChainAdapter:
         observe_prepared(agreed, vector, self.publish_mode, self.publisher)
         return self._calculation_reference
 
+    def account_stale_day(self, height):
+        from ..points.catchup import MODES, record_accounted
+        if getattr(self, "scoring_mode", "legacy") not in MODES:
+            return None
+        with publication_lock(self):
+            return record_accounted(self, height)
+
+    def validate_accounting_state(self, references, pending, state=None):
+        from ..points.catchup import validate_loop
+        validate_loop(self, references, pending, state=state)
+
     def prepare_starter_vector(self, vector):
-        if self.starter_entry_policy is None:
+        from ..points.onboarding import enabled
+        if enabled(self) or self.starter_entry_policy is None:
             return vector
         from ..starter.runtime import prepare_daily
         return prepare_daily(self)
@@ -2111,22 +2194,29 @@ class ChainAdapter:
     # called from the four delegates above them, on failure or otherwise.
 
     def submit_direct(self, uids, values, netuid):
+        from ..points.onboarding import enabled
+        if enabled(self) and self._calculation_reference is None:
+            raise PublicationRefused("ordinary points requires a retained calculation before submission")
         if self._calculation_reference is not None:
             # These checks run after intent creation, but before the transport
             # is invoked. A refusal here proves no send occurred. Do not leave
             # an impossible-to-reconcile intent blocking the expiry guard.
-            from .publish import PublicationRefused
             from .publication_diagnostics import publication_phase
             try:
-                from ..starter.publication import check_before_send, verify_overlay
-                with publication_phase("pre_send_evidence"):
+                from ..points.onboarding import enabled
+                if enabled(self):
+                    from ..points.publication import check_before_send
                     check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
-                with publication_phase("pre_send_overlay"):
-                    proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
-                if proof is not None and proof['mode'] == 'starter-overlay':
-                    from ..starter.runtime import require_guard
-                    with publication_phase("pre_send_guard"):
-                        require_guard(self)
+                else:
+                    from ..starter.publication import check_before_send, verify_overlay
+                    with publication_phase("pre_send_evidence"):
+                        check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
+                    with publication_phase("pre_send_overlay"):
+                        proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
+                    if proof is not None and proof['mode'] == 'starter-overlay':
+                        from ..starter.runtime import require_guard
+                        with publication_phase("pre_send_guard"):
+                            require_guard(self)
             except (Exception, Refusal) as error:
                 raise PublicationRefused(
                     f"pre-send evidence/guard check refused ({type(error).__name__}); "
@@ -2295,8 +2385,8 @@ class ChainAdapter:
             from .calculation_record import verify
 
             manifest = verify(self._submitted_record_dir, reference)
-            from ..starter.publication import verify_overlay
-            proof = verify_overlay(self._submitted_record_dir, reference)
+            from .calculation_record import historical_overlay
+            proof = historical_overlay(self._submitted_record_dir, reference)
             if (manifest["day"] != marker["day"]
                     or manifest["publishable_weights_u16"] != marker["vector"]):
                 raise PublicationStatusUnknown(
@@ -2335,6 +2425,12 @@ class ChainAdapter:
             from pathlib import Path
             durable_write(Path(self._submitted_record_dir) / "starter-active.json",
                           encoded({"reference": reference, "marker": marker}), replace=True)
+        recovery = getattr(self, "_fresh_daily_recovery", None)
+        if (recovery is not None and recovery["reference"] == reference
+                and recovery.get("intent_id") == marker["intent_id"]):
+            # Matching exact confirmation (including lost-reply reconciliation)
+            # ends the attempt-local capability. Unknown sends retain it.
+            self._fresh_daily_recovery = None
 
     @serialized
     def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None):
@@ -2361,7 +2457,11 @@ class ChainAdapter:
                 self._failure_backoff.raise_if_blocked()
             day = source_day
         if self._calculation_reference is not None:
-            from ..starter.publication import check_before_send
+            from ..points.onboarding import enabled
+            if enabled(self):
+                from ..points.publication import check_before_send
+            else:
+                from ..starter.publication import check_before_send
             check_before_send(self, self._calculation_reference, vector)
         signer = self.publisher.signer_address
         context = self.publisher.send_context(signer)
@@ -2393,6 +2493,9 @@ class ChainAdapter:
         # One fsynced write, including the vector and transaction context. A failed
         # write stops the send. Never overwrite an unresolved marker.
         self._publish_intent.open(**marker, exclusive=True)
+        recovery = getattr(self, "_fresh_daily_recovery", None)
+        if recovery is not None:
+            recovery["intent_id"] = marker["intent_id"]
         self._publication_event(marker, "submitting")
         try:
             published = publish_weights_direct(
@@ -2705,7 +2808,7 @@ def build_chain_adapter(
             "was read, and no connection was opened."
         )
 
-    from async_substrate_interface import SubstrateInterface
+    from ..chain.read_connection import ReadSubstrateInterface as SubstrateInterface
 
     from ..chain.agreeing import AgreeingChain
     from ..chain.live import LiveRunnerChain

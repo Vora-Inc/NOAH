@@ -21,10 +21,19 @@ from .writer_lock import LockHeld, held
 
 def configure(adapter, settings):
     # Settings validates these before any connections or wallets are opened.
+    from ..points.runtime import validate_configuration
+    adapter.scoring_mode = validate_configuration(settings)
     adapter.epoch_collection = settings.epoch_collection
     adapter.epoch_republication = settings.epoch_republication
-    from ..starter.runtime import configure as configure_starter
-    configure_starter(adapter, settings)
+    from ..points.onboarding import enabled
+    if enabled(adapter):
+        from ..chain.entry_history import configure as configure_history
+        configure_history(adapter, settings)
+    else:
+        from ..starter.runtime import configure as configure_starter
+        configure_starter(adapter, settings)
+    from ..points.runtime import configure as configure_points
+    configure_points(adapter, settings)
 
 
 def collect(adapter, head):
@@ -76,7 +85,10 @@ def collect(adapter, head):
             attribute_deposits=True,
             progressive=True,
             finalize=False,
-            sample_registered=getattr(adapter, "starter_entry_policy", None) is not None,
+            sample_registered=(
+                getattr(adapter, "entry_history_policy", None) is not None
+                or getattr(adapter, "starter_entry_policy", None) is not None
+            ),
         )
         return {"day": day, "collected_through": target, "target_head": head}
     finally:
@@ -85,7 +97,8 @@ def collect(adapter, head):
 
 def republish(adapter, epoch, head, *, before_send=lambda: None):
     """Republish verified weights; added unscored seats receive no old weight."""
-    if getattr(adapter, "starter_entry_policy", None) is not None:
+    from ..points.onboarding import enabled
+    if getattr(adapter, "starter_entry_policy", None) is not None and not enabled(adapter):
         from ..starter.runtime import republish as publish_starters
         return publish_starters(adapter, epoch, head, before_send=before_send)
 
@@ -105,6 +118,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
         adapter._publish_intent.clear()
     path = submitted_record_path(adapter._submitted_record_dir, day)
     if not path.exists():
+        if enabled(adapter):
+            from ..points.outage import republish_plain
+            return republish_plain(adapter, epoch, head, before_send=before_send)
         return "awaiting_daily_publication"
     record = json.loads(path.read_text())
     marker = record.get("direct_intent")
@@ -163,7 +179,7 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
 
 
 def confirmed_refresh_block(adapter, block, scoring_day):
-    """Attribute EVERY matching event to a verified previous-day refresh.
+    """Attribute EVERY matching event to a verified older daily refresh.
 
     A send checked before midnight may land afterward. It is neither an unknown
     send nor today's daily result. Never exempt a whole block based on just one
@@ -179,7 +195,10 @@ def confirmed_refresh_block(adapter, block, scoring_day):
     indices = set()
     source_day = scoring_day - 1
     try:
-        paths = list((root / "epoch-publications").glob(f"*/day-{source_day}.submitted.json"))
+        # An outage refresh can use a source two scoring days old when its
+        # inclusion crosses midnight. Receipt discovery is not authorization
+        # to send stale weights: every candidate still requires exact proof.
+        paths = list((root / "epoch-publications").glob("*/day-*.submitted.json"))
         paths += list((root / "starter-publications").glob("*/*/day-*.submitted.json"))
         for path in paths:
             record = json.loads(path.read_text())
@@ -190,11 +209,12 @@ def confirmed_refresh_block(adapter, block, scoring_day):
             epoch = marker.get("refresh_epoch")
             starter_path = "starter-publications" in path.relative_to(root).parts
             record_day = marker.get("day")
-            if starter_path and type(record_day) is int and record_day > source_day:
+            if type(record_day) is int and record_day > source_day:
                 continue
             if (type(epoch) is not int or epoch <= 0
                     or (path.parent.parent.name if starter_path else path.parent.name) != str(epoch)
-                    or (not starter_path and record_day != source_day)):
+                    or type(record_day) is not int or record_day < 0
+                    or path.name != f"day-{record_day}.submitted.json"):
                 return False
             if starter_path and path.parent.name != marker.get("intent_id"):
                 return False
@@ -208,15 +228,18 @@ def confirmed_refresh_block(adapter, block, scoring_day):
                     or manifest["genesis_hash"] != adapter.runner_chain.genesis_hash()
                     or manifest["publishable_weights_u16"] != marker["vector"]):
                 return False
-            source = json.loads(submitted_record_path(root, record_day).read_text())["direct_intent"]
+            source_record = json.loads(submitted_record_path(root, record_day).read_text())
+            source = source_record["direct_intent"]
             adapter._check_direct_identity(source)
-            from ..starter.publication import verify_overlay
-            proof = verify_overlay(root, reference)
+            from .calculation_record import historical_overlay
+            proof = historical_overlay(root, reference)
             if starter_path != (proof is not None):
                 return False
             source_reference = proof["source"] if proof else reference
+            retained_source = source.get("calculation_evidence")
+            source_overlay = historical_overlay(root, retained_source) or {}
             if (source.get("day") != record_day or source.get("refresh_epoch") is not None
-                    or (verify_overlay(root, source.get("calculation_evidence")) or {}).get("source", source.get("calculation_evidence")) != source_reference):
+                    or source_overlay.get("source", retained_source) != source_reference):
                 return False
             source_manifest = verify(root, source["calculation_evidence"])
             if source.get("vector") != source_manifest["publishable_weights_u16"]:
@@ -268,13 +291,23 @@ def maintain(adapter, lock_path):
             state = json.loads(path.read_text()) if path.exists() else {"identity": identity}
             if state.get("identity") != identity:
                 raise SettingsError("epoch maintenance state belongs to another validator")
-            if getattr(adapter, "starter_entry_policy", None) is not None:
-                result = collect(adapter, head)
+            if (getattr(adapter, "entry_history_policy", None) is not None
+                    or getattr(adapter, "starter_entry_policy", None) is not None):
+                try:
+                    result = collect(adapter, head)
+                except (Exception, Refusal) as error:
+                    from ..points.outage import record_failure
+                    recognized = record_failure(adapter, error)
+                    if not recognized:
+                        raise
+                    result = {"collected_through": 0, "target_head": head}
                 state.update(result)
                 if result["collected_through"] != head:
                     durable_write(path, encoded(state), replace=True)
-                    return
-                state["collected_epoch"] = epoch
+                    if not getattr(adapter, "points_policy", None):
+                        return
+                else:
+                    state["collected_epoch"] = epoch
             if (
                 getattr(adapter, "epoch_republication", False)
                 and state.get("published_epoch") != epoch

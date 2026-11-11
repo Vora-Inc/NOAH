@@ -29,7 +29,7 @@ class ConnectionFailureIsScrubbed(unittest.TestCase):
             def __init__(self, url, *, auto_discover=True):
                 raise _InvalidURI(f"{url} isn't a valid URI: scheme isn't ws or wss")
 
-        with mock.patch("async_substrate_interface.SubstrateInterface", Failing):
+        with mock.patch("noah.chain.read_connection.ReadSubstrateInterface", Failing):
             with self.assertRaises(ChainAdapterRefused) as caught:
                 build_chain_adapter(
                     client=object(), settings=settings, reader=object(), wallet=object(), uid=0
@@ -57,7 +57,7 @@ class ConnectionFailureIsScrubbed(unittest.TestCase):
             def close(self):
                 pass
 
-        with mock.patch("async_substrate_interface.SubstrateInterface", Selective):
+        with mock.patch("noah.chain.read_connection.ReadSubstrateInterface", Selective):
             with self.assertRaises(ChainAdapterRefused) as caught:
                 build_chain_adapter(
                     client=object(), settings=Both(), reader=object(), wallet=object(), uid=0

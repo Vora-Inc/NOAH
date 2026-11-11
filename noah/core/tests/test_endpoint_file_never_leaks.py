@@ -133,7 +133,7 @@ class EndpointFileNeverLeaks(unittest.TestCase):
                     def close(self):
                         pass
 
-                with mock.patch("async_substrate_interface.SubstrateInterface", Failing):
+                with mock.patch("noah.chain.read_connection.ReadSubstrateInterface", Failing):
                     with self.assertRaises(ChainAdapterRefused) as caught:
                         build_chain_adapter(
                             client=object(),

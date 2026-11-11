@@ -665,9 +665,67 @@ def _source_inventory_labels(text: str) -> str:
     except (ValueError, TypeError, RecursionError):
         return text
 
+def _points_cache_labels(text: str) -> str:
+    """Recognize one canonical cache index label, never exempt digest values.
+
+    Short synthetic block numbers place a public block hash near the word
+    ``key``. Validate the complete public cache shape before neutralizing only
+    that three-character label. Intrinsic credential scans retain original text.
+    """
+    if '"kind": "day"' not in text:
+        return text
+    try:
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('duplicate cache key')
+                result[key] = value
+            return result
+        doc = json.loads(text, object_pairs_hook=unique)
+        if (type(doc) is not dict or set(doc) != {'identity', 'value', 'sha256'}
+                or text != json.dumps(doc, sort_keys=True, indent=2) + '\n'):
+            return text
+        identity = doc['identity']
+        if (type(identity) is not dict or set(identity) != {'genesis', 'key', 'kind'}
+                or identity['kind'] != 'day'
+                or not isinstance(identity['genesis'], str)
+                or not re.fullmatch('0x[0-9a-f]{64}', identity['genesis'])):
+            return text
+        key = identity['key']
+        if type(key) is not list or len(key) != 8:
+            return text
+        native, asset, start, end, first, first_hash, last, last_hash = key
+        if (any(type(n) is not int for n in (native, asset, start, end, first, last))
+                or not 0 < native < 65536 or not 0 <= asset < 65536
+                or start < 0 or start % 86400 or end != start + 86400 or not 0 < first <= last
+                or any(not isinstance(h, str) or not re.fullmatch('0x[0-9a-f]{64}', h)
+                       for h in (first_hash, last_hash))):
+            return text
+        rows = doc['value']
+        if type(rows) is not list or not rows or len(rows) > last - first + 1:
+            return text
+        cursor = start
+        for row in rows:
+            if (type(row) is not dict or set(row) != {'start', 'end', 'noah_price_rao', 'asset_price_rao'}
+                    or any(type(v) is not int for v in row.values())
+                    or row['start'] != cursor or not cursor < row['end'] <= end
+                    or not 0 < row['noah_price_rao'] < 2**64
+                    or not 0 < row['asset_price_rao'] < 2**64):
+                return text
+            cursor = row['end']
+        data = (json.dumps(rows, sort_keys=True, indent=2) + '\n').encode()
+        if cursor != end or hashlib.sha256(data).hexdigest() != doc['sha256']:
+            return text
+        # Exact canonical shape guarantees this is the sole key label.
+        return text.replace('    "key": [\n', '    "idx": [\n', 1)
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return text
+
+
 def scan_text(text: str, name: str = "<text>", depth: int = 0) -> list:
     """Scan decoded text. ``name`` is used as given (callers mask it)."""
-    credential_text = _source_inventory_labels(text)
+    credential_text = _source_inventory_labels(_points_cache_labels(text))
     found = []
     decoded = depth > 0
     pre = "decoded-" if decoded else ""

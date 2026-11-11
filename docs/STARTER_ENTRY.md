@@ -1,3 +1,5 @@
+> Version scope: this document retains predecessor rules and receipt/history details. For candidate `points-204040-v5`, [ordinary scoring](ORDINARY_SCORING.md) governs onboarding, contribution, bonuses and publication. Historical starter descriptions below do not activate a pool in V5.
+
 # Starter entry policy: shared 0.25% pool
 
 Mainnet activated this policy on November 3, 2026. New miners do not need
@@ -16,7 +18,7 @@ See [reproduce the Mainnet entry snapshot](MAINNET_STARTER_SNAPSHOT.md) for the
 fixed block hash, content commitments and a read-only reconstruction procedure.
 Do not create a new cutoff using today's date. The validator and independent
 guard must share the verified original snapshot; see
-[guard startup](VALIDATOR_QUICKSTART.md#start-the-guard-and-validator).
+[historical guard startup](LEGACY_VALIDATOR_QUICKSTART.md#start-the-guard-and-validator).
 
 ## For miners
 

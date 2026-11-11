@@ -131,7 +131,14 @@ def verify_overlay(directory, reference):
 
 
 def check_before_send(adapter, reference, vector):
+    from ..points.mode import check_publication_mode
+
+    check_publication_mode(adapter, reference)
+    from ..points.daily_recovery import before_send
+    before_send(adapter, reference)
     proof = verify_overlay(adapter._submitted_record_dir, reference)
+    from ..points.outage import check_before_send as check_points_outage
+    check_points_outage(adapter, proof)
     if proof is None:
         return
     manifest = verify(adapter._submitted_record_dir, reference)

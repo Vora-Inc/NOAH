@@ -12,7 +12,7 @@ import pytest
 
 
 CHILD = r'''
-import json, os, runpy, sys, threading, time
+import json, os, runpy, socketserver, sys, threading, time
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +20,20 @@ from noah.deposits.assistant import cli, config as config_module, miner_cli, sig
 from noah.deposits.assistant.tests.fakes import config
 from noah.deposits.assistant.tests.test_participant_signer import settings
 root=Path(sys.argv[1]); entry=sys.argv[2]; scenario=sys.argv[3]
+# Binding creates the pathname before listen(). Expose readiness only after the
+# real activation returns; no probe request can consume the single handler.
+delayed_activation=len(sys.argv)>4 and sys.argv[4]=='delayed'
+original_activate=socketserver.UnixStreamServer.server_activate
+def activate(server):
+    if delayed_activation:
+        (root/'activation-waiting').write_text('bound, not listening')
+        deadline=time.monotonic()+5
+        while not (root/'activate').exists():
+            if time.monotonic()>=deadline:raise RuntimeError('activation gate timed out')
+            time.sleep(.01)
+    original_activate(server)
+    (root/'listening').write_text('listening')
+socketserver.UnixStreamServer.server_activate=activate
 cfg=replace(config(), signing=dict(settings(), signer_socket=str(root/'signer.sock')))
 config_module.load_config=lambda _: cfg
 policy=dict(version=1,policy_id='shutdown-test',runtime_code_hash='0x'+'a'*64,
@@ -82,7 +96,7 @@ def assert_idle_shutdown(entry, sig, child=CHILD):
         process = subprocess.Popen([sys.executable, '-c', child, directory, entry, 'idle'],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            wait_for(lambda: (root/'signer.sock').exists(), process)
+            wait_for(lambda: (root/'listening').exists(), process)
             process.send_signal(sig)
             stdout, stderr = process.communicate(timeout=5)
             assert process.returncode == 0, (stdout, stderr)
@@ -109,14 +123,26 @@ def test_idle_signer_exits_despite_lingering_sdk_thread(entry, sig):
 
 @pytest.mark.parametrize('sig', [signal.SIGINT, signal.SIGTERM])
 @pytest.mark.parametrize('outcome', ['finalized', 'uncertain'])
-def test_shutdown_drains_current_request_and_does_not_start_another(sig, outcome):
+@pytest.mark.parametrize('activation', ['normal', 'delayed'])
+def test_shutdown_drains_current_request_and_does_not_start_another(sig, outcome, activation):
     with tempfile.TemporaryDirectory(prefix='noah-sign-', dir='/tmp') as directory:
         root = Path(directory)
         scenario = 'active-uncertain' if outcome == 'uncertain' else 'active'
-        process = subprocess.Popen([sys.executable, '-c', CHILD, directory, 'participant', scenario],
+        process = subprocess.Popen([sys.executable, '-c', CHILD, directory, 'participant', scenario, activation],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            wait_for(lambda: (root/'signer.sock').exists(), process)
+            if activation == 'delayed':
+                wait_for(lambda: (root/'activation-waiting').exists(), process)
+                assert (root/'signer.sock').exists()
+                assert not (root/'listening').exists()
+                # Deterministically reproduce the old path-exists race. This
+                # failed connection sends no request and cannot invoke execute.
+                with socket.socket(socket.AF_UNIX) as premature:
+                    with pytest.raises(ConnectionRefusedError):
+                        premature.connect(str(root/'signer.sock'))
+                assert not (root/'entered').exists()
+                (root/'activate').write_text('allow actual listen')
+            wait_for(lambda: (root/'listening').exists(), process)
             with socket.socket(socket.AF_UNIX) as client:
                 client.connect(str(root/'signer.sock'));client.sendall(b'{}\n')
                 wait_for(lambda: (root/'entered').exists(), process)
@@ -148,7 +174,7 @@ def test_shutdown_reports_cleanup_failure_and_preserves_foreign_socket_path(scen
         process = subprocess.Popen([sys.executable, '-c', CHILD, directory, 'participant', scenario],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            wait_for(lambda: (root/'signer.sock').exists(), process)
+            wait_for(lambda: (root/'listening').exists(), process)
             if scenario == 'replaced-socket':
                 (root/'signer.sock').unlink()
                 (root/'signer.sock').write_text('replacement must survive')
