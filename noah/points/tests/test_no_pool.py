@@ -8,6 +8,28 @@ from noah.points.ledger import settle
 R = 10**9
 
 
+def economics_fixture(histories):
+    """Schema3 baseline-only input; these tests exercise arithmetic, not receipt capture."""
+    from noah.chain.ss58 import address_of
+    from noah.points.tests.test_engine import fixture
+
+    raw = fixture(histories)
+    identities = {str(m["uid"]): address_of(bytes([m["uid"] + 1]) * 32) for m in raw["miners"]}
+    for miner in raw["miners"]:
+        miner["coldkey"] = identities[str(miner["uid"])]
+    raw.update(
+        schema="noah-points-fixture/3",
+        pointsReceipts=[], pointsPricing={},
+        pointsHotkeys=identities, pointsOwners=dict(identities),
+        pointsPricingBoundary=dict(
+            anchor={"block": 1, "hash": "0x" + "1" * 64}, effectiveBlock=2,
+            policySha256="a" * 64, predecessorPolicySha256="b" * 64,
+            emaSource="SubnetMovingPrice", genesis="0x" + "a" * 64, nativeNetuid=82,
+        ),
+    )
+    return raw
+
+
 def test_newcomer_earns_before_any_purchase_or_deposit():
     s = onboarding.initial_state()
     assert s.points == 200000
@@ -46,11 +68,10 @@ def test_ninety_compliant_days_mature_and_thirty_payments_full_consistency():
 
 def test_native_and_foreign_only_equal_with_no_entry_requirement():
     from noah.points.run import agreed
-    from noah.points.tests.test_engine import fixture
 
-    a = fixture([[(100 * R, 0, 0), (0, 50 * R, 0)]])
+    a = economics_fixture([[(100 * R, 0, 0), (0, 50 * R, 0)]])
     a.update(pointsRules=onboarding.RULES, pointsExcludedUids=[])
-    b = fixture([[(100 * R, 0, 0), (0, 0, 50 * R)]])
+    b = economics_fixture([[(100 * R, 0, 0), (0, 0, 50 * R)]])
     b.update(pointsRules=onboarding.RULES, pointsExcludedUids=[])
     assert agreed(a) == agreed(b)
     assert agreed(b)["miners"][0]["state"]["points"] == "200444"
@@ -63,12 +84,11 @@ def test_randomized_full_state_python_typescript_agreement():
     from pathlib import Path
 
     from noah.points.engine import evaluate
-    from noah.points.tests.test_engine import fixture
 
     rng = random.Random(204040)
     raws = []
     for case in range(150):
-        raw = fixture(
+        raw = economics_fixture(
             [
                 [
                     (
@@ -743,3 +763,64 @@ def test_older_outage_receipt_never_exempts_unknown_or_tampered_send(tmp_path, d
         a._already_published_direct(201)
     assert len(client.calls) == 2
     assert not (tmp_path / f"scores/day-{day + 2}.submitted.json").exists()
+
+
+@pytest.mark.parametrize("schema", ["noah-fixture/6", "noah-points-fixture/1", "noah-points-fixture/2"])
+def test_crossed_v5_schema_refused_by_engines_and_public_cli(tmp_path, schema):
+    import json
+    import subprocess
+    import sys
+    from noah.points.engine import evaluate
+    from noah.points.run import typescript_text
+    from noah.points.tests.test_engine import fixture
+    from noah.points.tests.test_amendment_eligibility import financial_fixture
+
+    if schema == "noah-points-fixture/2":
+        (tmp_path / "historical").mkdir()
+        raw, _ = financial_fixture(tmp_path / "historical")
+    else:
+        raw = fixture([[(100 * R, 0, 0), (0, 50 * R, 0)]])
+        raw["schema"] = schema
+    raw.update(pointsRules=onboarding.RULES, pointsExcludedUids=[])
+    with pytest.raises(ValueError, match="requires points fixture schema /3"):
+        evaluate(raw)
+    with pytest.raises(ValueError, match="requires points fixture schema /3"):
+        typescript_text(raw)
+    source, output = tmp_path / "fixture.json", tmp_path / "output.json"
+    source.write_text(json.dumps(raw))
+    proc = subprocess.run([sys.executable, "-B", "-m", "noah.points.run", str(source), str(output)], capture_output=True, text=True, timeout=60)
+    assert proc.returncode != 0 and not output.exists()
+    assert "requires points fixture schema /3" in proc.stderr
+
+
+def test_public_twin_cli_preserves_valid_historical_and_v5_versions(tmp_path):
+    import copy
+    import json
+    import subprocess
+    import sys
+    from noah.points.run import agreed
+    from noah.points.tests.test_engine import fixture
+    from noah.points.tests.test_amendment_eligibility import financial_fixture
+    from noah.points.tests.test_ema_reference import ema_fixture
+
+    old = fixture([[(100 * R, 0, 0), (0, 50 * R, 0)]])
+    v2 = copy.deepcopy(old); v2["schema"] = "noah-points-fixture/1"
+    (tmp_path / "v3").mkdir()
+    (tmp_path / "v4").mkdir()
+    v3, _ = financial_fixture(tmp_path / "v3")
+    v4, _ = ema_fixture(tmp_path / "v4")
+    v5 = copy.deepcopy(v4); v5.update(pointsRules=onboarding.RULES, pointsExcludedUids=[])
+    for i, (raw, schema, policy) in enumerate([
+        (old, "noah-points-output/1", "noah-points-402040-30d/2"),
+        (v2, "noah-points-output/1", "noah-points-402040-30d/2"),
+        (v3, "noah-points-output/2", "noah-points-402040-30d/3"),
+        (v4, "noah-points-output/3", "noah-points-402040-30d/4"),
+        (v5, "noah-points-output/3", onboarding.POLICY),
+    ]):
+        expected = agreed(raw)
+        assert (expected["schema"], expected["policy"]) == (schema, policy)
+        source, output = tmp_path / f"input-{i}.json", tmp_path / f"output-{i}.json"
+        source.write_text(json.dumps(raw))
+        proc = subprocess.run([sys.executable, "-B", "-m", "noah.points.run", str(source), str(output)], capture_output=True, text=True, timeout=60)
+        assert proc.returncode == 0, proc.stderr
+        assert json.loads(output.read_text()) == expected

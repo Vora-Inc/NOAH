@@ -55,6 +55,7 @@ function reconcileReceipts(input:any, rows:any[]):void{
 export function evaluatePoints(text:string){
  const input=parseStrict(text) as Record<string, any>;
  const ordinary=Object.hasOwn(input,'pointsRules');
+ if(ordinary&&input.schema!=='noah-points-fixture/3')throw new Error('ordinary onboarding requires points fixture schema /3');
  const rules={base:20,contribution:40,target:50,bonusAt:75,maturityStart:1,maturityDays:90,maturityCurve:2,consistency:40,consistencyDays:30,consistencyCurve:2,debtKeep:50,debtZero:2};
  if(ordinary&&canonicalJson(input.pointsRules)!==canonicalJson(rules))throw new Error('unsupported ordinary onboarding rules');
  const excluded=ordinary?input.pointsExcludedUids:[];

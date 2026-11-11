@@ -48,6 +48,8 @@ def legacy_shape(raw):
 
 
 def evaluate(raw):
+    if "pointsRules" in raw and raw.get("schema") != ema_policy.INPUT_SCHEMA:
+        raise ValueError("ordinary onboarding requires points fixture schema /3")
     rules = onboarding.validate(raw["pointsRules"]) if "pointsRules" in raw else None
     excluded = onboarding.excluded(raw) if rules else set()
     if not rules and "pointsExcludedUids" in raw:
