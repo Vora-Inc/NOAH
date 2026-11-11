@@ -776,6 +776,32 @@ class LiveRunnerChain:
         v2 = self._share_component(v2_name, params, block, block_hash=block_hash)
         return v1, v2
 
+    def publication_state(self, netuid, uid, block, mecid=0):
+        """Exact finalized full row and LastUpdate for recovery, never a send."""
+        block_hash = self.block_hash(block)
+
+        def question():
+            weights = _plain(self._connection.query(
+                "SubtensorModule", "Weights", [netuid + 4096 * mecid, uid], block_hash=block_hash))
+            updates = _plain(self._connection.query(
+                "SubtensorModule", "LastUpdate", [netuid], block_hash=block_hash))
+            if (not isinstance(weights, (list, tuple)) or not isinstance(updates, (list, tuple))
+                    or type(uid) is not int or not 0 <= uid < len(updates)
+                    or type(updates[uid]) is not int or updates[uid] < 0):
+                raise ChainUnavailable("publication row or LastUpdate unreadable")
+            if any(not isinstance(p, (list, tuple)) or len(p) != 2
+                   or any(type(v) is not int or not 0 <= v <= 65535 for v in p) for p in weights):
+                raise ChainUnavailable("publication row is not a complete u16 vector")
+            row = sorted([list(p) for p in weights])
+            if len({p[0] for p in row}) != len(row):
+                raise ChainUnavailable("publication row repeats a UID")
+            return dict(weights=row, last_update=updates[uid])
+
+        result = self._ask("publication recovery state", question)
+        if self.block_hash(block) != block_hash:
+            raise ChainUnavailable("publication recovery block changed")
+        return result
+
     def _share_component(self, name, params, block, block_hash=None):
         """Read a historical share component and independently check raw key presence.
 

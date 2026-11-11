@@ -126,6 +126,19 @@ checks. No new refresh is authorized after expiry. Recovery can still verify an
 already submitted transaction included after midnight; that does not extend the
 send deadline. Unknown transactions remain a refusal, not an assumed success.
 
+If the validator misses several daily publications, it still verifies every missed
+complete day and preserves its earnings, deposits, debt, maturity and streak
+accounting. Older days receive an explicit **accounted, not published** record;
+only the latest fully completed day's verified scores are sent to the chain.
+These records are not publication receipts. Incomplete history, disagreement
+between the scorers or an unresolved transaction stops catch-up.
+
+For example, a validator catching up on Wednesday verifies Monday and Tuesday
+using the original dates of earnings and deposits, then publishes Tuesday's
+scores. It does not apply Monday's old weights to Wednesday's chain or pretend
+Monday's publication happened. This preserves accounting; it cannot retroactively
+recreate rewards missed while the validator was unavailable.
+
 No new research-work bonus is implemented here. That would require a separate
 specified, reviewed rule. See [validator setup](VALIDATOR_QUICKSTART.md) and
 [verification](VERIFYING_SCORES.md).

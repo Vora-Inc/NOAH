@@ -29,7 +29,13 @@ from ..pathtext import plain_path_text
 from ..runtime_events import begin_validator_attempt, emit, traced
 from .keeper import InvalidScore, KeeperWouldPayOwner
 from .landed import PreviousRevealMismatch
-from .period import AlreadyPublished, HeightNotPinned, PeriodRefused, run_period
+from .period import (
+    AccountedNotPublished,
+    AlreadyPublished,
+    HeightNotPinned,
+    PeriodRefused,
+    run_period,
+)
 from .pinning import NoSettledPeriod, period_of, pin_height
 from .publish_intent import PublicationStatusUnknown
 from .reader import ChainUnreadable
@@ -669,7 +675,8 @@ def _foreign_unpriced_cause(error):
 
 
 def _write_state(
-    path, payload, *, identity=None, refused_heights=None, day_catchup_pending=None
+    path, payload, *, identity=None, refused_heights=None, day_catchup_pending=None,
+    points_accounting=None
 ):
     """Durable, atomic: a crash mid-write must never leave a half-written,
     unparseable state file behind. Temp file plus `os.replace`, which is
@@ -728,7 +735,9 @@ def _write_state(
     proceed over a directory-entry guarantee this function cannot get would
     turn "restart evidence is slightly less durable" into "the loop cannot
     take its next tick," which is a strictly worse outcome for a value this
-    module already treats as non-authoritative (see `read_state`).
+    module already treats as non-authoritative (see `read_state`). Points
+    accounting references are the exception: their directory flush is strict
+    because they authorize advancing past a verified, unpublished day.
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -738,6 +747,10 @@ def _write_state(
         payload = {**payload, "refused_heights": sorted(refused_heights)}
     if day_catchup_pending is not None:
         payload = {**payload, "day_catchup_pending": day_catchup_pending}
+    if points_accounting:
+        from ..points.catchup import validate_loop_references
+        validate_loop_references(points_accounting, day_catchup_pending)
+        payload = {**payload, "points_accounting": points_accounting}
     tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}.{threading.get_ident()}")
     with open(tmp, "w") as f:
         f.write(json.dumps(payload, indent=2, sort_keys=True, default=str))
@@ -751,6 +764,10 @@ def _write_state(
         finally:
             os.close(fd)
     except OSError as error:
+        if points_accounting:
+            # Accounting advancement is authoritative restart evidence. Never
+            # advance memory after an unconfirmed directory-entry flush.
+            raise
         diagnostic(
             f"  (could not fsync {plain_path_text(path.parent)}: {type(error).__name__} -- the "
             f"state file's own content was still written and fsync'd; only the "
@@ -830,7 +847,33 @@ def read_state(path):
         or isinstance(day_catchup_pending.get("height"), bool)
     ):
         return None
+    if "points_accounting" in seed:
+        from ..points.catchup import validate_loop_references
+        validate_loop_references(seed["points_accounting"], day_catchup_pending)
+    if seed.get("phase") == "day_catchup_accounted":
+        refs = seed.get("points_accounting")
+        if not refs or seed.get("accounting_reference") != refs[-1]:
+            raise PublicationStatusUnknown("accounted loop phase lacks retained evidence")
     return seed
+
+
+def _accounted_result(error, *, state_path, identity, refused_heights, day_catchup,
+                      last_attempted_height, last_attempted_tempo, tempo):
+    from ..points.catchup import validate_loop_references
+    refs = [*day_catchup.get("accounted", []), error.reference]
+    validate_loop_references(refs, error.next_pending)
+    period = period_of(height=error.next_pending["height"], tempo=tempo)
+    # Disk first. A failed write leaves the in-memory pending/throttle intact.
+    _write_state(state_path, dict(phase="day_catchup_accounted", day=error.reference["day"],
+        accounting_reference=error.reference, last_terminal_height=last_attempted_height,
+        last_attempted_tempo=last_attempted_tempo, at=_now()), identity=identity,
+        refused_heights=refused_heights, day_catchup_pending=error.next_pending,
+        points_accounting=refs)
+    day_catchup["accounted"] = refs
+    day_catchup["pending"] = error.next_pending
+    day_catchup["checked_pinned"] = None
+    return TickResult(acted=True, period=period, outcome="day_catchup_accounted",
+        detail=str(error), last_attempted_tempo=last_attempted_tempo), last_attempted_height
 
 
 def _attempt_day_catchup(
@@ -894,6 +937,7 @@ def _attempt_day_catchup(
         identity=identity,
         refused_heights=refused_heights,
         day_catchup_pending=pending,
+        points_accounting=day_catchup.get("accounted", []),
     )
     try:
         with held(lock_path):
@@ -917,6 +961,7 @@ def _attempt_day_catchup(
             identity=identity,
             refused_heights=refused_heights,
             day_catchup_pending=pending,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -948,6 +993,7 @@ def _attempt_day_catchup(
             identity=identity,
             refused_heights=refused_heights,
             day_catchup_pending=pending,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -960,6 +1006,11 @@ def _attempt_day_catchup(
             ),
             last_attempted_height,
         )
+    except AccountedNotPublished as error:
+        return _accounted_result(error, state_path=state_path, identity=identity,
+            refused_heights=refused_heights, day_catchup=day_catchup,
+            last_attempted_height=last_attempted_height,
+            last_attempted_tempo=last_attempted_tempo, tempo=tempo)
     except AlreadyPublished as error:
         # Day D's own recovery: published some other way (a manual
         # recovery, #212's own delayed-publish detection, or a different
@@ -983,6 +1034,7 @@ def _attempt_day_catchup(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -1026,6 +1078,7 @@ def _attempt_day_catchup(
                 identity=identity,
                 refused_heights=refused_heights,
                 day_catchup_pending=pending,
+                points_accounting=day_catchup.get("accounted", []),
             )
             return (
                 TickResult(
@@ -1066,6 +1119,7 @@ def _attempt_day_catchup(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -1101,6 +1155,7 @@ def _attempt_day_catchup(
         },
         identity=identity,
         refused_heights=refused_heights,
+        points_accounting=day_catchup.get("accounted", []),
     )
     return (
         TickResult(
@@ -1301,6 +1356,12 @@ def tick(
         day_zero_cache = {}
     if day_catchup is None:
         day_catchup = {}
+    validate_accounting = getattr(chain, "validate_accounting_state", None)
+    if callable(validate_accounting):
+        refs = day_catchup.get("accounted", [])
+        validate_accounting(
+            refs, day_catchup.get("pending"), read_state(state_path) if refs else None
+        )
     # A transient failure reading where the chain even IS right now is the
     # same shape of "nothing to act on this tick" as `pin_height` itself
     # already treats `chain.pinned_height()` failing (see `period.py` step 1,
@@ -1560,6 +1621,7 @@ def tick(
         },
         identity=identity,
         refused_heights=refused_heights,
+        points_accounting=day_catchup.get("accounted", []),
     )
 
     try:
@@ -1627,6 +1689,7 @@ def tick(
                 },
                 identity=identity,
                 refused_heights=refused_heights,
+                points_accounting=day_catchup.get("accounted", []),
             )
             result = run_period(active_chain)
     except LockHeld as error:
@@ -1653,6 +1716,7 @@ def tick(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         # Not attempted: another writer holds the lock, so this process
         # never entered run_period at all. last_attempted_height is left
@@ -1716,6 +1780,7 @@ def tick(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -1728,6 +1793,11 @@ def tick(
             ),
             last_attempted_height,
         )
+    except AccountedNotPublished as error:
+        return _accounted_result(error, state_path=state_path, identity=identity,
+            refused_heights=refused_heights, day_catchup=day_catchup,
+            last_attempted_height=last_attempted_height,
+            last_attempted_tempo=last_attempted_tempo, tempo=tempo)
     except AlreadyPublished as error:
         detail = str(error) + planned_gap_note
         _write_state(
@@ -1744,6 +1814,7 @@ def tick(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -1820,6 +1891,7 @@ def tick(
                 },
                 identity=identity,
                 refused_heights=refused_heights,
+                points_accounting=day_catchup.get("accounted", []),
             )
             return (
                 TickResult(
@@ -1874,6 +1946,7 @@ def tick(
                 },
                 identity=identity,
                 refused_heights=refused_heights,
+                points_accounting=day_catchup.get("accounted", []),
             )
             return (
                 TickResult(
@@ -1929,6 +2002,7 @@ def tick(
                 identity=identity,
                 refused_heights=refused_heights,
                 day_catchup_pending=day_catchup["pending"],
+                points_accounting=day_catchup.get("accounted", []),
             )
             return (
                 TickResult(
@@ -1962,6 +2036,7 @@ def tick(
             },
             identity=identity,
             refused_heights=refused_heights,
+            points_accounting=day_catchup.get("accounted", []),
         )
         return (
             TickResult(
@@ -2032,6 +2107,7 @@ def tick(
         },
         identity=identity,
         refused_heights=refused_heights,
+        points_accounting=day_catchup.get("accounted", []),
     )
     return (
         TickResult(
@@ -2241,7 +2317,8 @@ def run_forever(
         # no `day_catchup_pending` key (a state file from before this fix,
         # or one whose last write genuinely had nothing pending) seeds
         # `None`, the ordinary, unaffected starting point.
-        day_catchup = {"pending": seed.get("day_catchup_pending") if seed else None}
+        day_catchup = {"pending": seed.get("day_catchup_pending") if seed else None,
+                       "accounted": seed.get("points_accounting", []) if seed else []}
 
     # Purely an in-process cost cache (never persisted -- see
     # `_day_zero_catch_up_height`'s own docstring and this module's own top

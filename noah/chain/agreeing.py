@@ -202,6 +202,10 @@ class AgreeingChain:
     def incentive(self, block):
         return self._agreed("incentive", block, lambda client: client.incentive(block))
 
+    def publication_state(self, netuid, uid, block, mecid=0):
+        return self._agreed("publicationState", block,
+                            lambda client: client.publication_state(netuid, uid, block, mecid))
+
 
     def seat_hotkeys(self, block):
         """The seat map, agreed WHOLE rather than seat by seat.

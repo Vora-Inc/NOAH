@@ -26,6 +26,12 @@ not their on-chain truth. Compare the complete output to the retained agreed out
    publication and later republications are distinct receipts. An unknown send
    must be reconciled, never assumed failed or repeated blindly.
 
+For missed publications, distinguish an **accounted, not published** record from
+a submitted receipt. Verify its retained complete-day calculation and the
+original dates of earnings and deposits. The next complete calculation must
+include those days' accounting; missing history must refuse. Only an actual
+finalized publication establishes that a score vector was applied on-chain.
+
 See [the rules and examples](ORDINARY_SCORING.md). Older evidence formats remain
 supported for historical verification, documented in [legacy verification](LEGACY_VERIFYING_SCORES.md).
 No starter allocation should be added to a V5 result.

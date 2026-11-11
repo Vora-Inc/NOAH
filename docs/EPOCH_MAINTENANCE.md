@@ -13,6 +13,12 @@ submitted before the cutoff and included after midnight. Exact calculation,
 identity, transaction and event checks remain mandatory. Recovery never authorizes
 a new send after the 24-hour expiry.
 
+During multi-day catch-up, every missed day's complete accounting is verified and
+retained. Stale days are explicitly recorded as accounted but not published;
+the latest completed day's fresh scores supply the next daily publication.
+A catch-up record never substitutes for a finalized transaction receipt. Preserve
+these records and their retained calculations in backups and restored state.
+
 Preserve publication intents and receipts across restarts. Resolve an uncertain
 submission before sending again. See [publication recovery](runbooks/publication-status-unknown.md).
 [Legacy epoch maintenance](LEGACY_EPOCH_MAINTENANCE.md) describes older modes,

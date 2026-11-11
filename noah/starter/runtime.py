@@ -102,17 +102,35 @@ def prepare_daily(adapter):
     # Pin once and collect before taking the short publication lock. The daily
     # tick precedes maintenance, and a later head would invalidate the cursor.
     # Bounded catch-up is a retryable read wait, not a permanently refused day.
+    if (getattr(adapter, "_fresh_daily_recovery", None) is not None
+            and adapter._publish_intent.load() is not None):
+        raise PublicationStatusUnknown("fresh daily recovery has an unresolved publication")
+    adapter._fresh_daily_recovery = None
     head = adapter.runner_chain.head_block()
     collected = collect(adapter, head)
     if collected["collected_through"] != head:
         raise ChainUnreadable("starter daily history catch-up is incomplete; wait for collection")
-    require_guard(adapter)
     with publication_lock(adapter):
+        from ..points.daily_recovery import expired_active
+        recovery = expired_active(adapter)
+        if recovery is None:
+            require_guard(adapter)
         source = adapter._calculation_reference
         raw = current_input(adapter, source, head)
         state_path = Path(adapter._submitted_record_dir) / "starter-state.json"
         previous = json.loads(state_path.read_text()) if state_path.exists() else None
         result = preview(raw, previous)
+        if recovery is not None:
+            # Only fresh ordinary weights replace an expired overlay. Never
+            # advance pool allocation state before a confirmed publication.
+            ref = retain_overlay(
+                adapter._submitted_record_dir, source, raw, previous, fallback=True
+            )
+            adapter._calculation_reference = ref
+            adapter._fresh_daily_recovery = dict(
+                reference=ref, active_sha256=recovery["active_sha256"]
+            )
+            return {int(k): v for k, v in result["ordinaryFallbackWeightsU16"].items()}
         ref = retain_overlay(adapter._submitted_record_dir, source, raw, previous)
         durable_write(state_path, encoded(result["state"]), replace=True)
         adapter._calculation_reference = ref
@@ -221,6 +239,18 @@ def guard_tick(adapter, *, remove_now=False):
                             > marker["result"]["block"]
                         ):
                             raise PublicationStatusUnknown("unrecognized newer weight publication")
+                        from ..points.daily_recovery import STATUS, expired_active, validate_health
+                        recovery = expired_active(adapter)
+                        if recovery is not None:
+                            health = dict(
+                                identity=identity(adapter), observed_at=time.time(),
+                                head=recovery["checked_head"], status=STATUS, recovery=recovery
+                            )
+                            validate_health(health, root, adapter.points_policy.manifest)
+                            durable_write(
+                                root / "starter-guard.json", encoded(health), replace=True
+                            )
+                            return health
                         stage = "compute_fallback"
                         result = preview(proof["input"], proof["previous"])
                         stage = "read_seats"

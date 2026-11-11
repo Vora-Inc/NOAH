@@ -12,7 +12,7 @@ sealed vector, so the period runner reports that reveal check as unverified.
 Operators must independently establish the commit and reveal result.
 """
 
-from .publication_lock import serialized
+from .publication_lock import publication_lock, serialized
 from ..chain.entry_history import selected as entry_history
 
 from ..chain.agreeing import AgreeingChain
@@ -1860,6 +1860,7 @@ class ChainAdapter:
             "candidate": source_identity(),
             "points_policy": getattr(getattr(self, "points_policy", None), "manifest", None),
             "scoring_mode": getattr(self, "scoring_mode", "legacy"),
+            **({"publisher_uid": self.uid} if getattr(self, "points_policy", None) else {}),
             "foreign_valuations": getattr(self, "_foreign_valuation_evidence", []),
             **({"scored_coldkeys": {str(k): v for k,v in self._scored_seat_coldkeys[1].items()}} if observations.get("schema") in ("noah-points-fixture/2", "noah-points-fixture/3") else {}),
             "scored_hotkeys": {str(k): v for k, v in (self._scored_seat_hotkeys[1] if self._scored_seat_hotkeys else {}).items()},
@@ -1881,6 +1882,17 @@ class ChainAdapter:
         emit("validator", "calculation.recorded", "validator.evidence", outcome="calculated")
         observe_prepared(agreed, vector, self.publish_mode, self.publisher)
         return self._calculation_reference
+
+    def account_stale_day(self, height):
+        from ..points.catchup import MODES, record_accounted
+        if getattr(self, "scoring_mode", "legacy") not in MODES:
+            return None
+        with publication_lock(self):
+            return record_accounted(self, height)
+
+    def validate_accounting_state(self, references, pending, state=None):
+        from ..points.catchup import validate_loop
+        validate_loop(self, references, pending, state=state)
 
     def prepare_starter_vector(self, vector):
         from ..points.onboarding import enabled
@@ -2413,6 +2425,12 @@ class ChainAdapter:
             from pathlib import Path
             durable_write(Path(self._submitted_record_dir) / "starter-active.json",
                           encoded({"reference": reference, "marker": marker}), replace=True)
+        recovery = getattr(self, "_fresh_daily_recovery", None)
+        if (recovery is not None and recovery["reference"] == reference
+                and recovery.get("intent_id") == marker["intent_id"]):
+            # Matching exact confirmation (including lost-reply reconciliation)
+            # ends the attempt-local capability. Unknown sends retain it.
+            self._fresh_daily_recovery = None
 
     @serialized
     def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None):
@@ -2475,6 +2493,9 @@ class ChainAdapter:
         # One fsynced write, including the vector and transaction context. A failed
         # write stops the send. Never overwrite an unresolved marker.
         self._publish_intent.open(**marker, exclusive=True)
+        recovery = getattr(self, "_fresh_daily_recovery", None)
+        if recovery is not None:
+            recovery["intent_id"] = marker["intent_id"]
         self._publication_event(marker, "submitting")
         try:
             published = publish_weights_direct(

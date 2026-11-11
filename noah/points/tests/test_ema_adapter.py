@@ -31,6 +31,7 @@ def adapter(tmp_path, fixture):
     a = object.__new__(ChainAdapter)
     a.runner_chain = EmaChain()
     a.netuid = 2
+    a.uid = 7
     a.day_anchor_ts = 0
     a.settle_blocks = 0
     a._submitted_record_dir = tmp_path
@@ -60,6 +61,7 @@ def test_actual_adapter_scores_agrees_and_retains_v4_owner_context(tmp_path):
     reference = a.record_calculation(71, f, vector, vector)
     mode, context, _ = source_mode(tmp_path, reference)
     assert mode == ema_policy.MODE and context["scored_coldkeys"] == f["pointsOwners"]
+    assert context["publisher_uid"] == 7
     assert json.loads(a._agreed_calculation[1]) == score
 
 
