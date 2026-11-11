@@ -1,6 +1,6 @@
 """Exact runtime EMA/spot observations, without economic valuation or fallback.
 
-Slow emission EMA is capped at a one-TAO input by runtimes483/488. Fast EMA is
+Slow emission EMA is capped at a one-TAO input by runtimes483/488/490. Fast EMA is
 separate and unclamped, but is not accepted in this release. The policy selects
 the slow field explicitly; raw absence is kept.
 """
@@ -10,7 +10,7 @@ from .sources import Unverified
 SOURCES = {
     'SubnetMovingPrice': ('I96F32', 2**32, True, 'Default'),
 }
-EMA_CODES = {version: token.CODES[version] for version in (483, 488)}
+EMA_CODES = {version: token.CODES[version] for version in (483, 488, 490)}
 
 
 def source(value):
