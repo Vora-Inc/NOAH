@@ -17,8 +17,11 @@ def deployment_lease(directory):
     """Cooperate with the release engine's exclusive lease, including CLI sends."""
     lock = Path(directory) / "starter-deployment.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o640)
+    fd = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "r+") as handle:
+        # Readers can take flock too. Tighten an existing inode (and its ACL
+        # mask) without replacing the lock that concurrent publishers use.
+        os.fchmod(handle.fileno(), 0o600)
         try:
             fcntl.flock(handle, fcntl.LOCK_SH | fcntl.LOCK_NB)
         except BlockingIOError as error:

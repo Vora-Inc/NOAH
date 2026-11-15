@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -20,6 +21,11 @@ def setup(tmp_path, monkeypatch):
     from noah.core.tests._prepared_transport_fake import install
 
     install(monkeypatch)
+    # These tests advance simulated chain time, not heartbeat age. Keep the
+    # guard's clock independent of slow builds and host-clock adjustments;
+    # test_runtime separately exercises the real 120-second expiry boundary.
+    guard_now = time.time()
+    monkeypatch.setattr("noah.starter.runtime.time", SimpleNamespace(time=lambda: guard_now))
     raw = request_live()
     raw["fixture"]["schema"] = INPUT_SCHEMA
     manifest = dict(policy=POLICY, sha256="pinned-policy", cutoff_day=0)

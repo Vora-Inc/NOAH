@@ -2,6 +2,7 @@
 
 import fcntl
 import json
+import stat
 import time
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -16,6 +17,47 @@ from noah.core.writer_lock import LockHeld
 from noah.starter.runtime import guard_tick, identity, prepare_daily, require_guard, run_guard
 from noah.starter.tests.test_reader import prepared
 from noah.starter.tests.test_runtime import ready, send_overlay
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_deployment_lease_is_owner_only_and_preserves_existing_inode(tmp_path, existing):
+    from noah.core.publication_lock import deployment_lease
+
+    path = tmp_path / "starter-deployment.lock"
+    if existing:
+        path.touch(mode=0o640)
+        path.chmod(0o640)
+    before = path.stat() if existing else None
+    with deployment_lease(tmp_path):
+        current = path.stat()
+        assert stat.S_IMODE(current.st_mode) == 0o600
+        assert current.st_size == 0
+        if before:
+            assert (current.st_dev, current.st_ino) == (before.st_dev, before.st_ino)
+        # Same-owner publishers still share the lease; an exclusive release
+        # lease cannot overlap it, including through a pre-existing inode.
+        with deployment_lease(tmp_path), path.open("r+") as other:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with path.open("r+") as other:
+        fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(LockHeld):
+            with deployment_lease(tmp_path):
+                pytest.fail("publication overlapped the release lease")
+
+
+def test_deployment_lease_refuses_symlink_without_changing_target(tmp_path):
+    from noah.core.publication_lock import deployment_lease
+
+    target = tmp_path / "other"
+    target.write_bytes(b"unchanged")
+    target.chmod(0o640)
+    (tmp_path / "starter-deployment.lock").symlink_to(target)
+    with pytest.raises(OSError):
+        with deployment_lease(tmp_path):
+            pytest.fail("symlink accepted")
+    assert target.read_bytes() == b"unchanged"
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
 
 
 def test_daily_collects_selected_head_before_real_input_reader(tmp_path):
