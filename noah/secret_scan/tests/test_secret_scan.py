@@ -11,6 +11,7 @@ import io
 import json
 import os
 import random
+import re
 import stat
 import subprocess
 import sys
@@ -250,6 +251,48 @@ class Keys(unittest.TestCase):
 
 
 class Assignments(unittest.TestCase):
+    def test_environment_prefix_unicode_and_randomized_equivalence(self):
+        # The former anchored-prefix predicate is an independent compatibility
+        # oracle. Quotes cannot be consumed by the trailing Unicode whitespace.
+        prefixes = (
+            'Environment=', 'Environment = \t', 'Environment = \u2003\r',
+            'Environment = \u00a0', 'ENVİRONMENT=', 'ENVıRONMENT=',
+            'xEnvironment=', '_Environment=', 'éEnvironment=',
+            'Environment=Environment= ', 'Environment=\n',
+            'Environment="plain" Environment=', 'Environment=\\',
+            '{"bytes":123,"path":', 'EnvironmentEnvironment=', '',
+        )
+        cases = [prefix + '"API_TOKEN=' + PW + '"' for prefix in prefixes]
+        rng = random.Random(20261118)
+        tokens = prefixes + ('=', ':', ' ', '\t', '\r', '\n', '\v', '\f',
+                             '\u2003', '\u00a0', '"', "'", '\\"', 'API_TOKEN',
+                             'PASSWORD', 'public key', 'key', 'bytes', '123',
+                             PW, ',', '{', '}', '-', '!', 'é')
+        cases.extend(''.join(rng.choice(tokens) for _ in range(rng.randint(1, 80)))
+                     for _ in range(6000))
+        self.assertEqual(len(cases), 6016)
+        for line in cases:
+            ends = {match.end() for match in m._ENVIRONMENT_ASSIGNMENT.finditer(line)}
+            for pos, char in enumerate(line):
+                if char in ('"', "'"):
+                    previous = re.search(r"(?i)\bEnvironment\s*=\s*$", line[:pos]) is not None
+                    self.assertEqual(pos in ends, previous)
+
+    def test_environment_prefix_preserves_findings_lines_and_counters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'service.txt'
+            path.write_text('public=example\nENVİRONMENT=\u2003"API_TOKEN=' + PW +
+                            ' spaced!"\nEnvironment="PASSWORD=' + PW + '"\n')
+            findings = scan_paths([path], scope='release')
+            self.assertEqual([(hit.kind, hit.line) for hit in findings],
+                             [('env-assignment', 2), ('env-assignment', 3)])
+            result = scan([path], scope='release')
+            self.assertEqual(result.findings, findings)
+            self.assertEqual(result.scanned, 1)
+            self.assertEqual(result.refused_expected, [])
+            self.assertEqual(result.refused_unexpected, [])
+            self.assertEqual(result.excluded, [])
+
     def test_values_names_and_trailing_text(self):
         for text in (f"INFO cfg API_TOKEN={HEX20} user=bob", f"docker run -e DB_PASSWORD={PW} -p 80:80 img",
                      f"run.py --privateKey={HEX32} --port 80", f"curl -d 'password={PW}&x=1' https://h/",
@@ -762,6 +805,20 @@ class Masking(unittest.TestCase):
 
 
 class Perf(unittest.TestCase):
+    def test_compact_inventory_keeps_secret_canary_without_quadratic_prefix_scans(self):
+        data = json.dumps({
+            'files': [{'path': f'reader_a/blocks/{i:08d}.json', 'sha256': f'{i:064x}',
+                       'bytes': 12345, 'expanded_bytes': 34567} for i in range(4000)],
+            'api_token': PW,
+        }, separators=(',', ':')).encode()
+        start = time.monotonic()
+        findings = scan_bytes(data, 'synthetic-inventory.json')
+        elapsed = time.monotonic() - start
+        self.assertEqual([(hit.kind, hit.line) for hit in findings], [('env-assignment', 1)])
+        # A broad regression ceiling, not a throughput claim: the former prefix
+        # rescanning alone took >11 seconds for this 616 KiB fixture locally.
+        self.assertLess(elapsed, 8.0)
+
     def timed(self, data):
         start = time.time()
         scan_bytes(data, "x.txt")

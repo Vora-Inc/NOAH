@@ -26,6 +26,8 @@ before signing a transaction.
 | Understand daily scores | [Ordinary scoring candidate](docs/ORDINARY_SCORING.md) |
 | Reproduce a published score | [Score verification](docs/VERIFYING_SCORES.md) |
 | Review the validator | [Validator guide](docs/VALIDATOR_QUICKSTART.md) |
+| Find miner/validator commands | [Command guide](docs/COMMANDS.md) |
+| Review optional miner reports | [Reports candidate](docs/REPORTS.md) |
 | Run repository checks | [Testing](docs/TESTING.md) |
 | Trace the implementation | [Architecture and review map](docs/REVIEW.md) |
 
@@ -41,6 +43,15 @@ without an upfront purchase, entry deposit, starter pool or five-NOAH allowance.
 Actual earnings are subject to a 50% contribution obligation the following UTC day.
 NOAH is not mandatory: correctly attributed, valued foreign subnet tokens or
 root TAO can also satisfy it. There is no miner daemon or axon to run.
+
+The proposed combined release adds an optional [daily reporting bonus](docs/REPORTS.md):
+accurate, timely backing reports can add up to 20 points, adjusted for V2 maturity
+and debt. Missing a report leaves ordinary V2 scoring intact. Reporting uses the
+miner report CLI and is separate from making deposits; it does not require an
+axon. The proposed temporary burn targets approximately 98% of the miner
+allocation after bonuses, so bonus points affect a miner's share of the remaining
+allocation. They are not a guaranteed token payment. Legacy scoring, reports OFF
+and burn OFF remain the shipping defaults; activation needs separate approval.
 
 The optional [deposit helper](noah/deposits/assistant/USAGE.md) is for ongoing
 contributions, not registration or an entry payment. It previews each proposed

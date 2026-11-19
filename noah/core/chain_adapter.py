@@ -86,7 +86,9 @@ from .publish_hold import PublishHold
 from .publish_intent import REASON_PREFIX, PublicationStatusUnknown, PublishIntent
 from .publish_intent import _utc_now as _utc_now_iso
 from .reader import ChainUnreadable
-from .settings import PUBLISH_MODE_DEFAULT, PUBLISH_MODES, SettingsError
+from .settings import (
+    PUBLISH_MODE_DEFAULT, PUBLISH_MODES, SettingsError, require_report_gate_runtime_ready,
+)
 from .submitted_record import write_submitted_record
 from .twin import require_agreement
 from .vector import from_engine_output
@@ -1901,6 +1903,36 @@ class ChainAdapter:
         from ..starter.runtime import prepare_daily
         return prepare_daily(self)
 
+    def prepare_report_vector(self, vector):
+        from .report_runtime import prepare_daily
+        return prepare_daily(self, vector)
+
+    def prepare_burn_vector(self, vector):
+        """Split the finished miner vector once and retain the proof.
+
+        Zero, and an empty or all-zero miner allocation, return the same object.
+        """
+        from .burn_allocation import ENABLED
+        from .burn_publication import authenticate_destination, prove, read_limits, wrap_allocation
+        from .publish import PublicationRefused
+
+        bps = getattr(self, "burn_allocation_bps", 0)
+        if bps == 0 or not any(vector.values()):
+            return vector
+        if getattr(self, "scoring_mode", None) != "points-204040-v5":
+            raise PublicationRefused("nonzero burn allocation requires V2")
+        if self._calculation_reference is None or self._submitted_record_dir is None:
+            raise PublicationRefused("burn allocation requires the retained pre-burn calculation")
+        destination = authenticate_destination(self.runner_chain, self.netuid, self.reader)
+        limits = read_limits(self.reader, self.netuid)
+        published, body = prove(vector, ENABLED if bps == ENABLED else bps, destination, limits)
+        if published is vector:
+            return vector
+        self._calculation_reference = wrap_allocation(
+            self._submitted_record_dir, self._calculation_reference, published, body
+        )
+        return published
+
     def live_uids(self, height):
         return self.reader.live_uids(self.netuid)
 
@@ -1949,6 +1981,9 @@ class ChainAdapter:
         return self._dropped_unconfirmed_entry_deposits
 
     def publish(self, vector, height):
+        from .report_runtime import enabled as reports_enabled
+        if reports_enabled(self):
+            raise PublicationRefused("report enforcement requires direct publication")
         if self._publish_hold is not None:
             self._publish_hold.raise_if_held()
         if self._failure_backoff is not None:
@@ -2141,6 +2176,9 @@ class ChainAdapter:
         return self.publisher.seal(uids, values, hotkey)
 
     def submit(self, commit, reveal_round, netuid):
+        from .report_runtime import enabled as reports_enabled
+        if reports_enabled(self):
+            raise PublicationRefused("report enforcement cannot use sealed transport")
         if self._publish_intent is not None:
             self._identify_send_in_marker(commit, reveal_round, netuid)
         return self.publisher.submit(commit, reveal_round, netuid)
@@ -2194,6 +2232,9 @@ class ChainAdapter:
     # called from the four delegates above them, on failure or otherwise.
 
     def submit_direct(self, uids, values, netuid):
+        from .report_runtime import enabled as reports_enabled
+        if reports_enabled(self) and self._calculation_reference is None:
+            raise PublicationRefused("report enforcement requires retained calculation proof")
         from ..points.onboarding import enabled
         if enabled(self) and self._calculation_reference is None:
             raise PublicationRefused("ordinary points requires a retained calculation before submission")
@@ -2220,6 +2261,21 @@ class ChainAdapter:
             except (Exception, Refusal) as error:
                 raise PublicationRefused(
                     f"pre-send evidence/guard check refused ({type(error).__name__}); "
+                    "nothing submitted"
+                ) from error
+        marker = self._publish_intent.load() if self._publish_intent is not None else None
+        if marker is not None and marker.get("successor_kind") == "burn-zero":
+            # A same-day replacement is a new send, not reconciliation. Recheck
+            # after evidence/nonce reads, immediately before entering transport.
+            # This refusal precedes preparation/signing and leaves backoff intact.
+            try:
+                if self._publish_hold is not None:
+                    self._publish_hold.raise_if_held()
+                if self._failure_backoff is not None:
+                    self._failure_backoff.raise_if_blocked()
+            except (Exception, Refusal) as error:
+                raise PublicationRefused(
+                    f"successor publication barrier refused ({type(error).__name__}); "
                     "nothing submitted"
                 ) from error
         # Never include the transport in the definite-refusal exception scope:
@@ -2385,6 +2441,19 @@ class ChainAdapter:
             from .calculation_record import verify
 
             manifest = verify(self._submitted_record_dir, reference)
+            from .calculation_record import artifact
+            from .burn_publication import allocation_of, report_subject
+            from .report_publication import verify_report
+            report_reference = reference
+            # The burn wrapper is not a report record. Prove the split, then
+            # replay the underlying report against its own retained context.
+            if allocation_of(artifact(self._submitted_record_dir, manifest, "context")) is not None:
+                report_reference, _ = report_subject(
+                    self._submitted_record_dir,
+                    reference,
+                    {int(uid): weight for uid, weight in marker["vector"].items()},
+                )
+            verify_report(self._submitted_record_dir, report_reference)
             from .calculation_record import historical_overlay
             proof = historical_overlay(self._submitted_record_dir, reference)
             if (manifest["day"] != marker["day"]
@@ -2399,26 +2468,34 @@ class ChainAdapter:
         }
         marker = {**marker, "result": result}
         directory = self._submitted_record_dir
-        if marker.get("refresh_epoch") is not None:
-            from pathlib import Path
-            if proof is not None and marker.get("refresh_epoch") is not None:
-                directory = Path(directory) / "starter-publications" / str(marker["refresh_epoch"]) / marker["intent_id"]
-            else:
-                directory = Path(directory) / "epoch-publications" / str(marker["refresh_epoch"])
-        write_submitted_record(
-            directory,
-            day=marker["day"],
-            height=marker["height"],
-            vector={int(k): v for k, v in marker["vector"].items()},
-            published={**result, "direct_intent": marker, "applied_weights_readback": evidence,
-                       "calculation_evidence": reference},
-            mode="direct",
-            hotkey=marker["hotkey"],
-            netuid=marker["netuid"],
-            uid=marker["uid"],
-            signer=marker["signer"],
-            route=marker["route"],
-        )
+        if marker.get("successor_kind") == "burn-zero":
+            from .burn_publication import write_transition_receipt
+            write_transition_receipt(
+                self._submitted_record_dir,
+                marker,
+                {**result, "applied_weights_readback": evidence, "calculation_evidence": reference},
+            )
+        else:
+            if marker.get("refresh_epoch") is not None:
+                from pathlib import Path
+                if proof is not None and marker.get("refresh_epoch") is not None:
+                    directory = Path(directory) / "starter-publications" / str(marker["refresh_epoch"]) / marker["intent_id"]
+                else:
+                    directory = Path(directory) / "epoch-publications" / str(marker["refresh_epoch"])
+            write_submitted_record(
+                directory,
+                day=marker["day"],
+                height=marker["height"],
+                vector={int(k): v for k, v in marker["vector"].items()},
+                published={**result, "direct_intent": marker, "applied_weights_readback": evidence,
+                           "calculation_evidence": reference},
+                mode="direct",
+                hotkey=marker["hotkey"],
+                netuid=marker["netuid"],
+                uid=marker["uid"],
+                signer=marker["signer"],
+                route=marker["route"],
+            )
 
         if self.starter_entry_policy is not None:
             from .calculation_record import durable_write, encoded
@@ -2433,14 +2510,24 @@ class ChainAdapter:
             self._fresh_daily_recovery = None
 
     @serialized
-    def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None):
+    def publish_direct(self, vector, height, *, refresh_epoch=None, source_day=None, successor=None):
         """Persist the complete direct intent before sending, with restart guards."""
         import uuid
 
         from .publish import _validated_vector
 
         _validated_vector(vector)
-        if refresh_epoch is None:
+        if successor is not None:
+            if successor.get("kind") != "burn-zero" or type(source_day) is not int:
+                raise PublicationRefused("invalid burn removal publication")
+            if self._publish_intent.load() is not None:
+                raise PublicationStatusUnknown("an earlier send must be reconciled first")
+            if self._publish_hold is not None:
+                self._publish_hold.raise_if_held()
+            if self._failure_backoff is not None:
+                self._failure_backoff.raise_if_blocked()
+            day = source_day
+        elif refresh_epoch is None:
             if self._already_published_direct(height):
                 raise PublicationRefused("this day's direct publication is already confirmed")
             day = self._day_window(height)[0]
@@ -2456,6 +2543,9 @@ class ChainAdapter:
             if self._failure_backoff is not None:
                 self._failure_backoff.raise_if_blocked()
             day = source_day
+        from .report_runtime import enabled as reports_enabled
+        if reports_enabled(self) and self._calculation_reference is None:
+            raise PublicationRefused("report enforcement requires retained calculation proof")
         if self._calculation_reference is not None:
             from ..points.onboarding import enabled
             if enabled(self):
@@ -2463,6 +2553,17 @@ class ChainAdapter:
             else:
                 from ..starter.publication import check_before_send
             check_before_send(self, self._calculation_reference, vector)
+        if self._calculation_reference is not None:
+            from .burn_publication import allocation_of, recheck_for_send
+            from .calculation_record import artifact, verify
+            proof = allocation_of(artifact(
+                self._submitted_record_dir,
+                verify(self._submitted_record_dir, self._calculation_reference),
+                "context",
+            ))
+            if proof is not None and proof.get("bps") == 9800:
+                if recheck_for_send(self, self._calculation_reference, vector) is None:
+                    raise PublicationRefused("publication would pay an owner seat")
         signer = self.publisher.signer_address
         context = self.publisher.send_context(signer)
         if (
@@ -2476,6 +2577,7 @@ class ChainAdapter:
         marker = dict(
             intent_id=str(uuid.uuid4()),
             refresh_epoch=refresh_epoch,
+            successor_kind=None if successor is None else successor["kind"],
             day=day,
             height=height,
             hotkey=self.wallet_hotkey.ss58_address,
@@ -2788,6 +2890,8 @@ def build_chain_adapter(
     requests a deliberate re-scan and should only be used with a reviewed day and
     preserved evidence.
     """
+    require_report_gate_runtime_ready(settings)
+
     # Checked first, before any connection is opened: SubstrateInterface
     # connects eagerly in its own constructor, so a run with no second
     # endpoint configured would otherwise pay for (and could hang on) a

@@ -439,6 +439,18 @@ class LiveRunnerChain:
             ),
         )
 
+    def block_timestamp_ms(self, block):
+        """Exact on-chain millisecond clock for report window proofs."""
+        block_hash = self.block_hash(block)
+        return self._ask(
+            f"the millisecond time of block {block}",
+            lambda: self._ask_unless_default(
+                "timestamp", block,
+                lambda: _plain(self._connection.query("Timestamp", "Now", [], block_hash=block_hash)),
+                lambda raw: type(raw) is not int or raw < 0 or (block >= 1 and raw == 0),
+            ),
+        )
+
     def _ask_unless_default(self, kind, block, read, impossible):
         """Ask ``read()``; a reply for which ``impossible(reply)`` holds is no answer.
 

@@ -86,6 +86,14 @@ else
   record "Python static errors" "FAIL" "static errors or checker unavailable"
 fi
 
+# --------------------------------------------------------------- Reports -----
+banner "Reports (isolated decoder, command retries and scoring toggle)"
+if "$REPO_ROOT/scripts/run-report-tests.sh"; then
+  record "Report worker" "PASS" "report suite passed in isolated environment"
+else
+  record "Report worker" "FAIL" "missing environment or report test failure"
+fi
+
 # ----------------------------------------------------------- TypeScript -----
 
 # Require the installed TypeScript dependency before running tests or type checks.

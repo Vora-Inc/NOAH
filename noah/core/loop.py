@@ -2348,6 +2348,8 @@ def run_forever(
         last_attempted_tempo = result.last_attempted_tempo
         from .epoch_work import maintain
         maintain(chain, lock_path)
+        from .report_runtime import publish_weekly
+        publish_weekly(chain)
         diagnostic(f"[loop] {result.outcome}: {result.detail}", severity=result.log_severity)
         if on_tick is not None:
             on_tick(result)

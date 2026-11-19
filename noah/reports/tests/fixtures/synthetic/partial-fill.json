@@ -1,0 +1,6 @@
+{
+  "name": "partial-fill",
+  "amount_rao": 1000,
+  "sim": [1, 400, 0, 0, 0, 0],
+  "expected_reason": "partial_fill"
+}

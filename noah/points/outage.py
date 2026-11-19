@@ -194,6 +194,51 @@ def record_recovery(adapter):
         )
 
 
+def _burn_was_confirmed(adapter, marker):
+    """True when this daily receipt is a confirmed 9800 publication."""
+    reference = marker.get("calculation_evidence") if isinstance(marker, dict) else None
+    if reference is None:
+        return False
+    from ..core.burn_allocation import ENABLED
+    from ..core.burn_publication import allocation_of
+    from ..core.calculation_record import artifact, verify
+
+    manifest = verify(adapter._submitted_record_dir, reference)
+    proof = allocation_of(artifact(adapter._submitted_record_dir, manifest, "context"))
+    return proof is not None and proof.get("bps") == ENABLED
+
+
+def _reconcile_open_intent(adapter):
+    """Confirm a send that already left this process before choosing another one."""
+    pending = adapter._publish_intent.load()
+    if pending is None:
+        return
+    from ..core.direct import reconcile
+
+    adapter._check_direct_identity(pending)
+    evidence = reconcile(adapter.reader, pending, finalized_chain=adapter.runner_chain)
+    adapter._save_direct_confirmation(pending, evidence)
+    adapter._publish_intent.clear()
+
+
+def _require_outage_source(adapter, marker, latest, now):
+    """Deadline, identity and receipt checks shared with an ordinary outage refresh."""
+    from ..core.calculation_record import verify
+    from ..core.direct import reconcile
+    from .mode import check_publication_mode
+
+    if marker.get("day") != latest - 1 or marker.get("refresh_epoch") is not None:
+        raise PublicationStatusUnknown("outage source is not the prior daily publication")
+    adapter._check_direct_identity(marker)
+    reference = marker["calculation_evidence"]
+    check_publication_mode(adapter, reference)
+    authorize(adapter, reference, now)
+    manifest = verify(adapter._submitted_record_dir, reference)
+    if manifest["publishable_weights_u16"] != marker["vector"]:
+        raise PublicationStatusUnknown("outage vector differs from retained calculation")
+    reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
+
+
 def republish_plain(adapter, epoch, head, *, before_send):
     """Same 24-hour policy, using an ordinary retained vector, with no pool proof."""
     from ..core.calculation_record import verify
@@ -204,7 +249,38 @@ def republish_plain(adapter, epoch, head, *, before_send):
     path = submitted_record_path(adapter._submitted_record_dir, latest - 1)
     if not path.exists():
         return "awaiting_daily_publication"
-    marker = json.loads(path.read_text())["direct_intent"]
+    daily = json.loads(path.read_text())["direct_intent"]
+    if daily.get("day") != latest - 1 or daily.get("refresh_epoch") is not None:
+        raise PublicationStatusUnknown("outage source is not the prior daily publication")
+    from ..core.burn_publication import confirmed_transition
+
+    try:
+        replacement = confirmed_transition(adapter._submitted_record_dir, latest - 1)
+    except (OSError, ValueError) as exc:
+        raise PublicationStatusUnknown("burn removal receipt is not usable") from exc
+    if replacement is None and _burn_was_confirmed(adapter, daily) and getattr(adapter, "burn_allocation_bps", 0) == 0:
+        _reconcile_open_intent(adapter)
+        try:
+            replacement = confirmed_transition(adapter._submitted_record_dir, latest - 1)
+        except (OSError, ValueError) as exc:
+            raise PublicationStatusUnknown("burn removal receipt is not usable") from exc
+        if replacement is None:
+            # The operator removed burn before a replacement existed. Do not
+            # refresh the superseded 98% vector. Deadline, rate and receipt
+            # checks still apply, then the retained full allocation is published.
+            _require_outage_source(adapter, daily, latest, now)
+            if adapter.last_update(adapter.uid, adapter.netuid) >= epoch:
+                return "already_published_this_epoch"
+            if head - adapter.last_update(adapter.uid, adapter.netuid) < adapter.rate_limit(adapter.netuid):
+                return "awaiting_rate_limit"
+            from ..core.burn_publication import same_day_zero
+            cleared = same_day_zero(adapter, latest - 1, epoch, before_send)
+            if cleared != "burn_cleared":
+                raise PublicationStatusUnknown("burn removal did not publish the retained allocation")
+            return cleared
+    # A confirmed same-day return to zero replaces the burned daily receipt.
+    # An unusable replacement refuses. It must not fall back to the burned vector.
+    marker = replacement["direct_intent"] if replacement is not None else daily
     if marker.get("day") != latest - 1 or marker.get("refresh_epoch") is not None:
         raise PublicationStatusUnknown("outage source is not the prior daily publication")
     adapter._check_direct_identity(marker)

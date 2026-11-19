@@ -1,0 +1,114 @@
+"""Read-only commitment quota at one finalized state; no wallet or submission.
+
+483/490 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
+arithmetic. set_commitment resets UsedSpaceOf on *inequality* with that counter.
+"""
+import re
+
+from ..common import ReportError
+from .constants import RUNTIME_483_CODE_HASH, SUBTENSOR_PIN
+from .keys import ss58_decode, ss58_encode
+
+U64_MAX = 2**64 - 1
+SOURCE_PINS = {483: 'db3fdeb98bc82c38b238bfac9f6a3303a3361ee4', 490: SUBTENSOR_PIN}
+
+
+def _require(condition, message):
+    if not condition:
+        raise ReportError('commitment quota: ' + message)
+
+
+def _uint(value, bits=64):
+    _require(type(value) is int and 0 <= value < 2**bits, 'invalid unsigned integer')
+    return value
+
+
+def _hash(value):
+    _require(type(value) is str and re.fullmatch(r'0x[0-9a-f]{64}', value), 'invalid block or code hash')
+    return value
+
+
+def assess_quota(*, epoch_index, stored_usage, max_space, required_space):
+    """Exact native dispatch arithmetic, including default and saturation rules."""
+    epoch_index = _uint(epoch_index)
+    max_space = _uint(max_space, 32)
+    required_space = _uint(required_space)
+    _require(required_space >= 100, 'required space is below the dispatch minimum')
+    if stored_usage is None:
+        last_epoch, used_space = 0, 0
+    else:
+        _require(type(stored_usage) is dict and set(stored_usage) == {'last_epoch', 'used_space'},
+                 'invalid UsedSpaceOf fields')
+        last_epoch = _uint(stored_usage['last_epoch'])
+        used_space = _uint(stored_usage['used_space'])
+    effective = used_space if last_epoch == epoch_index else 0
+    total = min(U64_MAX, effective + required_space)
+    return {'epoch_index': epoch_index, 'stored_usage': stored_usage,
+            'effective_used_space': effective, 'max_space': max_space,
+            'required_space': required_space, 'used_space_after': total,
+            'allowed': total <= max_space}
+
+
+def required_space_for_payload(payload):
+    _require(type(payload) is bytes and len(payload) in (32, 79, 203, 207),
+             'unsupported report phase payload')
+    return max(100, len(payload))
+
+
+def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
+    """Return a public receipt; required_space=909 checks the whole new batch.
+
+    All state queries use the same finalized hash. Runtime qualification retains
+    the existing adapter policy: exact483 code, or supported490 spec. Observed
+    code is recorded for either version; a source pin is not a new490 code proof.
+    A positive result is an observation, not an atomic reservation.
+    """
+    _require(1 <= _uint(mining_netuid, 16) <= 65535, 'invalid mining subnet')
+    _require(_uint(required_space) >= 100, 'required space is below the dispatch minimum')
+    try:
+        normalized_hotkey = ss58_encode(ss58_decode(hotkey))
+        def rpc(method, params):
+            response = substrate.rpc_request(method, params)
+            _require(type(response) is dict and 'result' in response and 'error' not in response,
+                     'RPC response unavailable')
+            return response['result']
+        pin = _hash(rpc('chain_getFinalizedHead', []))
+        header = rpc('chain_getHeader', [pin])
+        _require(type(header) is dict, 'finalized header unavailable')
+        number = header.get('number')
+        if type(number) is str:
+            _require(re.fullmatch(r'0x[0-9a-f]+', number), 'invalid finalized height')
+            number = int(number, 16)
+        number = _uint(number)
+        _require(_hash(rpc('chain_getBlockHash', [number])) == pin, 'finalized hash is not canonical')
+        genesis = _hash(rpc('chain_getBlockHash', [0]))
+        version = rpc('state_getRuntimeVersion', [pin])
+        _require(type(version) is dict, 'runtime unavailable')
+        spec = _uint(version.get('specVersion'), 32)
+        transaction = _uint(version.get('transactionVersion'), 32)
+        code = _hash(rpc('state_getStorageHash', ['0x3a636f6465', pin]))
+        _require(spec in SOURCE_PINS and (spec != 483 or code == RUNTIME_483_CODE_HASH),
+                 'unsupported finalized runtime')
+        def query(module, name, params):
+            result = substrate.query(module, name, params, block_hash=pin)
+            _require(hasattr(result, 'value'), 'undecoded quota response')
+            return result.value
+        epoch = query('SubtensorModule', 'SubnetEpochIndex', [mining_netuid])
+        usage = query('Commitments', 'UsedSpaceOf', [mining_netuid, normalized_hotkey])
+        cap = query('Commitments', 'MaxSpace', [])
+        timestamp = _uint(query('Timestamp', 'Now', []))
+        assessment = assess_quota(epoch_index=epoch, stored_usage=usage, max_space=cap,
+                                  required_space=required_space)
+        return {'schema': 'noah.commitment-quota/1', 'genesis_hash': genesis,
+                'finalized_block_number': number, 'finalized_block_hash': pin,
+                'finalized_timestamp_ms': timestamp, 'mining_netuid': mining_netuid,
+                'hotkey': normalized_hotkey, 'runtime': {
+                    'spec_version': spec, 'transaction_version': transaction, 'code_hash': code,
+                    'reviewed_source_commit': SOURCE_PINS[spec],
+                    'qualification': 'spec-and-code' if spec == 483 else 'supported-spec'},
+                **assessment}
+    except ReportError:
+        raise
+    except Exception:
+        # Never turn a failed or malformed query into zero usage; do not leak URLs.
+        raise ReportError('commitment quota: finalized state could not be read') from None

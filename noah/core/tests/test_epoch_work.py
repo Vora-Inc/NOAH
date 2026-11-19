@@ -349,6 +349,7 @@ def test_midnight_inclusion_allows_fresh_daily_once(tmp_path, lost_response, res
         a, _ = adapter(tmp_path, c)
         a.runner_chain = previous.runner_chain
         a._day_window = previous._day_window
+        a.owner_uids = previous.owner_uids
         # Feature defaults off: recovery must still recognize persisted refreshes.
         assert not a.epoch_republication
     assert a._already_published_direct(201) is False

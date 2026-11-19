@@ -480,6 +480,31 @@ class ChainReader:
             )
         return None
 
+    def max_weights_limit(self, netuid):
+        """Normalized cap: a weight may be at most this many parts of 65535."""
+        value = self._query("MaxWeightsLimit", [netuid])
+        if type(value) is not int or isinstance(value, bool) or not 0 <= value <= 65535:
+            raise ChainUnreadable("MaxWeightsLimit is not a u16")
+        return value
+
+    def min_allowed_weights(self, netuid):
+        value = self._query("MinAllowedWeights", [netuid])
+        if type(value) is not int or isinstance(value, bool) or value < 0:
+            raise ChainUnreadable("MinAllowedWeights is not a count")
+        return value
+
+    def recycle_or_burn(self, netuid):
+        """Explicit Recycle or Burn. Missing storage is not treated as Burn."""
+        try:
+            value = self._query("RecycleOrBurn", [netuid])
+        except _storage_function_not_found_type():
+            return None
+        if isinstance(value, dict) and len(value) == 1:
+            value = next(iter(value))
+        if value not in ("Burn", "Recycle"):
+            raise ChainUnreadable("RecycleOrBurn is not Burn or Recycle")
+        return value
+
     def epoch_consensus(self, netuid, block=None):
         """Read the selected consensus, refusing unknown or unreadable values.
 

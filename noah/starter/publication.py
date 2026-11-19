@@ -29,6 +29,8 @@ def retain_overlay(
         raise PublicationStatusUnknown("starter source must be the ordinary daily calculation")
     if fixture != raw["fixture"]:
         raise PublicationStatusUnknown("starter fixture differs from verified ordinary calculation")
+    from ..core.report_publication import verify_starter_input
+    verify_starter_input(directory, source_reference, raw)
     result = preview(raw, previous)
     from .second_opinion import check
 
@@ -94,6 +96,8 @@ def verify_overlay(directory, reference):
         raise PublicationStatusUnknown("starter calculation configuration differs from source")
     fixture = artifact(directory, source, "fixture")
     score = artifact(directory, source, "agreed_score")
+    from ..core.report_publication import verify_starter_input
+    verify_starter_input(directory, proof["source"], proof["input"])
     result = preview(proof["input"], proof["previous"])
     from .second_opinion import check
 
@@ -131,6 +135,8 @@ def verify_overlay(directory, reference):
 
 
 def check_before_send(adapter, reference, vector):
+    from ..core.report_runtime import check_before_send as check_reports
+    check_reports(adapter, reference, vector)
     from ..points.mode import check_publication_mode
 
     check_publication_mode(adapter, reference)
@@ -146,7 +152,7 @@ def check_before_send(adapter, reference, vector):
         raise PublicationStatusUnknown("requested vector differs from starter proof")
     raw = proof["input"]
     snap = raw["snapshot"]
-    if raw["schema"] != "noah-starter-epoch-preview/4":
+    if raw["schema"] not in ("noah-starter-epoch-preview/4", "noah-starter-epoch-preview/5"):
         raise PublicationStatusUnknown("synthetic-clock previews cannot be published")
     chain = adapter.runner_chain
     head = chain.head_block()

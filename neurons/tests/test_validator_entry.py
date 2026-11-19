@@ -549,7 +549,8 @@ class MainPassesLedgerPath(unittest.TestCase):
                              wallet_name="w", wallet_hotkey="h", settle_blocks=1,
                              log_level="info", epoch_collection=False,
                              epoch_republication=False, starter_entry_snapshot=None,
-                             scoring_mode="legacy", points_policy=None)
+                             scoring_mode="legacy", points_policy=None,
+                             report_gate_enabled=False, report_gate_policy=None)
         reader = mock.Mock()
         reader.current_block.return_value = 100
         with (
@@ -567,9 +568,9 @@ class MainPassesLedgerPath(unittest.TestCase):
             import os
 
             os.environ.pop("NOAH_COMMIT_LEDGER_PATH", None)
-            with redirect_stdout(io.StringIO()):
+            with redirect_stdout(io.StringIO()) as output:
                 code = validator_module.main([])
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 0, output.getvalue())
         run_forever.assert_called_once()
         self.assertEqual(captured["commit_ledger_path"], Path("/st/commit-ledger.json"))
 

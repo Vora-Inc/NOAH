@@ -24,11 +24,13 @@ def shell_stub(path, content):
         ("def broken(:\n", "FAIL"),
     ],
 )
-def test_static_gate_controls_runner_result(tmp_path, source, expected):
+@pytest.mark.parametrize("report_exit", [0, 1])
+def test_static_gate_controls_runner_result(tmp_path, source, expected, report_exit):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     shutil.copyfile(RUNNER, scripts / "run-tests.sh")
-    # Isolate the static gate; all other stages explicitly succeed in this harness.
+    # Exercise static and report gates; all other stages explicitly succeed.
+    shell_stub(scripts / "run-report-tests.sh", f"exit {report_exit}")
     shell_stub(
         scripts / "run-tests-python.sh",
         "\n".join(
@@ -53,4 +55,6 @@ def test_static_gate_controls_runner_result(tmp_path, source, expected):
         ["bash", str(scripts / "run-tests.sh")], env=env, capture_output=True, text=True, timeout=20
     )
     assert f"{expected}  Python static errors" in result.stdout, result.stdout + result.stderr
-    assert result.returncode == (0 if expected == "PASS" else 1)
+    report_expected = "PASS" if report_exit == 0 else "FAIL"
+    assert f"{report_expected}  Report worker" in result.stdout
+    assert result.returncode == (0 if expected == "PASS" and report_exit == 0 else 1)

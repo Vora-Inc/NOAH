@@ -34,6 +34,9 @@ def configure(adapter, settings):
         configure_starter(adapter, settings)
     from ..points.runtime import configure as configure_points
     configure_points(adapter, settings)
+    from .report_runtime import configure as configure_reports
+    configure_reports(adapter, settings)
+    adapter.burn_allocation_bps = getattr(settings, "burn_allocation_bps", 0)
 
 
 def collect(adapter, head):
@@ -122,7 +125,12 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
             from ..points.outage import republish_plain
             return republish_plain(adapter, epoch, head, before_send=before_send)
         return "awaiting_daily_publication"
-    record = json.loads(path.read_text())
+    from .burn_publication import confirmed_transition, same_day_zero
+    cleared = same_day_zero(adapter, day, epoch, before_send)
+    if cleared:
+        return cleared
+    replacement = confirmed_transition(adapter._submitted_record_dir, day)
+    record = replacement if replacement is not None else json.loads(path.read_text())
     marker = record.get("direct_intent")
     if not isinstance(marker, dict) or marker.get("day") != day:
         raise PublicationStatusUnknown("daily source lacks an exact direct receipt")
@@ -163,7 +171,9 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
             "miner identities changed; require a fresh daily calculation"
         )
     if any(vector.get(uid, 0) for uid in adapter.owner_uids()):
-        raise PublicationStatusUnknown("republication would pay an owner seat")
+        from .burn_publication import recheck_for_send
+        if recheck_for_send(adapter, reference, vector) is None:
+            raise PublicationStatusUnknown("republication would pay an owner seat")
     # A daily publication or a reconciled refresh within this epoch counts.
     if adapter.last_update(adapter.uid, adapter.netuid) >= epoch:
         return "already_published_this_epoch"
@@ -200,6 +210,19 @@ def confirmed_refresh_block(adapter, block, scoring_day):
         # to send stale weights: every candidate still requires exact proof.
         paths = list((root / "epoch-publications").glob("*/day-*.submitted.json"))
         paths += list((root / "starter-publications").glob("*/*/day-*.submitted.json"))
+        for path in (root / "burn-transitions").glob("day-*/*/day-*.submitted.json"):
+            record = json.loads(path.read_text())
+            marker = record["direct_intent"]
+            result = marker.get("result", {})
+            if result.get("block") != block:
+                continue
+            if marker.get("successor_kind") != "burn-zero" or path.parent.parent.name != f"day-{marker.get('day')}":
+                return False
+            from .burn_publication import recompute
+            recompute(root, marker.get("calculation_evidence"),
+                      {int(k): v for k, v in marker["vector"].items()})
+            evidence = reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
+            indices.add(evidence["extrinsic_index"])
         for path in paths:
             record = json.loads(path.read_text())
             marker = record["direct_intent"]
@@ -236,15 +259,27 @@ def confirmed_refresh_block(adapter, block, scoring_day):
             if starter_path != (proof is not None):
                 return False
             source_reference = proof["source"] if proof else reference
-            retained_source = source.get("calculation_evidence")
+            from .burn_publication import confirmed_transition
+            try:
+                replacement = confirmed_transition(root, record_day)
+            except Exception:
+                return False
+            compared = source
+            if (
+                replacement is not None
+                and reference == replacement["direct_intent"].get("calculation_evidence")
+            ):
+                compared = replacement["direct_intent"]
+                adapter._check_direct_identity(compared)
+            retained_source = compared.get("calculation_evidence")
             source_overlay = historical_overlay(root, retained_source) or {}
-            if (source.get("day") != record_day or source.get("refresh_epoch") is not None
+            if (compared.get("day") != record_day or compared.get("refresh_epoch") is not None
                     or source_overlay.get("source", retained_source) != source_reference):
                 return False
-            source_manifest = verify(root, source["calculation_evidence"])
-            if source.get("vector") != source_manifest["publishable_weights_u16"]:
+            source_manifest = verify(root, compared["calculation_evidence"])
+            if compared.get("vector") != source_manifest["publishable_weights_u16"]:
                 return False
-            reconcile(adapter.reader, source, finalized_chain=adapter.runner_chain)
+            reconcile(adapter.reader, compared, finalized_chain=adapter.runner_chain)
             evidence = reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
             indices.add(evidence["extrinsic_index"])
         if not indices:

@@ -460,10 +460,16 @@ _QPAIR = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.\-]{1,64})[\"']\s*,\s*[\"']([^\
 _LEAD = re.compile(r"[\"']((?:[A-Za-z]+[ _-]){1,2})$")
 
 
+_ENVIRONMENT_ASSIGNMENT = re.compile(r"(?i)\bEnvironment\s*=\s*")
+
+
 def _kv_hits(lines_text, add_line) -> None:
     for line_no, line in lines_text:
         if len(line) < 4:
             continue
+        # A quote is non-whitespace: these ends exactly match the former
+        # anchored prefix search, without rescanning a growing JSON prefix.
+        environment_ends = {match.end() for match in _ENVIRONMENT_ASSIGNMENT.finditer(line)}
         is_def = re.match(r"\s*(?:async\s+)?def\s", line) is not None
         for q in _QPAIR.finditer(line):  # SQL rows: VALUES('api_token','<value>')
             if (
@@ -492,7 +498,7 @@ def _kv_hits(lines_text, add_line) -> None:
             qpos = m.start("name") - 1
             if (
                 not quoted and qpos >= 0 and line[qpos] in ("'", '"')
-                and re.search(r"(?i)\bEnvironment\s*=\s*$", line[:qpos]) is not None
+                and qpos in environment_ends
             ):
                 close = val.find(line[qpos])  # systemd: Environment="NAME=value with (punctuation)!"
                 if close > 0:
@@ -723,9 +729,109 @@ def _points_cache_labels(text: str) -> str:
         return text
 
 
+def _report_identity_labels(text: str) -> str:
+    """Recognize validated report AccountId labels; preserve every value.
+
+    This is a credential-scanner projection, not authentication or publication
+    permission. Unknown fields, arbitrary key files and intrinsic credential
+    patterns still receive the original scan. Same-length labels preserve lines.
+    """
+    if not any(schema in text for schema in ('noah.report-', 'noah.backing.round.v1', 'bfpoc-calc-v1', 'noah.reports.backing.collector', 'noah.weekly-assignment')):
+        return text
+    try:
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('duplicate report key')
+                result[key] = value
+            return result
+        doc = json.loads(text, object_pairs_hook=unique)
+        pretty = json.dumps(doc, sort_keys=True, indent=2, allow_nan=False) + '\n'
+        compact = json.dumps(doc, sort_keys=True, separators=(',', ':'), allow_nan=False)
+        spaced = json.dumps(doc, sort_keys=True, allow_nan=False)
+        if text not in (pretty, compact, compact + '\n', spaced, spaced + '\n'):
+            return text
+        approved = {}
+        def mark_round(contract):
+            approved[id(contract)] = {'ark_coldkey', 'ark_validator_hotkey'}
+        def visit(node):
+            if isinstance(node, dict):
+                schema = node.get('schema')
+                try:
+                    from noah.reports.identity_shapes import (validate_adjudication, validate_roster,
+                        validate_required_roster, validate_verdicts, validate_engine, validate_collector,
+                        validate_weekly_identities, validate_shared_window)
+                    validators = {
+                        'noah.report-adjudication-manifest/1': validate_adjudication,
+                        'noah.report-adjudication-manifest/2': validate_adjudication,
+                        'noah.report-shared-window/1': validate_shared_window,
+                        'noah.report-adjudication-result/1': validate_adjudication,
+                        'noah.report-snapshot-roster/1': validate_roster,
+                        'noah.report-required-roster/1': validate_required_roster,
+                        'noah.report-final-verdicts/1': validate_verdicts,
+                        'bfpoc-calc-v1': validate_engine,
+                        'noah.weekly-assignment-template/2': validate_weekly_identities,
+                        'noah.weekly-assignments/2': validate_weekly_identities,
+                    }
+                    validator = validators.get(schema)
+                    if validator is None and set(node) == {'evidence', 'observation'}:
+                        validator = validate_collector
+                    if validator is not None:
+                        nodes = validator(node)
+                        for owner, names in nodes:
+                            approved.setdefault(id(owner), set()).update(names)
+                    elif schema == 'noah.report-adjudication-request/1':
+                        from noah.reports.adjudication_contract import validate_request
+                        validate_request(node)
+                        for seat in node['scored_seats'] + node.get('assignments', []):
+                            approved[id(seat)] = {'hotkey', 'coldkey'}
+                    elif schema == 'noah.report-policy/1':
+                        from noah.reports.adjudication_contract import validate_policy
+                        validate_policy(node)
+                        for contract in node['required_rounds']:
+                            mark_round(contract)
+                    elif schema == 'noah.backing.round.v1':
+                        from noah.reports.verification import validate_round
+                        validate_round(node)
+                        mark_round(node)
+                    elif schema == 'noah.report-schedule/1':
+                        from noah.reports.schedule import validate_schedule
+                        validate_schedule(node)
+                        mark_round(node)
+                except (ImportError, ValueError, TypeError, KeyError):
+                    pass  # Invalid schemas never acquire an identity-label exception.
+                for value in node.values():
+                    visit(value)
+            elif isinstance(node, list):
+                for value in node:
+                    visit(value)
+        visit(doc)
+        def project(node):
+            if isinstance(node, dict):
+                names = approved.get(id(node), set())
+                return {('p' * len(key) if key in names else key): project(value) for key, value in node.items()}
+            return [project(value) for value in node] if isinstance(node, list) else node
+        if text == pretty:
+            return json.dumps(project(doc), indent=2, allow_nan=False) + '\n'
+        separators = (', ', ': ') if text in (spaced, spaced + '\n') else (',', ':')
+        return json.dumps(project(doc), separators=separators, allow_nan=False) + ('\n' if text.endswith('\n') else '')
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return text
+
+
 def scan_text(text: str, name: str = "<text>", depth: int = 0) -> list:
     """Scan decoded text. ``name`` is used as given (callers mask it)."""
-    credential_text = _source_inventory_labels(_points_cache_labels(text))
+    projected = None
+    for transform in (_source_inventory_labels, _points_cache_labels, _report_identity_labels):
+        candidate = transform(text)
+        if candidate != text and len(candidate) == len(text):
+            if projected is None:
+                projected = list(text)
+            for index, (original, replacement) in enumerate(zip(text, candidate)):
+                if original != replacement:
+                    projected[index] = replacement
+    credential_text = ''.join(projected) if projected is not None else text
     found = []
     decoded = depth > 0
     pre = "decoded-" if decoded else ""

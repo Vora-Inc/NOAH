@@ -497,7 +497,7 @@ def test_new_mode_cannot_submit_without_retained_calculation():
         ChainAdapter.submit_direct(a, [1], [65535], 82)
 
 
-def ordinary_published(tmp_path):
+def ordinary_published(tmp_path, *, genesis="genesis"):
     from types import SimpleNamespace
 
     from noah.core.calculation_record import encoded, retain
@@ -542,7 +542,7 @@ def ordinary_published(tmp_path):
     )
     a._day_window = lambda h: (day, 1, 99)
     a.day_anchor_ts = int(f["dayEpochTs"])
-    a.runner_chain.genesis_hash = lambda: "genesis"
+    a.runner_chain.genesis_hash = lambda: genesis
     a.runner_chain.block_timestamp = lambda h: a.day_anchor_ts + (day + 1) * 86400 + 100
     a.runner_chain.seat_hotkeys = lambda h: {3: hot}
     a.runner_chain.hotkey_owners = lambda keys, h: {hot: cold}
@@ -558,13 +558,14 @@ def ordinary_published(tmp_path):
             to_block=99,
             to_block_hash=f"0x{99:064x}",
             netuid=82,
-            genesis_hash="genesis",
+            genesis_hash=genesis,
             ark_address=a.ark_coldkey,
             designated_validator_hotkey=a.designated_validator_hotkey,
             scoring_mode=onboarding.MODE,
             points_policy=a.points_policy.manifest,
             scored_hotkeys={"3": hot},
             scored_coldkeys={"3": cold},
+            day_start_utc_unix=a.day_anchor_ts + day * 86400,
         ),
     )
     a._calculation_reference = source

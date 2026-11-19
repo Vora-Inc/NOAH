@@ -58,12 +58,60 @@ def equal_capped(requests, budget):
     return shares
 
 
+def report_exclusions(raw, live):
+    """Validate supplied identity bindings, not their external chain authenticity."""
+    gate = raw["reportGate"]
+    fields(gate, "schema proofSha256 evalDay registrations exclusions"
+           + (" bonusUids" if "bonusUids" in gate else ""), "report gate")
+    if "bonusUids" in gate:
+        awarded = gate["bonusUids"]
+        if (type(awarded) is not list or any(type(u) is not int or u not in live for u in awarded)
+                or awarded != sorted(set(awarded)) or gate["exclusions"]):
+            raise ValueError("invalid report bonus identities")
+    if gate["schema"] != "noah-starter-report-exclusions/1":
+        raise ValueError("unsupported report exclusion schema")
+    proof = gate["proofSha256"]
+    if not isinstance(proof, str) or len(proof) != 64 or any(c not in "0123456789abcdef" for c in proof):
+        raise ValueError("report proof digest must be lowercase sha256")
+    if (integer(gate["evalDay"], "report evaluation day") > 2**53 - 1
+            or gate["evalDay"] != int(raw["fixture"]["evalDay"])):
+        raise ValueError("report evaluation day differs from fixture")
+    registrations = {}
+    for name in ("registrations", "exclusions"):
+        rows = gate[name]
+        if not isinstance(rows, list):
+            raise ValueError("report identity rows must be arrays")
+        last, hotkeys = -1, set()
+        for row in rows:
+            fields(row, "uid coldkey hotkey registrationBlock", "report identity")
+            uid = integer(row["uid"], "report uid")
+            block = integer(row["registrationBlock"], "report registration block")
+            if (uid <= last or uid > 2**53 - 1 or block > 2**53 - 1
+                    or uid not in live or block > raw["snapshot"]["finalizedBlock"]):
+                raise ValueError("report identities must be sorted unique current seats")
+            cold = text(row["coldkey"], "report coldkey")
+            hot = text(row["hotkey"], "report hotkey")
+            if hot in hotkeys or cold != live[uid].coldkey or hot != raw["scoredHotkeys"][str(uid)]:
+                raise ValueError("report identity differs from scoring seat")
+            last = uid
+            hotkeys.add(hot)
+            if name == "registrations":
+                registrations[uid] = row
+            elif registrations.get(uid) != row:
+                raise ValueError("report exclusion differs from registered identity")
+    if set(registrations) != set(live):
+        raise ValueError("report registrations must cover every current seat")
+    return {row["uid"] for row in gate["exclusions"]}
+
+
 def preview(raw, previous=None):
     if isinstance(raw, dict) and isinstance(raw.get("fixture"), dict) and "pointsRules" in raw["fixture"]:
         raise ValueError("ordinary onboarding has no starter pool")
-    fields(raw, "schema policyId fixture scoredHotkeys snapshot lifetimeEarnings", "preview input")
-    live_clock = raw["schema"] == "noah-starter-epoch-preview/4"
-    if raw["schema"] not in ("noah-starter-epoch-preview/3", "noah-starter-epoch-preview/4"):
+    reports_enabled = raw.get("schema") == "noah-starter-epoch-preview/5" if isinstance(raw, dict) else False
+    fields(raw, "schema policyId fixture scoredHotkeys snapshot lifetimeEarnings"
+           + (" reportGate" if reports_enabled else ""), "preview input")
+    live_clock = raw["schema"] in ("noah-starter-epoch-preview/4", "noah-starter-epoch-preview/5")
+    if raw["schema"] not in ("noah-starter-epoch-preview/3", "noah-starter-epoch-preview/4", "noah-starter-epoch-preview/5"):
         raise ValueError("unsupported preview schema")
     if raw["policyId"] != POLICY_ID:
         raise ValueError("starter policy mismatch; expected five NOAH and shared 25 bps")
@@ -71,6 +119,8 @@ def preview(raw, previous=None):
     from ..points.engine import INPUT_SCHEMA, AMENDED_INPUT_SCHEMA, evaluate, legacy_shape
     from ..points.ema_policy import INPUT_SCHEMA as EMA_INPUT_SCHEMA
     is_points = raw["fixture"].get("schema") in (INPUT_SCHEMA, AMENDED_INPUT_SCHEMA, EMA_INPUT_SCHEMA)
+    if reports_enabled and is_points:
+        raise ValueError("report starter exclusions require a Legacy fixture")
     fx = parse_fixture(legacy_shape(raw["fixture"]) if is_points else raw["fixture"])
     ordinary = evaluate(raw["fixture"]) if is_points else score_fixture(fx)
     snap = raw["snapshot"]
@@ -245,6 +295,7 @@ def preview(raw, previous=None):
             invalid[cold] = str(exc)
     if seen != set(live):
         raise ValueError("snapshot must include every scored live identity")
+    excluded = report_exclusions(raw, live) if reports_enabled else set()
     reports, proposed, targets = [], {}, {}
     if is_points:
         from types import SimpleNamespace
@@ -306,6 +357,11 @@ def preview(raw, previous=None):
                 ALLOWANCE - hot_earned[hot] - hot_pending[hot],
             ),
         )
+        # Determine graduation from accounting above, before applying this
+        # temporary exclusion. Never graduate solely because a report failed.
+        if uid in excluded:
+            status = "report-excluded"
+            proposed[uid] = 0
         units = 0
         if status == "starter" and remaining:
             # Exact integer ceiling of min(5/day * epoch duration, remaining)
@@ -359,6 +415,16 @@ def preview(raw, previous=None):
             report["starterWeightU16"] = proposed[report["uid"]]
     normal = {u: results[u].pay_weight_fp for u in live if u not in proposed}
     weights = {int(k): v for k, v in ordinary["weightsU16"].items()}
+    if reports_enabled and "bonusUids" in raw["reportGate"]:
+        from ..scoring.reporting_bonus import bonus_pay
+        owners = {seat["uid"] for seat in snap["seats"] if seat["ownerExcluded"]}
+        awarded = set(raw["reportGate"]["bonusUids"]) - owners
+        normal = {row["uid"]: bonus_pay(row, row["uid"] in awarded)
+                  for row in ordinary["miners"] if row["uid"] in normal}
+        # Starter shares and graduation are still decided from ordinary scores.
+        # Only the remaining ordinary allocation receives the work bonus.
+        if not proposed:
+            weights = apportion(normal, U16) if sum(normal.values()) else {u: 0 for u in normal}
     no_ordinary = bool(proposed) and not sum(normal.values())
     if no_ordinary:
         # Publishing all-zero weights has chain-specific behavior. Preserve the
@@ -368,7 +434,8 @@ def preview(raw, previous=None):
         for report in reports:
             if report["uid"] in proposed:
                 report["starterWeightU16"] = 0
-                report["status"] = "paused-no-ordinary-weight"
+                if report["uid"] not in excluded:
+                    report["status"] = "paused-no-ordinary-weight"
     elif proposed:
         if sum(normal.values()) or sum(proposed.values()):
             weights = apportion(normal, U16 - sum(proposed.values()))
@@ -377,6 +444,12 @@ def preview(raw, previous=None):
         weights.update(proposed)
     fallback = {u: normal.get(u, 0) if live[u].coldkey not in invalid else 0 for u in live}
     fallback = apportion(fallback, U16) if sum(fallback.values()) else {u: 0 for u in live}
+    if reports_enabled:
+        # No new vector: never restore excluded allocations via a fallback.
+        if not sum(weights.values()):
+            weights = {}
+        if not sum(fallback.values()):
+            fallback = {}
     state = dict(
         schema="noah-starter-state/4" if live_clock else "noah-starter-state/3",
         policyId=POLICY_ID,
@@ -394,7 +467,9 @@ def preview(raw, previous=None):
         seats=history,
     )
     return dict(
-        schema="noah-starter-epoch-result/4" if live_clock else "noah-starter-epoch-result/3",
+        schema=("noah-starter-epoch-result/5" if reports_enabled else
+                "noah-starter-epoch-result/4" if live_clock else "noah-starter-epoch-result/3"),
+        **({"reportGate": json.loads(json.dumps(raw["reportGate"]))} if reports_enabled else {}),
         policyId=POLICY_ID,
         starterPolicy=dict(
             allowanceRao=ALLOWANCE,
@@ -430,7 +505,8 @@ def preview(raw, previous=None):
             "Lifetime ledger completeness is an input requirement, not verified chain history.",
             "An expired local allocation does not expire weights already on chain.",
             "Ordinary scores are unchanged; this preview alters allocation only.",
-        ],
+        ] + (["Report proof and registration facts are supplied, not authenticated here."]
+             if reports_enabled else []),
     )
 
 

@@ -195,6 +195,10 @@ class AgreeingChain:
     def events(self, block):
         return self._agreed("blockEvents", block, lambda client: client.events(block))
 
+    def block_timestamp_ms(self, block):
+        return self._agreed("blockTimeMs", block, lambda client: client.block_timestamp_ms(block),
+                            zero_is_impossible=True)
+
     def extrinsics(self, block):
         """Read this block's decoded extrinsics, preserving the indexes used by events."""
         return self._agreed("blockExtrinsics", block, lambda client: client.extrinsics(block))

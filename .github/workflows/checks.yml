@@ -29,15 +29,35 @@ jobs:
       - name: Scan tracked public files
         run: |
           python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
           import subprocess
           import sys
+          import zlib
+
+          # One reviewed binary fixture, never a generic archive exemption.
+          fixture = Path("noah/reports/tests/fixtures/synthetic/runtime490-metadata.hex.gz")
+          with fixture.open("rb") as handle:
+              compressed = handle.read(144897)
+          assert len(compressed) == 144896
+          assert hashlib.sha256(compressed).hexdigest() == "2fbef3d4b114bfafdef825802a81527c180c6a442b8f367486ff380098d73cd4"
+          assert compressed[:10] == bytes.fromhex("1f8b08000000000002ff")
+          decoder = zlib.decompressobj(31)
+          expanded = decoder.decompress(compressed, 792419)
+          assert decoder.eof and not decoder.unused_data and not decoder.unconsumed_tail
+          assert len(expanded) == 792418
+          assert hashlib.sha256(expanded).hexdigest() == "36f5b6c6d7ce0d56e3a91582cd7951c4c0c931a9ccb43c9cf8da97777d7ceb3c"
+          assert expanded.startswith(b"0x")
+          metadata = bytes.fromhex(expanded[2:].decode("ascii"))
+          assert len(metadata) == 396208 and metadata.startswith(b"meta")
+          assert hashlib.sha256(metadata).hexdigest() == "a76cbe520927d0e232533b84bef160e029b0cd8acf782de458d2d2008500bebc"
 
           paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
           paths = ["./" + path for path in paths if path]
           if not paths:
               raise SystemExit("No tracked files to scan")
           raise SystemExit(subprocess.call([
-              sys.executable, "-m", "noah.secret_scan", "--release", "--strict", *paths
+              sys.executable, "-m", "noah.secret_scan", "--release", "--strict", "--expected-refused", str(fixture), *paths
           ]))
           PY
       - name: Install review dependencies

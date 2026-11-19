@@ -8,6 +8,8 @@ from .outage import authorize
 
 def check_before_send(adapter, reference, vector):
     """Bind amounts to finalized hotkey AND coldkey immediately before sending."""
+    from ..core.report_runtime import check_before_send as check_reports
+    check_reports(adapter, reference, vector)
     check_publication_mode(adapter, reference)
     root = adapter._submitted_record_dir
     manifest = verify(root, reference)
@@ -28,7 +30,13 @@ def check_before_send(adapter, reference, vector):
     coldkeys = context.get("scored_coldkeys")
     if not isinstance(hotkeys, dict) or not isinstance(coldkeys, dict):
         raise PublicationStatusUnknown("ordinary calculation lacks retained miner identities")
-    paid = {uid for uid, weight in vector.items() if weight}
+    from ..core.burn_publication import recheck_for_send
+    burn_uid = None
+    if any(vector.get(uid, 0) for uid in adapter.owner_uids()):
+        burn_uid = recheck_for_send(adapter, reference, vector)
+        if burn_uid is None:
+            raise PublicationStatusUnknown("ordinary publication would pay an owner seat")
+    paid = {uid for uid, weight in vector.items() if weight and uid != burn_uid}
     live = chain.seat_hotkeys(head)
     if any(not hotkeys.get(str(uid)) or live.get(uid) != hotkeys[str(uid)] for uid in paid):
         raise PublicationStatusUnknown("miner identities changed before signing")

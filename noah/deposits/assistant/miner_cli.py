@@ -74,6 +74,8 @@ def _parser(common):
     purchase.add_argument('--label', required=True, help='stable label for this fixed workflow')
     purchase.add_argument('--journal', help='shared durable purchase journal for this owner')
     commands.add_parser('status', help='read deposit receipts and reconcile pending results')
+    reports = commands.add_parser('report', help='prepare, submit and inspect backing reports')
+    reports.add_argument('report_args', nargs='...')
     signer = commands.add_parser('signer', help='serve bounded proxy requests in a separate process')
     signer.add_argument('--journal', help='shared durable signer state directory')
     signer.add_argument('--reconcile', action='store_true', help='read uncertain receipts without loading keys')
@@ -90,6 +92,10 @@ def main(argv=None, *, transaction_runner=None, default_config=None):
     common.add_argument('--config', default=default_config or
                         os.environ.get('NOAH_DEPOSIT_CONFIG', 'noah-deposit.ini'))
     settings, remaining = common.parse_known_args(argv)
+    # Forward report grammar without changing deposit config or signing rules.
+    if remaining and remaining[0] == 'report':
+        from ...reports.dispatch import dispatch
+        return dispatch('miner', ['--config', settings.config, *remaining[1:]])
     args = _parser(common).parse_args(remaining)
     path = settings.config
     try:

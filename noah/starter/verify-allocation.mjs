@@ -16,6 +16,46 @@ for(const t of x.lifetimeEarnings){
 const ordinary=Object.fromEntries(r.ordinaryOutput.miners.filter(m=>m.uid!=null).map(m=>[m.uid,m]));
 const miners=Object.fromEntries(x.fixture.miners.filter(m=>m.uid!=null).map(m=>[m.uid,m]));
 const s=x.snapshot, sample=s.miningPoolSample;
+const reportsEnabled=x.schema==='noah-starter-epoch-preview/5', excluded=new Set();
+const exact=(value,names)=>{
+ if(!value || Array.isArray(value) || typeof value!=='object'
+   || Object.keys(value).sort().join('|')!==names.split(' ').sort().join('|'))throw Error('report fields');
+};
+const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'
+ ?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])):value;
+if(reportsEnabled){
+ exact(x,'schema policyId fixture scoredHotkeys snapshot lifetimeEarnings reportGate');
+ if(x.fixture.schema?.startsWith('noah-points-fixture/') || 'pointsRules' in x.fixture)throw Error('Legacy required');
+ const g=x.reportGate;
+ exact(g,'schema proofSha256 evalDay registrations exclusions'+('bonusUids' in g?' bonusUids':''));
+ if('bonusUids' in g && (!Array.isArray(g.bonusUids)||g.exclusions.length||g.bonusUids.some((u,i)=>!Number.isSafeInteger(u)||!miners[u]||(i&&u<=g.bonusUids[i-1]))))throw Error('bonus identities');
+ if(g.schema!=='noah-starter-report-exclusions/1'||! /^[0-9a-f]{64}$/.test(g.proofSha256)
+   ||typeof g.proofSha256!=='string'||!Number.isSafeInteger(g.evalDay)||g.evalDay<0
+   ||B(g.evalDay)!==B(x.fixture.evalDay))throw Error('report context');
+ const registrations=new Map();
+ for(const name of ['registrations','exclusions']){
+  if(!Array.isArray(g[name]))throw Error('report array');
+  let last=-1;const hotkeys=new Set();
+  for(const row of g[name]){
+   exact(row,'uid coldkey hotkey registrationBlock');
+   const {uid:u,coldkey:c,hotkey:h,registrationBlock:b}=row;
+   if(!Number.isSafeInteger(u)||u<0||u<=last||!Number.isSafeInteger(b)||b<0||b>s.finalizedBlock
+     ||typeof c!=='string'||!c||typeof h!=='string'||!h||hotkeys.has(h)
+     ||!miners[u]||miners[u].coldkey!==c||x.scoredHotkeys[u]!==h)throw Error('report identity');
+   const seat=s.seats.find(t=>t.uid===u);
+   if(!seat||seat.coldkey!==c||seat.hotkey!==h)throw Error('report snapshot identity');
+   last=u;hotkeys.add(h);
+   if(name==='registrations')registrations.set(u,[c,h,b]);
+   else{
+    if(JSON.stringify(registrations.get(u))!==JSON.stringify([c,h,b]))throw Error('report registration');
+    excluded.add(u);
+   }
+  }
+ }
+ if(registrations.size!==Object.keys(miners).length)throw Error('report coverage');
+ if(r.schema!=='noah-starter-epoch-result/5'
+   ||JSON.stringify(canonical(g))!==JSON.stringify(canonical(r.reportGate)))throw Error('report result binding');
+}else if('reportGate' in x)throw Error('report schema required');
 const pool=B(sample.amountRao)*B(s.epochSeconds)/B(sample.durationSeconds);
 const requests={},groups={},quarantined=new Set();
 for(const t of s.seats){
@@ -35,6 +75,7 @@ for(const t of s.seats){
  const terminal=B(m.entryDepositRao??0)>0n||prior==='ordinary'||(B(o.baseFp)>0n&&(exhausted||prior==='exhausted'))
   ?'ordinary':exhausted||prior==='exhausted'?'exhausted':'';
  terminals[key(c,h)]=terminal;
+ if(excluded.has(u)){requests[u]=0n;continue;}
  if(terminal||t.ownerExcluded||!o.doorOpen)continue;
  const remaining=max(0n,min(A-earnedC[c]-pendingC[c],A-earnedH[h]-pendingH[h]));
  const num=min(A*B(s.epochSeconds),remaining*86400n)*U,den=86400n*pool;
@@ -66,13 +107,21 @@ const proposed={...requests};
 for(const [c,vs] of Object.entries(groups))if(sum(Object.values(vs)))Object.assign(proposed,apport(vs,shares[c]));
 const normal={};
 for(const [u,o] of Object.entries(ordinary))if(!(u in proposed))normal[u]=B(o.payWeightFp);
+if(reportsEnabled && 'bonusUids' in x.reportGate){
+ const sqrt=n=>{if(n<0n)throw Error('negative score');if(n<2n)return n;let a=n,b=(a+1n)/2n;while(b<a){a=b;b=(a+n/a)/2n;}return a;};
+ for(const u of x.reportGate.bonusUids){const o=ordinary[u];if(u in normal&&o.doorOpen&&!s.seats.find(t=>t.uid===u).ownerExcluded)normal[u]=sqrt(B(o.scoreFp)+20000000000n)*B(o.multiplierFp)/1000000000n;}
+}
 const blocked=Object.keys(proposed).length>0&&!sum(Object.values(normal));
 let weights;
 if(blocked)weights=Object.fromEntries(Object.keys(ordinary).map(u=>[u,0n]));
 else if(Object.keys(proposed).length)weights={...apport(normal,U-sum(Object.values(proposed))),...proposed};
-else weights=Object.fromEntries(Object.entries(r.ordinaryOutput.weightsU16).map(([u,v])=>[u,B(v)]));
+else weights=reportsEnabled&&'bonusUids' in x.reportGate?(sum(Object.values(normal))?apport(normal,U):normal):Object.fromEntries(Object.entries(r.ordinaryOutput.weightsU16).map(([u,v])=>[u,B(v)]));
 const fallback=Object.fromEntries(Object.keys(ordinary).map(u=>[u,normal[u]??0n]));
-const fw=sum(Object.values(fallback))?apport(fallback,U):fallback;
+let fw=sum(Object.values(fallback))?apport(fallback,U):fallback;
+if(reportsEnabled){
+ if(!sum(Object.values(weights)))weights={};
+ if(!sum(Object.values(fw)))fw={};
+}
 function check(expected,actual,label){
  if(Object.keys(expected).length!==Object.keys(actual).length)throw Error(label+' keys');
  for(const [u,v] of Object.entries(expected))if(v!==B(actual[u]))throw Error(label+' '+u);

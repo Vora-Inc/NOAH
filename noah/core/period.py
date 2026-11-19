@@ -145,10 +145,21 @@ def run_period(chain):
         if disposition is not None:
             raise AccountedNotPublished(*disposition)
 
+    prepare_reports = getattr(chain, "prepare_report_vector", None)
+    if callable(prepare_reports):
+        turnover_checked = prepare_reports(turnover_checked)
+
     # Starter entry changes eligibility/allocation, never either scoring engine.
     prepare_starters = getattr(chain, "prepare_starter_vector", None)
     if callable(prepare_starters):
         turnover_checked = prepare_starters(turnover_checked)
+
+    # Burn is a publication split of the finished miner vector. Zero returns
+    # that vector unchanged. A later same-day return to zero uses the retained
+    # pre-burn allocation instead of waiting for the next scoring day.
+    prepare_burn = getattr(chain, "prepare_burn_vector", None)
+    if callable(prepare_burn):
+        turnover_checked = prepare_burn(turnover_checked)
 
     # 5. Before adding a publication, check the last one actually landed as the
     #    rescale of what we sealed. A mismatch stops here; an unreadable check

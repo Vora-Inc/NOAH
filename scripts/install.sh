@@ -124,6 +124,11 @@ if "$VENV/bin/python" -c 'import bittensor' >/dev/null 2>&1; then
   exit 1
 fi
 
+# The report decoder uses synchronous substrate-interface/scalecodec, isolated
+# from the async validator SDK/cyscale. Both install the same reviewed source.
+echo "Installing isolated report commands"
+REPORT_BOOTSTRAP_PYTHON="$VENV/bin/python" "$REPO_ROOT/scripts/install-reports.sh"
+
 # ------------------------------------------------------------------ Node ----
 
 echo

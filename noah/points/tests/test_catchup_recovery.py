@@ -341,17 +341,22 @@ def test_zero_fresh_fallback_is_not_publishable(tmp_path, monkeypatch):
 
 def test_directory_fsync_failure_does_not_advance_accounting_memory(tmp_path, monkeypatch):
     from noah.core import loop
+    from noah.runtime_event_files import write_health
 
     ref = dict(path="day-2.accounted.json", day=2, sha256="a" * 64)
     error = AccountedNotPublished(ref, {"day": 3, "height": 200})
     memory = dict(pending={"day": 2, "height": 199}, checked_pinned=560, accounted=[])
     before = copy.deepcopy(memory)
     fsync = loop.os.fsync
-    calls = []
+    parent = tmp_path.stat()
+    failed_directories = []
+    diagnostic_dir = tmp_path / "diagnostic"
+    diagnostic_dir.mkdir()
 
     def fail_directory(fd):
-        calls.append(fd)
-        if len(calls) == 2:
+        actual = loop.os.fstat(fd)
+        if (actual.st_dev, actual.st_ino) == (parent.st_dev, parent.st_ino):
+            failed_directories.append(fd)
             raise OSError("directory flush unavailable")
         fsync(fd)
 
@@ -365,8 +370,12 @@ def test_directory_fsync_failure_does_not_advance_accounting_memory(tmp_path, mo
         tempo=10,
     )
     with patch.object(loop.os, "fsync", side_effect=fail_directory):
+        # The diagnostic writer shares os.fsync. Its unrelated file/directory
+        # flushes must not consume this accounting-specific failure injection.
+        write_health(diagnostic_dir / "events.jsonl", {})
         with pytest.raises(OSError):
             loop._accounted_result(error, **args)
+    assert len(failed_directories) == 1
     assert memory == before
     # Atomic replacement may already be visible. Both same-process retry and
     # restart retain the exact next pending day, with no submitted outcome.

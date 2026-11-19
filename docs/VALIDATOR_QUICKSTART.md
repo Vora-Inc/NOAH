@@ -1,4 +1,4 @@
-# Validator: ordinary points candidate
+# Validator: Legacy defaults and optional candidates
 
 **Review candidate, not an instruction to switch a live validator.** Miners only
 need registration and correctly attributed contributions; they do not run a
@@ -6,11 +6,30 @@ validator. An independent validator needs its own chain-authorized publishing
 identity, two verified history readers, retained accounting evidence and a signer.
 Software configuration does not grant a validator permit.
 
-Read [ordinary scoring](ORDINARY_SCORING.md) first. Install with
+Read [Legacy scoring](LEGACY_SCORING.md) for the default mode and
+[ordinary scoring](ORDINARY_SCORING.md) for the optional V2.0 candidate. Install with
 `./scripts/install.sh`; `.env.validator.mainnet.example` is a placeholder example,
 not a ready-to-run production file. Never commit a filled file or signing material.
 
-The candidate selection is:
+## Shipping defaults
+
+Both optional features ship OFF: `NOAH_SCORING_MODE=legacy`, empty
+`NOAH_POINTS_POLICY`, `NOAH_REPORT_GATE_ENABLED=false`, and empty
+`NOAH_REPORT_GATE_POLICY`. No feature is activated by installation or an offline
+preview. The reserved report ON setting currently refuses startup before chain
+access; authenticated production report enforcement is not implemented yet.
+See [report commands and the dependency advisory](REPORTS.md).
+
+Legacy retains its existing starter policy: preserve the verified original entry
+snapshot, all financial history and the healthy starter guard. Do not fabricate a
+new cutoff or replace deployed configuration with this placeholder example.
+[Legacy validator setup](LEGACY_VALIDATOR_QUICKSTART.md) documents that flow;
+its historical installation details must be read with the current installer.
+Reports use a separate `.venv-reports` environment (Python 3.11+).
+
+## Optional V2.0 selection — not the shipping default
+
+The candidate selection below is for review, not activation:
 
 ```dotenv
 NOAH_SCORING_MODE=points-204040-v5
@@ -20,10 +39,12 @@ NOAH_STARTER_ENTRY_SNAPSHOT=/path/to/preserved-entry-snapshot.json
 NOAH_PUBLISH_MODE=direct
 NOAH_EPOCH_COLLECTION=true
 NOAH_EPOCH_REPUBLICATION=true
+NOAH_REPORT_GATE_ENABLED=false
+NOAH_REPORT_GATE_POLICY=
 ```
 
-`NOAH_STARTER_ENTRY_SNAPSHOT` is the historical entry-accounting file, despite its
-old name. It does not select a pool. Preserve the pinned EMA policy and predecessor
+In V2.0, `NOAH_STARTER_ENTRY_SNAPSHOT` is the historical entry-accounting file,
+despite its old name. It does not select a pool in that mode. Preserve the pinned EMA policy and predecessor
 archives, original cutoff, consumed receipts and all financial balances. Do not
 create a new cutoff to make an installation pass. The new profile's retained
 legacy fields support historical replay; the V5 points rules live in
@@ -32,7 +53,8 @@ legacy fields support historical replay; the V5 points rules live in
 Before switching, reconcile pending old-mode sends and any active old overlay
 under the predecessor configuration. Preserve journals, backups and recovery
 receipts. The candidate refuses unresolved old publications. The old starter guard
-must not be running beside the ordinary publisher. A code/config rollback after
+must not be running beside the V2.0 ordinary publisher; this does not remove
+the guard requirement while Legacy starter allocation remains selected. A code/config rollback after
 new-mode financial publication is not a safe automatic recovery.
 
 A configured read-only preflight (requires the named readers and evidence) is:
