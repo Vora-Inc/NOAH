@@ -74,3 +74,23 @@ def test_changed_schedule_destination_refuses_before_chain_access(tmp_path):
     chain.genesis = lambda: pytest.fail('mismatch must refuse before RPC')
     with pytest.raises(ReportError, match='schedule differ'):
         scheduled_tick(config, value, chain=chain)
+
+
+def test_cached_legacy_boundary_is_replayed_without_live_resolution(tmp_path):
+    import json
+    from noah.reports.tests.test_schedule_recent import legacy_fixture
+    config, value, chain = setup(tmp_path)
+    resolution = legacy_fixture()['resolution']
+    resolution['boundary_proof']['readers'] = resolution['boundary_proof']['readers'][:1]
+    path = tmp_path / 'report-schedules' / digest(value) / 'day-1.json'
+    immutable_json(path, resolution)
+    original = path.read_bytes()
+    prepared = []
+    def forbidden(*args, **kwargs):
+        pytest.fail('a cached /1 resolution must not be recomputed')
+    result = scheduled_tick(config, value, chain=chain, resolver=forbidden,
+                            prepare_fn=lambda config, contract: prepared.append(contract),
+                            submit_fn=lambda *a, **k: {'action': 'waiting', 'sent': False})
+    assert result['sent'] is False and prepared == [resolution['round']]
+    assert path.read_bytes() == original
+    assert json.loads(original)['boundary_proof']['schema'].endswith('/1')

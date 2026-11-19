@@ -233,12 +233,13 @@ def test_no_bonus_retry_refuses_changed_vector_and_request_symlink(prepared):
 
 @pytest.mark.parametrize('last_outcome', ['verified', 'confirmed_failure'])
 @pytest.mark.parametrize('resolution_format', [1, 2])
-def test_weekly_r1_replays_signed_selection_and_passes_real_final_send(prepared, monkeypatch, last_outcome, resolution_format):
+@pytest.mark.parametrize('boundary_version', [1, 2])
+def test_weekly_r1_replays_signed_selection_and_passes_real_final_send(prepared, monkeypatch, last_outcome, resolution_format, boundary_version):
     """Real R0/R1/selection replay; only provider IPC result is synthetic here."""
     import copy
     from noah.core import report_publication
     from noah.reports.assignments import sign_week, earns_reporting_bonus
-    from noah.reports.schedule import _resolve
+    from noah.reports.schedule import BOUNDARY, LEGACY_BOUNDARY, _resolve
     from noah.reports.tests.test_schedule import Chain, ANCHOR
     from noah.points.publication import check_before_send
     p=prepared
@@ -247,7 +248,8 @@ def test_weekly_r1_replays_signed_selection_and_passes_real_final_send(prepared,
                      trusted_public_key=p.configuration['assignment_signer_public_key'])
     chain=Chain(shift=p.a.day_anchor_ts-ANCHOR,head=16000)
     monkeypatch.setattr(runtime,'resolve_schedule',lambda configuration,endpoints,day:
-        _resolve(configuration,[chain,chain],day))
+        _resolve(configuration,[chain,chain],day,
+                 boundary_schema=LEGACY_BOUNDARY if boundary_version == 1 else BOUNDARY))
     policy,selection=runtime.select_weekly(p.configuration,signed,[],p.day,p.a.day_anchor_ts)
     if resolution_format==1:
         from noah.core.weekly_runtime import expand_resolution
@@ -283,12 +285,17 @@ def test_weekly_r1_replays_signed_selection_and_passes_real_final_send(prepared,
     submission=dict(live_uids=[3],owner_uids=[0],fixture_hotkeys=hotkeys,chain_hotkeys=hotkeys)
     ref,vector=report_publication.retain_report(p.root,p.raw,request,package,submission,
                                                 selection=selection,reward='bonus-20')
+    saved = {path: path.read_bytes() for path in p.root.rglob('*.json')}
+    monkeypatch.setattr(runtime, 'resolve_schedule', lambda *a, **k: pytest.fail('frozen weekly R1 must replay offline'))
     proof=report_publication.verify_report(p.root,ref)
+    assert proof['selection'] == selection
     assert proof['request']['assignments']==signed['assignments']
     assert earns_reporting_bonus(decision,request)==(last_outcome=='verified')
     # A failed third report keeps ordinary V2 pay, instead of gate's zero/all-filtered refusal.
     assert vector==p.vector
     check_before_send(p.a,ref,vector)
+    runtime.check_before_send(p.a,ref,vector)
+    assert all(path.read_bytes() == raw for path, raw in saved.items())
     assert verify(p.root,ref)['artifacts']['agreed_score']==verify(p.root,p.raw)['artifacts']['agreed_score']
     # Neither a copied older week nor an independently self-signed authority can authorize final pay.
     p.configuration['assignment_signer_public_key']='ab'*32

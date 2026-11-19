@@ -45,12 +45,16 @@ def _finalized(source, template):
 
 
 def _week_open_block(source, week_start, finalized):
+    from .schedule import _recent_range
     target = int(datetime.combine(_sunday(week_start), datetime.min.time(), timezone.utc).timestamp()) * 1000
     _require(finalized['timestamp_ms'] >= target, 'week open is not finalized')
-    low, high = 1, finalized['block_number']
+    cache = {finalized['block_number']: finalized}
     def block(height):
-        pin = _hash(source.call('chain_getBlockHash', [height]))
-        return dict(block_number=height, block_hash=pin[2:], timestamp_ms=_timestamp(source, pin))
+        if height not in cache:
+            pin = _hash(source.call('chain_getBlockHash', [height]))
+            cache[height] = dict(block_number=height, block_hash=pin[2:], timestamp_ms=_timestamp(source, pin))
+        return cache[height]
+    low, high = _recent_range(block, finalized['block_number'], target)
     while low < high:
         middle = (low + high) // 2
         if block(middle)['timestamp_ms'] < target:

@@ -12,6 +12,8 @@ import json
 from .common import ReportError, digest
 
 SCHEMA = 'noah.report-schedule/1'
+LEGACY_BOUNDARY = 'noah.report-schedule-boundary/1'
+BOUNDARY = 'noah.report-schedule-boundary/2'
 FIELDS = set(('schema genesis_hash mining_netuid reported_netuid day_anchor_ts '
               'effective_day snapshot_offset_seconds prepare_lead_seconds '
               'commit_seconds reveal_seconds eligibility_policy_version '
@@ -66,6 +68,23 @@ def _target(schedule, eval_day):
     return target
 
 
+def _recent_range(block, number, target):
+    """Bracket from the finalized head without requiring ancient state.
+
+    Every inspected block must be readable. An absent timestamp never
+    counts as a timestamp before the target. At heights below 2**32 the
+    bracket plus binary search fits the unchanged 160-call reader cap.
+    """
+    high, distance = number, 1
+    while high > 1:
+        low = max(1, number - distance)
+        if block(low)['timestamp_ms'] < target:
+            return low + 1, high
+        high = low
+        distance *= 2
+    return 1, 1
+
+
 class _Reader:
     def __init__(self, connection):
         self.connection, self.cache, self.calls = connection, {}, 0
@@ -100,7 +119,8 @@ class _Reader:
         self.cache[number] = row
         return row
 
-    def boundary(self, schedule, target):
+    def boundary(self, schedule, target, *, schema=BOUNDARY):
+        _require(schema in (LEGACY_BOUNDARY, BOUNDARY), 'unsupported boundary proof')
         _require(self.rpc('chain_getBlockHash', [0]) == '0x' + schedule['genesis_hash'], 'wrong genesis')
         head = self.rpc('chain_getFinalizedHead', [])
         header = self.rpc('chain_getHeader', [head])
@@ -110,7 +130,8 @@ class _Reader:
         final = self.block(number)
         _require(final['block_hash'] == head.removeprefix('0x'), 'finalized hash differs')
         _require(final['timestamp_ms'] >= target, 'snapshot slot not finalized yet')
-        low, high = 1, number
+        # /1 retains its original query order for immutable saved transcripts.
+        low, high = (1, number) if schema == LEGACY_BOUNDARY else _recent_range(self.block, number, target)
         while low < high:
             middle = (low + high) // 2
             if self.block(middle)['timestamp_ms'] < target:
@@ -126,10 +147,11 @@ class _Reader:
                 'receipts': self.receipts}
 
 
-def _resolve(schedule, clients, eval_day):
+def _resolve(schedule, clients, eval_day, *, boundary_schema=BOUNDARY):
+    _require(boundary_schema in (LEGACY_BOUNDARY, BOUNDARY), 'unsupported boundary proof')
     identity = validate_schedule(schedule)
     target = _target(schedule, eval_day)
-    proof = [_Reader(client).boundary(schedule, target) for client in clients]
+    proof = [_Reader(client).boundary(schedule, target, schema=boundary_schema) for client in clients]
     boundary = proof[0]['snapshot']
     _require(all(p['snapshot'] == boundary and p['predecessor'] == proof[0]['predecessor'] for p in proof),
              'readers disagree about snapshot boundary')
@@ -154,7 +176,7 @@ def _resolve(schedule, clients, eval_day):
               **{k: schedule[k] for k in ('effective_day', 'genesis_hash', 'mining_netuid', 'eligibility_policy_version')},
               'required_rounds': [contract]}
     return {'round': contract, 'policy': policy, 'schedule_sha256': identity,
-            'boundary_proof': {'schema': 'noah.report-schedule-boundary/1', 'target_ms': target,
+            'boundary_proof': {'schema': boundary_schema, 'target_ms': target,
                                'readers': proof}}
 
 
@@ -199,7 +221,7 @@ def verify_resolution(schedule, eval_day, resolution, *, require_pair=True):
              {'round', 'policy', 'schedule_sha256', 'boundary_proof'}, 'resolution fields differ')
     proof = resolution['boundary_proof']
     _require(type(proof) is dict and set(proof) == {'schema', 'target_ms', 'readers'} and
-             proof['schema'] == 'noah.report-schedule-boundary/1', 'boundary proof fields differ')
+             proof['schema'] in (LEGACY_BOUNDARY, BOUNDARY), 'boundary proof fields differ')
     readers = proof['readers']
     _require(type(readers) is list and len(readers) == (2 if require_pair else 1), 'boundary reader count')
 
@@ -220,7 +242,7 @@ def verify_resolution(schedule, eval_day, resolution, *, require_pair=True):
             return {'result': row['result']}
 
     clients = [Replay(row) for row in readers]
-    rebuilt = _resolve(schedule, clients, eval_day)
+    rebuilt = _resolve(schedule, clients, eval_day, boundary_schema=proof['schema'])
     _require(all(client.index == len(client.rows) for client in clients), 'unconsumed raw boundary receipts')
     _require(rebuilt == resolution, 'saved schedule resolution differs from raw replay')
     return rebuilt

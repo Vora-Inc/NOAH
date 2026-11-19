@@ -158,3 +158,22 @@ def test_follow_refreshes_at_sunday_rollover(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, 'assignments_tick', lambda *a, **kw: {'action': 'waiting', 'sent': False})
     assert cli._assignments(config, args) == 1
     assert fetched == ['2026-11-15', '2026-11-22']
+
+
+def test_cached_mixed_boundary_versions_preserve_assignment_journals(tmp_path, monkeypatch):
+    from noah.reports.schedule import BOUNDARY, LEGACY_BOUNDARY
+    config, document, chain = setup(tmp_path, now=(ANCHOR + 110000) * 1000)
+    template = assignments.template_from_document(document)
+    saved = {}
+    for index, target in enumerate(document['assignments'][0]['targets']):
+        value = assignments.schedule_for_target(template, target)
+        path = tmp_path / 'weekly-assignments' / validate_schedule(value) / 'day-1.json'
+        immutable_json(path, _resolve(value, [Chain()], 1,
+                       boundary_schema=LEGACY_BOUNDARY if index == 0 else BOUNDARY))
+        saved[path] = path.read_bytes()
+    monkeypatch.setattr('noah.reports.miner.status', lambda *args:
+                        dict(prepared=True, commit='finalized', reveal='finalized'))
+    result = tick(config, document, chain, authorized=False, resolver=forbidden,
+                  prepare_fn=forbidden, submit_fn=forbidden)
+    assert result['action'] == 'complete' and len(result['reports']) == 3
+    assert all(path.read_bytes() == raw for path, raw in saved.items())

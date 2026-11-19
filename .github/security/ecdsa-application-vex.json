@@ -160,7 +160,7 @@
     },
     "docs/REPORTS.md": {
       "mode": "100644",
-      "sha256": "d7078467f66f24ffb2a108c8778805284b343bd037f380f141e61d9fbc7597cc"
+      "sha256": "f723b1a9d8e9fac65b9b9aeec15d109f5adb2dae31f23fb69de022369e80fbf1"
     },
     "docs/REPORT_COMMITMENT_PROTOCOL.md": {
       "mode": "100644",
@@ -1144,11 +1144,11 @@
     },
     "noah/core/tests/test_weekly_report_retry_resume.py": {
       "mode": "100644",
-      "sha256": "f2825b5adf08d890d2d183b60dc89b87a5002e2c69ebc7ca94ff038ce153efde"
+      "sha256": "2af0e06bb946334ce3a090c778874e6f14154767e1d100f9ef71c363bf5b881d"
     },
     "noah/core/tests/test_weekly_runtime.py": {
       "mode": "100644",
-      "sha256": "99dc5b9cbb5c15ffc10a9e0255dac28d207659a687e113151d53c2e66c4d684d"
+      "sha256": "292852cbce3366c0b91a718bb07be00012190c1eda9463a4c23c2cd32412ca3e"
     },
     "noah/core/tests/test_weekly_selection.py": {
       "mode": "100644",
@@ -1760,7 +1760,7 @@
     },
     "noah/reports/assignment_worker.py": {
       "mode": "100644",
-      "sha256": "1a4cda1d130381144f7f2a1a238a1a0c57ef4fd3342246e16ec01ff1620ee412"
+      "sha256": "2e1e6e0785152938f8eacce7f7adb6f045e0d59085cc98b50393eb487ce4f671"
     },
     "noah/reports/assignments.py": {
       "mode": "100644",
@@ -1940,7 +1940,7 @@
     },
     "noah/reports/schedule.py": {
       "mode": "100644",
-      "sha256": "f8151feb1ce9a67b3d1f04c05fe033fb09b359684abcdefa28a8cc6d9ce1e380"
+      "sha256": "e8619773080bf7bb479b1881fc73ff15a0d97b57f7280f7f87bd79dd6efdb911"
     },
     "noah/reports/schedule_runner.py": {
       "mode": "100644",
@@ -1961,6 +1961,10 @@
     "noah/reports/tests/fixtures/oracle-vectors.json": {
       "mode": "100644",
       "sha256": "4a2261fbefe0ce5610f259d9cd030e6a80a2c3e3d9d25304f7eca5df3b442260"
+    },
+    "noah/reports/tests/fixtures/schedule-boundary-v1.json": {
+      "mode": "100644",
+      "sha256": "11d22d308f0dc3e4d262d40ca1a3dcf5cc1abff7e5903b7eae38601990c52d96"
     },
     "noah/reports/tests/fixtures/synthetic/RAW_EXPORT.md": {
       "mode": "100644",
@@ -2004,7 +2008,7 @@
     },
     "noah/reports/tests/test_assignment_execution.py": {
       "mode": "100644",
-      "sha256": "6e02990aa0bbc60211856738d179a00f74b727cfc2173da92a92e33e144321e0"
+      "sha256": "4c16fa46d008d2f9637e761c06a6f543041359109991ba4cbbb3000ce1722784"
     },
     "noah/reports/tests/test_assignment_hosted.py": {
       "mode": "100644",
@@ -2012,7 +2016,7 @@
     },
     "noah/reports/tests/test_assignment_v2.py": {
       "mode": "100644",
-      "sha256": "2f91fa8c98932ce30e6c0a4d0aeed13755b9aca02bc3477a7e10ce47d6cd8382"
+      "sha256": "32d60133c260653ddb6db48a7d09cecf2600c298a24f033e3769f323ba4ee66c"
     },
     "noah/reports/tests/test_assignments.py": {
       "mode": "100644",
@@ -2146,9 +2150,13 @@
       "mode": "100644",
       "sha256": "194ac67aa83b60f9b85bc188912282837d7b957dbf6a2d26255da6177f15c2db"
     },
+    "noah/reports/tests/test_schedule_recent.py": {
+      "mode": "100644",
+      "sha256": "4b00968cfbdc6de562a6193dc658aa732155f2c336e82a4fa3d1bb2c22551978"
+    },
     "noah/reports/tests/test_schedule_runner.py": {
       "mode": "100644",
-      "sha256": "840d9b19b5cffed0f6f5080667583355c0a0675043cbc0ef13abdbc36cc36491"
+      "sha256": "429564b6b69c1a9e722fc6eca441061cddfd67a255df4d2552e194dd255ab0e2"
     },
     "noah/reports/tests/test_sdk_timeout.py": {
       "mode": "100644",
@@ -2881,8 +2889,8 @@
   },
   "review": {
     "date": "2026-11-19",
-    "evidence_sha256": "4d01cfb8c982853786e248aff1e0655a61197c0108e53c6eb56d44d53790f7e9",
-    "owner": "Sole execution owner with independent bounded source review",
+    "evidence_sha256": "bd010a88cf6375cfbb3a39d59d31b99bf8c58363d4e8f4997f83a4af97b69241",
+    "owner": "Release owner with independent boundary source delta reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

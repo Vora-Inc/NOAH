@@ -172,6 +172,23 @@ The snapshot is the first finalized block at or after the daily snapshot time;
 its predecessor must be before that time. A delayed snapshot cannot move the
 windows. A miner may have only one outstanding report per mining subnet.
 
+Boundary discovery searches backward from the finalized head to bracket the
+snapshot time, then finds the exact first block within that bracket. Readers
+must retain the historical state needed for every bracket probe, the snapshot
+and its predecessor, as well as the report collection window. Missing state
+refuses resolution; it is never treated as a timestamp before the snapshot.
+The weekly assignment issuer uses the same search for the Sunday roster.
+This avoids requiring ancient half-chain state just to resolve a recent day
+or week; it does not remove the need to retain the probed bracket history.
+The existing request, time and byte limits remain in force.
+
+New resolutions retain `noah.report-schedule-boundary/2` proofs. Existing `/1`
+proofs replay with their original query sequence, including cached miner
+resolutions and retained validator evidence. The proof version does not change
+the schedule identity, round, report calculation or reward. A frozen request
+keeps its original financial source and bytes; changing that source or an
+unresolved publication intent still refuses a retry.
+
 ```sh
 noah-miner --config noah-deposit.ini report run --schedule report-schedule.json
 noah-miner --config noah-deposit.ini report run --schedule report-schedule.json --yes --follow

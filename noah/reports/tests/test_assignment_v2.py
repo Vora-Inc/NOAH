@@ -345,3 +345,36 @@ def test_subnet_enumeration_refuses_malformed_or_nonprogressing_pages(bad):
                 'malformed': [item[:-1] + 'z'], 'oversized': [item] * 257}[bad]
     source.call = call
     with pytest.raises(a.ReportError): a.supported_targets(Reader(source, '0x' + 'aa' * 32))
+
+
+def test_weekly_issuer_uses_recent_state_and_keeps_original_roster_and_week(case, monkeypatch):
+    from noah.reports import schedule
+    from noah.reports.backing.keys import timestamp_now_key
+    class RecentChain(Chain):
+        def __init__(self, earliest=0):
+            super().__init__()
+            self.earliest, self.timestamp_reads = earliest, []
+        def call(self, method, params):
+            if method == 'chain_getFinalizedHead':
+                return self.call('chain_getBlockHash', [9_540_000])
+            if method == 'state_getStorage' and params[0] == '0x' + timestamp_now_key().hex():
+                number = int(params[1], 16)
+                self.timestamp_reads.append(number)
+                if number < self.earliest:
+                    raise a.ReportError('synthetic historical state unavailable')
+                stamp = (1794700800 + (number - 9_500_000) * 12) * 1000
+                return '0x' + stamp.to_bytes(8, 'little').hex()
+            return super().call(method, params)
+    # The original issuer searched the full [1, head] interval. Only the search
+    # range differs; week construction and snapshot/roster checks stay real.
+    with monkeypatch.context() as old:
+        old.setattr(schedule, '_recent_range', lambda block, head, target: (1, head))
+        original = w._build(case.template, RecentChain())
+    source = RecentChain(earliest=9_440_000)
+    current = w._build(case.template, source)
+    assert current == original
+    assert current['week']['roster_block_number'] == 9_500_000
+    assert current['week']['week_start'] == '2026-11-15'
+    assert min(source.timestamp_reads) == 9_540_000 - 65536
+    with pytest.raises(a.ReportError, match='historical state unavailable'):
+        w._build(case.template, RecentChain(earliest=9_500_000))

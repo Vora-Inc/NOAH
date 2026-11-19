@@ -15,7 +15,7 @@ from noah.core.weekly_runtime import bind_template, marker_path, verify_no_bonus
 from noah.points.publication import check_before_send
 from noah.points.run import agreed
 from noah.reports.assignments import retain_week, sign_week
-from noah.reports.schedule import _resolve
+from noah.reports.schedule import BOUNDARY, LEGACY_BOUNDARY, _resolve
 from noah.reports.tests.test_schedule import ANCHOR, Chain
 
 
@@ -47,14 +47,14 @@ def later_r0(p, changed=None):
     return restarted, reference, vector
 
 
-def signed_week_setup(p, monkeypatch):
+def signed_week_setup(p, monkeypatch, *, boundary_schema=BOUNDARY):
     bind_template(p.root, p.configuration, persist=True)
     key = p.configuration['assignment_signer_public_key']
     week = sign_week(unsigned_week(p), p.pair, trusted_public_key=key)
     retain_week(p.root / 'report-state' / 'weekly-assignments', week, trusted_public_key=key)
     chain = Chain(shift=p.a.day_anchor_ts - ANCHOR, head=16000)
     monkeypatch.setattr(runtime, 'resolve_schedule',
-                        lambda policy, endpoints, day: _resolve(policy, [chain, chain], day))
+                        lambda policy, endpoints, day: _resolve(policy, [chain, chain], day, boundary_schema=boundary_schema))
     runner = p.a.runner_chain
     assert len(runner.endpoints) == 2
     runner.head_block = lambda: 16000
@@ -96,9 +96,10 @@ def open_unresolved_intent(p):
 
 
 @pytest.mark.parametrize('changed', [None, 'open-intent', 'policy', 'candidate'])
-def test_provider_outage_restart_at_later_height_resumes_original_request(prepared, monkeypatch, changed):
+@pytest.mark.parametrize('upgrade_boundary', [False, True])
+def test_provider_outage_restart_at_later_height_resumes_original_request(prepared, monkeypatch, changed, upgrade_boundary):
     p = prepared
-    request_path = signed_week_setup(p, monkeypatch)
+    request_path = signed_week_setup(p, monkeypatch, boundary_schema=LEGACY_BOUNDARY if upgrade_boundary else BOUNDARY)
     collected = []
     replies = []
     allocation_reads = []
@@ -127,6 +128,10 @@ def test_provider_outage_restart_at_later_height_resumes_original_request(prepar
     frozen_bytes = request_path.read_bytes()
     assert collected[0]['calculation']['reference'] == p.raw
 
+    if upgrade_boundary:
+        chain = Chain(shift=p.a.day_anchor_ts - ANCHOR, head=16000)
+        monkeypatch.setattr(runtime, 'resolve_schedule',
+                            lambda policy, endpoints, day: _resolve(policy, [chain, chain], day))
     restarted, later, vector = later_r0(p, 'candidate' if changed == 'candidate' else None)
     if changed is not None:
         if changed == 'open-intent':
@@ -156,6 +161,7 @@ def test_provider_outage_restart_at_later_height_resumes_original_request(prepar
     assert request_path.read_bytes() == frozen_bytes
     proof = report_publication.verify_report(p.root, restarted._calculation_reference)
     assert proof['source'] == p.raw and proof['request'] == collected[0]
+    assert proof['selection']['resolution']['base']['boundary_proof']['schema'] == BOUNDARY
     assert verify(p.root, later)['height'] == attempt_height
     runtime.check_before_send(restarted, restarted._calculation_reference, final)
     check_before_send(restarted, restarted._calculation_reference, final)
