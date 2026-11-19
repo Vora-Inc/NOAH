@@ -160,7 +160,7 @@
     },
     "docs/REPORTS.md": {
       "mode": "100644",
-      "sha256": "c8c23d63389e3dd8c99e9599aa4508fca309c7b93041737c32e98904e5e41468"
+      "sha256": "5eaeada4d8d165665a2a7d622e616cdf531da05254c9fedc9685602ad8d97d38"
     },
     "docs/REPORT_COMMITMENT_PROTOCOL.md": {
       "mode": "100644",
@@ -2861,8 +2861,8 @@
   },
   "review": {
     "date": "2026-11-19",
-    "evidence_sha256": "a91b1a07a80bebd0f5b23a64b133d691bf0eca629184ddaa925b3281e6616ba2",
-    "owner": "Independent validator-owner SDK application-delta reviewer",
+    "evidence_sha256": "75f385ab1bb73be7387c6822e4277242a4317dc88ef2b07c240d72f9af1fa06b",
+    "owner": "Independent validator-owner documentation-only equivalence reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

@@ -44,7 +44,7 @@ in the round and must match the miner configuration (82 on Mainnet; 2 on canonic
 Testnet). The reported subnet may be a different non-root subnet. Native versus
 foreign deposit accounting remains the responsibility of the ordinary scorer.
 
-Every miner computes the same three integer answers for that snapshot:
+For each assigned subnet, miners calculate three figures at the specified snapshot.
 
 1. Price drop in parts per million if the largest available non-Ark holder sells.
 2. Smallest sale causing at least a 10% price drop, in alpha rao.
