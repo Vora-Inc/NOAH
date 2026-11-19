@@ -1707,9 +1707,12 @@ class ChainAdapter:
         # engine; agree()'s TypeScript side hands the raw dict to the real
         # TypeScript CLI, which does its OWN independent parse -- the whole
         # point of a second, separately-written implementation).
+        # A retry can run at a later height for the same closed day. Its
+        # financial fixture must keep the same identity; the exact attempt
+        # height is retained separately in the calculation context.
         fixture = build_fixture(
             fixture_store,
-            name=f"height-{height}",
+            name=f"day-{day}",
             eval_day=day,
             day_epoch_ts=self.day_anchor_ts,
             dials=self.dials,

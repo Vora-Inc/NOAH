@@ -768,7 +768,7 @@
     },
     "noah/core/chain_adapter.py": {
       "mode": "100644",
-      "sha256": "dc7fb8d69d2cca41a65aaa3a43a521f61bcb13e9e79b6c994eae5dcad7f21e25"
+      "sha256": "7cbb0eeae8d779f296e91f117a60418395c4cc8742e1aa4450b36a4e5e128364"
     },
     "noah/core/commit_ledger.py": {
       "mode": "100644",
@@ -933,6 +933,10 @@
     "noah/core/tests/test_connection_sharing_investigation.py": {
       "mode": "100644",
       "sha256": "8cbe61f748c81fa3e4b41fc04c746902d03708689ac82fc8eb89e495e127c254"
+    },
+    "noah/core/tests/test_daily_calculation_retry.py": {
+      "mode": "100644",
+      "sha256": "5d7a384180f7b2f957a1488360cfd6f01cde6d9fff183e9c692c61a4da205312"
     },
     "noah/core/tests/test_day_readiness.py": {
       "mode": "100644",
@@ -2861,8 +2865,8 @@
   },
   "review": {
     "date": "2026-11-19",
-    "evidence_sha256": "75f385ab1bb73be7387c6822e4277242a4317dc88ef2b07c240d72f9af1fa06b",
-    "owner": "Independent validator-owner documentation-only equivalence reviewer",
+    "evidence_sha256": "ae16a45684f07bb68c7a13947122f8ae3eb62c94b454bf9c5e6963a465e493e4",
+    "owner": "Sole execution owner with independent bounded source review",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",
