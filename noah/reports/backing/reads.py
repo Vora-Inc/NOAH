@@ -76,12 +76,10 @@ class Reader:
         return self.runtime_spec
 
     def qualified_runtime(self, spec: int) -> bool:
-        from .constants import SUPPORTED_SPECS, RUNTIME_483_CODE_HASH
-        if spec in SUPPORTED_SPECS:
-            return True
-        if spec != 483:
-            return False
-        return self.source.call("state_getStorageHash", ["0x3a636f6465", self.block_hash]) == RUNTIME_483_CODE_HASH
+        from .constants import SUPPORTED_SPECS, RUNTIME_CODE_PINS
+        if spec in RUNTIME_CODE_PINS:
+            return self.source.call("state_getStorageHash", ["0x3a636f6465", self.block_hash]) == RUNTIME_CODE_PINS[spec]
+        return spec in SUPPORTED_SPECS
 
     def timestamp_ms(self) -> int:
         return self._u64(timestamp_now_key(), default=None)

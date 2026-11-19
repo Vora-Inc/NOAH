@@ -1,16 +1,17 @@
 """Read-only commitment quota at one finalized state; no wallet or submission.
 
-483/490 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
+483/490/491 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
 arithmetic. set_commitment resets UsedSpaceOf on *inequality* with that counter.
 """
 import re
 
 from ..common import ReportError
-from .constants import RUNTIME_483_CODE_HASH, SUBTENSOR_PIN
+from .constants import RUNTIME_CODE_PINS, SUBTENSOR_PIN, SUBTENSOR_491_PIN
 from .keys import ss58_decode, ss58_encode
 
 U64_MAX = 2**64 - 1
-SOURCE_PINS = {483: 'db3fdeb98bc82c38b238bfac9f6a3303a3361ee4', 490: SUBTENSOR_PIN}
+SOURCE_PINS = {483: 'db3fdeb98bc82c38b238bfac9f6a3303a3361ee4',
+               490: SUBTENSOR_PIN, 491: SUBTENSOR_491_PIN}
 
 
 def _require(condition, message):
@@ -59,7 +60,7 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
     """Return a public receipt; required_space=909 checks the whole new batch.
 
     All state queries use the same finalized hash. Runtime qualification retains
-    the existing adapter policy: exact483 code, or supported490 spec. Observed
+    the existing adapter policy: exact483/491 code, or supported490 spec. Observed
     code is recorded for either version; a source pin is not a new490 code proof.
     A positive result is an observation, not an atomic reservation.
     """
@@ -87,7 +88,7 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
         spec = _uint(version.get('specVersion'), 32)
         transaction = _uint(version.get('transactionVersion'), 32)
         code = _hash(rpc('state_getStorageHash', ['0x3a636f6465', pin]))
-        _require(spec in SOURCE_PINS and (spec != 483 or code == RUNTIME_483_CODE_HASH),
+        _require(spec in SOURCE_PINS and (spec not in RUNTIME_CODE_PINS or code == RUNTIME_CODE_PINS[spec]),
                  'unsupported finalized runtime')
         def query(module, name, params):
             result = substrate.query(module, name, params, block_hash=pin)
@@ -105,7 +106,7 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
                 'hotkey': normalized_hotkey, 'runtime': {
                     'spec_version': spec, 'transaction_version': transaction, 'code_hash': code,
                     'reviewed_source_commit': SOURCE_PINS[spec],
-                    'qualification': 'spec-and-code' if spec == 483 else 'supported-spec'},
+                    'qualification': 'spec-and-code' if spec in RUNTIME_CODE_PINS else 'supported-spec'},
                 **assessment}
     except ReportError:
         raise

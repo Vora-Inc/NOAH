@@ -495,15 +495,45 @@ class ChainReader:
 
     def recycle_or_burn(self, netuid):
         """Explicit Recycle or Burn. Missing storage is not treated as Burn."""
+        import re
+        from bittensor._transport.errors import SubstrateRequestException
+        from .prepared_transaction import _raw
+
+        if type(netuid) is not int or not 0 <= netuid <= 65535:
+            raise ChainUnreadable("RecycleOrBurn subnet is not a u16")
+
+        async def explicit_value():
+            raw = _raw(self.client)
+            pin = await raw.rpc_request("chain_getFinalizedHead", [])
+            if not isinstance(pin, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", pin):
+                raise ChainUnreadable("RecycleOrBurn finalized block is invalid")
+            codec = await raw._runtimes.codec_at(pin)
+            entry = codec.storage_entry(self.MODULE, "RecycleOrBurn")
+            if len(entry.param_types) != 1:
+                raise ChainUnreadable("RecycleOrBurn storage requires exactly one subnet key")
+            key = "0x" + codec.storage_key(entry, [netuid]).hex()
+            stored = await raw.rpc_request("state_getStorageAt", [key, pin])
+            if stored is None:
+                return None
+            # SDK query() replaces an absent Default value with Burn. Decode
+            # only the bytes actually present at this same finalized block.
+            if stored not in ("0x00", "0x01"):
+                raise ChainUnreadable("RecycleOrBurn storage is not a canonical enum")
+            value = codec.decode(entry.value_type, bytes.fromhex(stored[2:]))
+            if isinstance(value, dict) and len(value) == 1:
+                value = next(iter(value))
+            if value != {"0x00": "Burn", "0x01": "Recycle"}[stored]:
+                raise ChainUnreadable("RecycleOrBurn raw and decoded values differ")
+            return value
+
         try:
-            value = self._query("RecycleOrBurn", [netuid])
+            return self.client._call(explicit_value())
         except _storage_function_not_found_type():
             return None
-        if isinstance(value, dict) and len(value) == 1:
-            value = next(iter(value))
-        if value not in ("Burn", "Recycle"):
-            raise ChainUnreadable("RecycleOrBurn is not Burn or Recycle")
-        return value
+        except (_transport_failure_types() + (SubstrateRequestException, OSError)) as error:
+            raise ChainUnreadable(
+                f"could not read explicit RecycleOrBurn ({type(error).__name__})"
+            ) from None
 
     def epoch_consensus(self, netuid, block=None):
         """Read the selected consensus, refusing unknown or unreadable values.

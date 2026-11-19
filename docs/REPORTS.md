@@ -426,6 +426,9 @@ and sets `NOAH_BURN_ALLOCATION_BPS=9800`. These settings are for a separately
 qualified and approved activation; they are not shipping defaults or an
 instruction to enable an installed validator.
 Nonzero burn requires V2; the accepted burn values are only `0` and `9800`.
+Burn activation also requires an explicit on-chain `RecycleOrBurn=Burn` value.
+The validator reads the actual storage at a finalized block; an absent value
+does not qualify even if an SDK supplies the runtime's default `Burn` value.
 
 The name `NOAH_REPORT_GATE_ENABLED` is retained for compatibility. The reward
 selector matters: its default `gate` preserves the older penalty behavior.
@@ -517,9 +520,11 @@ unknown sends, concurrency, wrong identities, explicit windows, reconstruction,
 history corruption and the independent scoring toggle. The full runner includes
 that suite in its isolated third Python environment. Tests using synthetic or
 retained responses are not fresh live-chain qualification. Current protocol
-support includes runtime spec 490 and the exact official runtime-483 code hash.
-The 483 adapter reads `NetworksAdded` for existence; 490 uses `SubnetState`.
-A different 483 code hash is refused. Unsupported runtime behavior fails closed.
+support includes runtime spec 490 and the exact official runtime-483 and
+runtime-491 code hashes. The 483 adapter reads `NetworksAdded` for existence;
+490 and 491 use `SubnetState`. A different 483 or 491 code hash is refused.
+Unsupported runtime behavior fails closed. Runtime compatibility does not
+enable reporting or change the separate activation settings.
 
 The public package retains synthetic and oracle-vector regression suites. The
 exact-block SN82 raw-response corpus and its dedicated replay test are excluded

@@ -15,6 +15,7 @@ CODES = {
     486: '0x49781ac4cfda0ac6cf6e53cfceea7c728394d9c28da7881f47e3fbfbc239800f',
     488: '0x3147daab804046184359d8a929cb333d75f490323b9e1327887a172c64eafa94',
     490: '0x32a16fe6163e49ae26ade2413e80b14d641c56ab4d3246d4d39013b688369d54',
+    491: '0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
 }
 FIELDS = (('NetworksAdded', 'bool'), ('NetworkRegisteredAt', 'u64'),
           ('RegisteredSubnetCounter', 'u64'), ('SubnetMechanism', 'u16'))
