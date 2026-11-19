@@ -852,7 +852,7 @@
     },
     "noah/core/report_runtime.py": {
       "mode": "100644",
-      "sha256": "260a7a53bcb493ea82e61307ced06040761df4b438519d1217a4ad6ee362544b"
+      "sha256": "ce17e6cefb15f400bb935af026c0b5306f32ed3553c04caa6826d092ea955572"
     },
     "noah/core/rescale.py": {
       "mode": "100644",
@@ -1137,6 +1137,10 @@
     "noah/core/tests/test_wallet.py": {
       "mode": "100644",
       "sha256": "59f51135e3460fc202ebb1ab8874b1bb8ff2a6a016d8aa1b052ffad85f8e6948"
+    },
+    "noah/core/tests/test_weekly_report_retry_resume.py": {
+      "mode": "100644",
+      "sha256": "f2825b5adf08d890d2d183b60dc89b87a5002e2c69ebc7ca94ff038ce153efde"
     },
     "noah/core/tests/test_weekly_runtime.py": {
       "mode": "100644",
@@ -2865,7 +2869,7 @@
   },
   "review": {
     "date": "2026-11-19",
-    "evidence_sha256": "ae16a45684f07bb68c7a13947122f8ae3eb62c94b454bf9c5e6963a465e493e4",
+    "evidence_sha256": "d73885cb97feee5db08355a6429c390516c03b814a399943fa93c7445945a9ec",
     "owner": "Sole execution owner with independent bounded source review",
     "status": "reviewed"
   },

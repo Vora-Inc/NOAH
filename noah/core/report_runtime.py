@@ -422,6 +422,40 @@ def request_for(adapter, reference, policy, assignments=None):
     return request
 
 
+def resume_raw_source(adapter, current, frozen):
+    """Resume a frozen pre-send request without changing its financial evidence.
+
+    A later loop pin changes only the attempt height in an otherwise identical
+    raw calculation. Keep that new attempt's audit record, but use the original
+    R0 for its existing request/marker. Any other difference still refuses.
+    """
+    root = adapter._submitted_record_dir
+    latest = verify(root, current)
+    intent = getattr(adapter, "_publish_intent", None)
+    require(intent is None or intent.load() is None,
+            "frozen report retry has an unresolved publication intent")
+    original = verify(root, frozen)
+    contexts = [artifact(root, manifest, "context") for manifest in (latest, original)]
+    for reference, manifest, context in zip((current, frozen), (latest, original), contexts):
+        require(reference == {
+            "path": reference["path"], "sha256": reference["sha256"],
+            "day": manifest["day"], "genesis_hash": manifest["genesis_hash"],
+            "candidate_sha256": context.get("candidate", {}).get("source_sha256"),
+        } and context["height"] == manifest["height"]
+            and not any(name in context for name in
+                        ("report_gate", "report_no_bonus", "starter_overlay", "burn_allocation")),
+                "frozen report retry requires authentic raw calculation references")
+    require(type(original["height"]) is int and type(latest["height"]) is int
+            and original["height"] <= latest["height"], "frozen report retry moves backwards")
+    require({k: v for k, v in contexts[0].items() if k != "height"}
+            == {k: v for k, v in contexts[1].items() if k != "height"},
+            "frozen report retry calculation context differs")
+    expected = {**latest, "height": original["height"],
+                "artifacts": {**latest["artifacts"], "context": original["artifacts"]["context"]}}
+    require(original == expected, "frozen report retry financial evidence or vector differs")
+    return frozen, original
+
+
 def prepare_daily(adapter, vector):
     if not enabled(adapter):
         return vector
@@ -429,6 +463,7 @@ def prepare_daily(adapter, vector):
     source = adapter._calculation_reference
     require(source is not None, "report enforcement needs raw calculation evidence")
     manifest = verify(root, source)
+    attempt_height = manifest["height"]
     configuration = load_policy(adapter.report_gate_policy_path)
     bind_activation(adapter, configuration, persist=True)
     if manifest["day"] < configuration["effective_day"]:
@@ -446,8 +481,8 @@ def prepare_daily(adapter, vector):
         if marker.exists() or marker.is_symlink():
             saved = read_document(marker)
             validate_no_bonus_marker(root, saved)
-            require(saved["source"] == source
-                    and {str(k): v for k, v in vector.items()} == manifest["publishable_weights_u16"],
+            source, manifest = resume_raw_source(adapter, source, saved["source"])
+            require({str(k): v for k, v in vector.items()} == manifest["publishable_weights_u16"],
                     "frozen no-bonus source or vector differs; preserve original attempt")
             adapter._calculation_reference = saved["reference"]
             return vector
@@ -470,7 +505,9 @@ def prepare_daily(adapter, vector):
     path = root / "report-state" / f"day-{manifest['day']}.request.json"
     if path.exists():
         request = json.loads(path.read_text())
-        require(request["calculation"]["reference"] == source and request["policy"] == policy
+        source, manifest = resume_raw_source(adapter, source, request["calculation"]["reference"])
+        require(request["calculation"]["fixture_sha256"] == manifest["artifacts"]["fixture"]["sha256"]
+                and request["policy"] == policy
                 and request.get("assignments") == assignments,
                 "frozen report request differs; preserve original attempt")
     else:
@@ -510,7 +547,7 @@ def prepare_daily(adapter, vector):
                 os.close(fd)
     package = {"path": f"reports/{sha}/manifest.json", "sha256": sha}
     ref, gated = retain_report(root, source, request, package,
-                               allocation_inputs(adapter, manifest["height"]), selection=selection,
+                               allocation_inputs(adapter, attempt_height), selection=selection,
                                reward=selected_reward(adapter, manifest["day"]),
                                reward_transition=transition_reference(adapter, manifest["day"]))
     adapter._calculation_reference = ref
