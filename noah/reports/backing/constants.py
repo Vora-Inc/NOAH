@@ -16,9 +16,11 @@ PERCENT_DIVISOR = 10_000
 THRESHOLD_10 = (9, 10)  # 10% drop
 THRESHOLD_20 = (4, 5)  # 20% drop
 
-SUPPORTED_SPECS = frozenset({490, 491})
+# Runtime 490 historically admits by spec. Other supported runtimes require a code pin.
+SUPPORTED_SPECS = frozenset({490})
 SUBTENSOR_PIN = "d967d13588834f4f5aaa8ef4c8fc1a865d581462"
 SUBTENSOR_491_PIN = "be3a11b1a5300bb58d6fbad3c629e4a926bb2f44"
+SUBTENSOR_492_PIN = "541a50d38764acdce23578bd8ba54f80156ffb2a"
 
 # Reviewed runtime 483 adapter, restricted to the official release code.
 # Other chains/code with that spec number are not implicitly compatible.
@@ -26,7 +28,14 @@ RUNTIME_483_CODE_HASH = "0x99856ec64a61eb8011999a803bd336979512275214a173fea583a
 # Official v491 WASM matched by both Mainnet readers. Relevant runtime API,
 # storage and arithmetic contracts were reviewed against the retained v490 pin.
 RUNTIME_491_CODE_HASH = "0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c"
-RUNTIME_CODE_PINS = {483: RUNTIME_483_CODE_HASH, 491: RUNTIME_491_CODE_HASH}
+# Official v492 WASM matched both Mainnet readers and the reviewed v491
+# report storage, runtime API and call shapes.
+RUNTIME_492_CODE_HASH = "0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e"
+RUNTIME_CODE_PINS = {
+    483: RUNTIME_483_CODE_HASH,
+    491: RUNTIME_491_CODE_HASH,
+    492: RUNTIME_492_CODE_HASH,
+}
 
 MINIMUM_RESERVE = 1_000_000
 MAX_INPUT_MULTIPLIER = 1000

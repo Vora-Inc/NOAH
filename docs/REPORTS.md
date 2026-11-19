@@ -538,8 +538,9 @@ history corruption and the independent scoring toggle. The full runner includes
 that suite in its isolated third Python environment. Tests using synthetic or
 retained responses are not fresh live-chain qualification. Current protocol
 support includes runtime spec 490 and the exact official runtime-483 and
-runtime-491 code hashes. The 483 adapter reads `NetworksAdded` for existence;
-490 and 491 use `SubnetState`. A different 483 or 491 code hash is refused.
+runtime-491 and runtime-492 code hashes. The 483 adapter reads `NetworksAdded`
+for existence; 490, 491 and 492 use `SubnetState`. A different 483, 491 or 492
+code hash is refused.
 Unsupported runtime behavior fails closed. Runtime compatibility does not
 enable reporting or change the separate activation settings.
 

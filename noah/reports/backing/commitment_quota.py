@@ -1,17 +1,21 @@
 """Read-only commitment quota at one finalized state; no wallet or submission.
 
-483/490/491 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
+483/490/491/492 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
 arithmetic. set_commitment resets UsedSpaceOf on *inequality* with that counter.
 """
 import re
 
 from ..common import ReportError
-from .constants import RUNTIME_CODE_PINS, SUBTENSOR_PIN, SUBTENSOR_491_PIN
+from .constants import RUNTIME_CODE_PINS, SUBTENSOR_PIN, SUBTENSOR_491_PIN, SUBTENSOR_492_PIN
 from .keys import ss58_decode, ss58_encode
 
 U64_MAX = 2**64 - 1
-SOURCE_PINS = {483: 'db3fdeb98bc82c38b238bfac9f6a3303a3361ee4',
-               490: SUBTENSOR_PIN, 491: SUBTENSOR_491_PIN}
+SOURCE_PINS = {
+    483: 'db3fdeb98bc82c38b238bfac9f6a3303a3361ee4',
+    490: SUBTENSOR_PIN,
+    491: SUBTENSOR_491_PIN,
+    492: SUBTENSOR_492_PIN,
+}
 
 
 def _require(condition, message):
@@ -60,8 +64,8 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
     """Return a public receipt; required_space=909 checks the whole new batch.
 
     All state queries use the same finalized hash. Runtime qualification retains
-    the existing adapter policy: exact483/491 code, or supported490 spec. Observed
-    code is recorded for either version; a source pin is not a new490 code proof.
+    the existing adapter policy: exact 483/491/492 code, or the supported 490 spec.
+    The receipt records the observed code for each runtime.
     A positive result is an observation, not an atomic reservation.
     """
     _require(1 <= _uint(mining_netuid, 16) <= 65535, 'invalid mining subnet')
