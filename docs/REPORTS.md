@@ -443,9 +443,14 @@ and sets `NOAH_BURN_ALLOCATION_BPS=9800`. These settings are for a separately
 qualified and approved activation; they are not shipping defaults or an
 instruction to enable an installed validator.
 Nonzero burn requires V2; the accepted burn values are only `0` and `9800`.
-Burn activation also requires an explicit on-chain `RecycleOrBurn=Burn` value.
-The validator reads the actual storage at a finalized block; an absent value
-does not qualify even if an SDK supplies the runtime's default `Burn` value.
+Burn activation also requires verified effective `RecycleOrBurn=Burn` behavior.
+An explicit raw Burn value follows the existing verification path. An absent
+value qualifies only for exact reviewed runtime 483 or 492 code and V15 metadata,
+with matching raw-state evidence from the paired readers and author RPC at one
+finalized block. An SDK-supplied default alone never qualifies. These checks run
+again before sending; unknown semantics, unreadable state and Recycle refuse.
+See [effective Burn verification](BURN_EVIDENCE.md) for the evidence contract and
+historical receipt compatibility.
 
 The name `NOAH_REPORT_GATE_ENABLED` is retained for compatibility. The reward
 selector matters: its default `gate` preserves the older penalty behavior.

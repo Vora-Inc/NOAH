@@ -1926,9 +1926,11 @@ class ChainAdapter:
             raise PublicationRefused("nonzero burn allocation requires V2")
         if self._calculation_reference is None or self._submitted_record_dir is None:
             raise PublicationRefused("burn allocation requires the retained pre-burn calculation")
-        destination = authenticate_destination(self.runner_chain, self.netuid, self.reader)
-        limits = read_limits(self.reader, self.netuid)
-        published, body = prove(vector, ENABLED if bps == ENABLED else bps, destination, limits)
+        destination, burn_context = authenticate_destination(
+            self.runner_chain, self.netuid, self.reader, include_evidence=True)
+        limits = read_limits(self.reader, self.netuid, burn_context=burn_context)
+        published, body = prove(vector, ENABLED if bps == ENABLED else bps, destination, limits,
+                                burn_context=burn_context)
         if published is vector:
             return vector
         self._calculation_reference = wrap_allocation(

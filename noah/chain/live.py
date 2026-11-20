@@ -991,6 +991,15 @@ class LiveRunnerChain:
 
     # -- how anything is asked ------------------------------------------------
 
+    def burn_context(self, block, netuid, *, expected_block_hash):
+        from .burn_context import read, require
+        from .token_context import rpc
+        block_hash = self.block_hash(block)
+        require(block_hash == expected_block_hash, 'effective Burn pin differs')
+        return self._ask('effective Burn context', lambda: read(
+            lambda method, params: rpc(self._connection, method, params),
+            block, block_hash, netuid))
+
     def token_reference_context(self, block, netuids):
         from .token_context import read
         block_hash = self.block_hash(block)

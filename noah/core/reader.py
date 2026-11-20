@@ -493,6 +493,19 @@ class ChainReader:
             raise ChainUnreadable("MinAllowedWeights is not a count")
         return value
 
+    def burn_context(self, block, netuid, *, expected_block_hash):
+        """Author RPC evidence at the same finalized pin as the paired readers."""
+        from ..chain.burn_context import read
+        from .prepared_transaction import rpc
+        from bittensor._transport.errors import SubstrateRequestException
+        try:
+            return read(lambda method, params: rpc(self.client, method, params),
+                        block, expected_block_hash, netuid)
+        except (_transport_failure_types() + (SubstrateRequestException, OSError)) as error:
+            raise ChainUnreadable(
+                f"could not read effective Burn evidence ({type(error).__name__})"
+            ) from None
+
     def recycle_or_burn(self, netuid):
         """Explicit Recycle or Burn. Missing storage is not treated as Burn."""
         import re

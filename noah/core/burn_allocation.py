@@ -70,7 +70,7 @@ def require_chain_limits(vector, *, max_weight_limit, min_allowed_weights, epoch
     if epoch_consensus != "Yuma":
         raise BurnAllocationRefused("burn allocation requires Yuma consensus")
     if recycle_or_burn != "Burn":
-        raise BurnAllocationRefused("burn allocation requires explicit Burn storage")
+        raise BurnAllocationRefused("burn allocation requires explicit or proven effective Burn")
     if type(max_weight_limit) is not int or isinstance(max_weight_limit, bool) or not 0 <= max_weight_limit <= U16_MAX:
         raise BurnAllocationRefused("MaxWeightsLimit is not a u16")
     if type(min_allowed_weights) is not int or isinstance(min_allowed_weights, bool) or min_allowed_weights < 0:

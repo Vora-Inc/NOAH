@@ -297,6 +297,11 @@ class AgreeingChain:
             "holdingMapsDeclared", block, lambda client: client.holding_maps_declared(block)
         )
 
+    def burn_context(self, block, netuid, *, expected_block_hash):
+        return self._agreed('effectiveBurnContext', block,
+                            lambda client: client.burn_context(
+                                block, netuid, expected_block_hash=expected_block_hash))
+
     def token_reference_context(self, block, netuids):
         return self._agreed("tokenReferenceContext", block,
                             lambda client: client.token_reference_context(block, netuids))

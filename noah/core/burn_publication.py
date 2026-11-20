@@ -23,6 +23,12 @@ def allocation_of(context):
         return None
     if type(value) is not dict or value.get("schema") != SCHEMA:
         raise PublicationRefused("burn proof is missing or corrupt")
+    if 'burn_context' in value:
+        from ..chain.burn_context import validate
+        evidence = validate(value['burn_context'])
+        if (evidence['netuid'] != context.get('netuid')
+                or evidence['genesis'] != context.get('genesis_hash')):
+            raise PublicationRefused('effective Burn proof chain/subnet differs from calculation')
     return value
 
 
@@ -44,7 +50,7 @@ def wrap_allocation(directory, source_reference, published, body):
     )
 
 
-def prove(vector, bps, destination, limits):
+def prove(vector, bps, destination, limits, *, burn_context=None):
     """Build the published vector and the proof body from the pre-burn vector."""
     destination_uid = None if destination is None else destination["uid"]
     published = allocate(vector, bps, destination_uid)
@@ -57,6 +63,9 @@ def prove(vector, bps, destination, limits):
         "pre_burn_u16": {str(uid): weight for uid, weight in vector.items()},
         "limits": limits,
     }
+    if burn_context is not None:
+        from ..chain.burn_context import validate
+        body['burn_context'] = validate(burn_context)
     return published, body
 
 
@@ -87,8 +96,9 @@ def recompute(directory, reference, vector):
         return proof["destination"]["uid"]
     if proof["bps"] != OFF or "replaces" not in proof:
         raise PublicationRefused("burn proof is missing or corrupt")
-    replaced = artifact(directory, source, "context").get("burn_allocation")
-    if allocation_of({"burn_allocation": replaced}) is None:
+    replaced_context = artifact(directory, source, "context")
+    replaced = allocation_of(replaced_context)
+    if replaced is None:
         raise PublicationRefused("burn removal does not name a burn publication")
     replaced_pre = {int(uid): weight for uid, weight in replaced["pre_burn_u16"].items()}
     replaced_published = {int(uid): weight for uid, weight in source["publishable_weights_u16"].items()}
@@ -100,6 +110,9 @@ def recompute(directory, reference, vector):
 
 
 def _require_recompute(proof, published):
+    if 'burn_context' in proof:
+        from ..chain.burn_context import validate
+        validate(proof['burn_context'])
     try:
         pre = {int(uid): weight for uid, weight in proof["pre_burn_u16"].items()}
         destination = proof.get("destination")
@@ -120,7 +133,7 @@ def _owner_paid(vector, owner_uids):
     return any(vector.get(uid, 0) for uid in owner_uids)
 
 
-def authenticate_destination(chain, netuid, reader):
+def authenticate_destination(chain, netuid, reader, *, include_evidence=False):
     """The SubnetOwnerHotkey UID whose coldkey is SubnetOwner, at the current head."""
     block = chain.head_block()
     coldkey, hotkey = chain.subnet_owner(block)
@@ -132,17 +145,41 @@ def authenticate_destination(chain, netuid, reader):
     owner = chain.hotkey_owners([hotkey], block).get(hotkey)
     if owner != coldkey:
         raise PublicationRefused("burn destination coldkey is not SubnetOwner")
-    if reader.recycle_or_burn(netuid) != "Burn":
-        raise PublicationRefused("burn destination requires explicit Burn storage")
-    return {"uid": uid, "hotkey": hotkey, "coldkey": coldkey}
+    evidence = None
+    value = reader.recycle_or_burn(netuid)
+    if value is None:
+        # Absence alone never permits a burn. Both independently checked
+        # readers and the author must prove the same reviewed runtime state.
+        pin = chain.block_hash(block)
+        evidence = chain.burn_context(block, netuid, expected_block_hash=pin)
+        from ..chain.burn_context import validate
+        validate(evidence)
+        if (evidence['block'] != block or evidence['block_hash'] != pin
+                or evidence['netuid'] != netuid
+                or evidence['genesis'] != chain.genesis_hash()):
+            raise PublicationRefused('effective Burn proof is for a different chain or pin')
+        author = reader.burn_context(block, netuid, expected_block_hash=pin)
+        validate(author)
+        if author != evidence:
+            raise PublicationRefused('effective Burn author and paired readers disagree')
+    elif value != "Burn":
+        raise PublicationRefused("burn destination requires explicit or proven effective Burn")
+    destination = {"uid": uid, "hotkey": hotkey, "coldkey": coldkey}
+    return (destination, evidence) if include_evidence else destination
 
 
-def read_limits(reader, netuid):
+def read_limits(reader, netuid, *, burn_context=None):
+    if burn_context is not None:
+        from ..chain.burn_context import validate
+        validate(burn_context)
+        if burn_context['netuid'] != netuid:
+            raise PublicationRefused('effective Burn proof subnet differs')
     return {
         "max_weight_limit": reader.max_weights_limit(netuid),
         "min_allowed_weights": reader.min_allowed_weights(netuid),
         "epoch_consensus": reader.epoch_consensus(netuid),
-        "recycle_or_burn": reader.recycle_or_burn(netuid),
+        "recycle_or_burn": (burn_context['effective'] if burn_context is not None
+                            else reader.recycle_or_burn(netuid)),
     }
 
 
@@ -156,10 +193,11 @@ def recheck_for_send(adapter, reference, vector):
         return None
     if not any(vector.values()):
         return None
-    destination = authenticate_destination(adapter.runner_chain, adapter.netuid, adapter.reader)
+    destination, burn_context = authenticate_destination(
+        adapter.runner_chain, adapter.netuid, adapter.reader, include_evidence=True)
     if destination != proof["destination"] or destination["uid"] != destination_uid:
         raise PublicationRefused("burn destination changed before signing")
-    limits = read_limits(adapter.reader, adapter.netuid)
+    limits = read_limits(adapter.reader, adapter.netuid, burn_context=burn_context)
     require_chain_limits(vector, **limits)
     if limits["recycle_or_burn"] != "Burn" or limits["epoch_consensus"] != "Yuma":
         raise PublicationRefused("burn chain limits changed before signing")

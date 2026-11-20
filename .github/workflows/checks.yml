@@ -35,7 +35,7 @@ jobs:
           import sys
           import zlib
 
-          # One reviewed binary fixture, never a generic archive exemption.
+          # Exact reviewed public metadata fixtures, never a generic archive exemption.
           fixture = Path("noah/reports/tests/fixtures/synthetic/runtime490-metadata.hex.gz")
           with fixture.open("rb") as handle:
               compressed = handle.read(144897)
@@ -52,12 +52,31 @@ jobs:
           assert len(metadata) == 396208 and metadata.startswith(b"meta")
           assert hashlib.sha256(metadata).hexdigest() == "a76cbe520927d0e232533b84bef160e029b0cd8acf782de458d2d2008500bebc"
 
+          reviewed_fixtures = [fixture]
+          for name, size, digest, expanded_size, expanded_digest in (
+              ("runtime483-v15.scale.gz", 128359, "64c0d88358a68ef5543ac2da471538bb7736af0b2fd991641ed8f449f2fc399f", 411511, "eb3df3b6d0f2677d96e515d667259ec046cedd6059a4bdfc6848d44f5fd1b15a"),
+              ("runtime492-v15.scale.gz", 137407, "994c9b8918188c52844ff85ff2dc56c315352a9b9140e0efb6fbc364f30d45f5", 440461, "a397a753ad67ba335fb02cd5c54ccb0c1149fbf981f3ed6d9df44d49ca5bf71d"),
+          ):
+              public_fixture = Path("noah/chain/tests/fixtures") / name
+              with public_fixture.open("rb") as handle:
+                  compressed = handle.read(size + 1)
+              assert len(compressed) == size
+              assert hashlib.sha256(compressed).hexdigest() == digest
+              assert compressed[:10] == bytes.fromhex("1f8b08000000000002ff")
+              decoder = zlib.decompressobj(31)
+              expanded = decoder.decompress(compressed, expanded_size + 1)
+              assert decoder.eof and not decoder.unused_data and not decoder.unconsumed_tail
+              assert len(expanded) == expanded_size and expanded.startswith(b"meta\x0f")
+              assert hashlib.sha256(expanded).hexdigest() == expanded_digest
+              reviewed_fixtures.append(public_fixture)
+
           paths = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
           paths = ["./" + path for path in paths if path]
           if not paths:
               raise SystemExit("No tracked files to scan")
           raise SystemExit(subprocess.call([
-              sys.executable, "-m", "noah.secret_scan", "--release", "--strict", "--expected-refused", str(fixture), *paths
+              sys.executable, "-m", "noah.secret_scan", "--release", "--strict",
+              *(part for path in reviewed_fixtures for part in ("--expected-refused", str(path))), *paths
           ]))
           PY
       - name: Install review dependencies
