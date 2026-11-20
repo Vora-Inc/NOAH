@@ -32,7 +32,7 @@
     },
     ".github/workflows/checks.yml": {
       "mode": "100644",
-      "sha256": "e7517a5430da04c01051efc4f515d2940dfbd5886e6fb09b7fbc609b33f0140e"
+      "sha256": "c8040c7be6e15e6288f0577e1faedc69df84f4db01f1b7b93a96b1b3c0a3ea32"
     },
     ".github/workflows/dependency-audit.yml": {
       "mode": "100644",
@@ -2933,8 +2933,8 @@
   },
   "review": {
     "date": "2026-11-20",
-    "evidence_sha256": "bd341371aeb92d51a1c6606cca458013213281449f7c5bee12d19d5e3fe48d0d",
-    "owner": "Codex independent runtime493 public delta reviewer",
+    "evidence_sha256": "6ddee6caf03ede43539fa0c23f214942f60220e43bc3996ea7a37b71ed1d3055",
+    "owner": "Codex independent runtime493 CI fixture follow-up reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

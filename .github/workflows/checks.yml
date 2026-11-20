@@ -56,6 +56,7 @@ jobs:
           for name, size, digest, expanded_size, expanded_digest in (
               ("runtime483-v15.scale.gz", 128359, "64c0d88358a68ef5543ac2da471538bb7736af0b2fd991641ed8f449f2fc399f", 411511, "eb3df3b6d0f2677d96e515d667259ec046cedd6059a4bdfc6848d44f5fd1b15a"),
               ("runtime492-v15.scale.gz", 137407, "994c9b8918188c52844ff85ff2dc56c315352a9b9140e0efb6fbc364f30d45f5", 440461, "a397a753ad67ba335fb02cd5c54ccb0c1149fbf981f3ed6d9df44d49ca5bf71d"),
+              ("runtime493-v15.scale.gz", 137474, "1a8f798d203eb98882798e5f962a1bc4c640db3b0605234722cd85c1e381ecbb", 440323, "89f3e67a94db5f9a155678122b5a5daff5b2ddbb1f179ac669df996bd3332a98"),
           ):
               public_fixture = Path("noah/chain/tests/fixtures") / name
               with public_fixture.open("rb") as handle:
