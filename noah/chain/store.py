@@ -2219,17 +2219,23 @@ class Store:
         ).fetchall()
         return [row[0] for row in rows]
 
-    def known_hotkeys_of(self, coldkey):
+    def known_hotkeys_of(self, coldkey, *, through_day=None):
         """Every hotkey this store has recorded against this wallet's deposits
         (the validator hotkey the alpha arrived on, and the miner hotkey a
         remark attributed it to), sorted. Read-only; used to name the hotkeys a
         holding sample must be able to prove ``StakingHotkeys`` did not omit.
+        ``through_day`` pins historical reads to the knowledge available through
+        that UTC day; omitted known positions still require a real share read.
         """
+        if through_day is not None:
+            _whole_amount(through_day, "through day")
+        bound = " AND day <= ?" if through_day is not None else ""
+        args = (coldkey, through_day) if through_day is not None else (coldkey,)
         rows = self._conn.execute(
             "SELECT hotkey FROM noah_deposit WHERE coldkey = ? AND hotkey IS NOT NULL "
-            "UNION SELECT origin_hotkey FROM noah_deposit "
-            "WHERE coldkey = ? AND origin_hotkey IS NOT NULL",
-            (coldkey, coldkey),
+            + bound + " UNION SELECT origin_hotkey FROM noah_deposit "
+            "WHERE coldkey = ? AND origin_hotkey IS NOT NULL" + bound,
+            args + args,
         ).fetchall()
         return sorted(row[0] for row in rows)
 
@@ -2669,7 +2675,7 @@ class Store:
 
     # ---- the day a participant first appears --------------------------------
 
-    def first_activity_day(self, coldkey):
+    def first_activity_day(self, coldkey, *, through_day=None):
         """The earliest day this wallet was paid anything or contributed anything.
 
         A day the wallet was paid zero is not an appearance. The chain records
@@ -2689,7 +2695,8 @@ class Store:
         This is the earliest day among what has actually been scanned. It
         cannot see activity in a day nobody read, so a caller assembling a
         fixture has to satisfy itself that the days below this one were
-        covered.
+        covered. ``through_day`` excludes later observations during a historical
+        close/retry, without changing the default all-history query.
         """
         _identifier(coldkey, "wallet")
         days = [
@@ -2706,7 +2713,9 @@ class Store:
                 "SELECT MIN(day) FROM foreign_deposit WHERE coldkey = ?", (coldkey,)
             ).fetchone()[0],
         ]
-        seen = [w for w in days if w is not None]
+        if through_day is not None:
+            _whole_amount(through_day, "through day")
+        seen = [w for w in days if w is not None and (through_day is None or w <= through_day)]
         return min(seen) if seen else None
 
     def first_activity_day_for_hotkey(self, coldkey, hotkey):
@@ -3379,17 +3388,25 @@ class Store:
                     events_sha256=hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
 
 
-    def wallets_seen(self):
+    def wallets_seen(self, *, through_day=None):
         """Every wallet this store has observed doing anything, in one order.
 
         Sorted rather than left in whatever order the tables produce, because
         two implementations have to agree byte for byte on what comes out of
-        this and nothing may depend on a query plan.
+        this and nothing may depend on a query plan. ``through_day`` fixes the
+        cohort for historical sampling even after a later day was collected.
+        Zero pay and unattributed deposit rows retain their existing membership.
         """
+        if through_day is not None:
+            _whole_amount(through_day, "through day")
+        bound = " WHERE day <= ?" if through_day is not None else ""
+        args = (through_day,) if through_day is not None else ()
         wallets = set()
         for table in ("attributed_pay", "noah_deposit", "foreign_deposit"):
             wallets.update(
-                row[0] for row in self._conn.execute(f"SELECT DISTINCT coldkey FROM {table}")
+                row[0] for row in self._conn.execute(
+                    f"SELECT DISTINCT coldkey FROM {table}" + bound, args
+                )
             )
         return sorted(wallets)
 

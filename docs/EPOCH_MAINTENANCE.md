@@ -19,6 +19,13 @@ the latest completed day's fresh scores supply the next daily publication.
 A catch-up record never substitutes for a finalized transaction receipt. Preserve
 these records and their retained calculations in backups and restored state.
 
+Reconstruct each completed day using activity and holding cohorts through that
+day. Collecting a later day's receipts must not change an earlier day's first
+activity, registration fallback or holding samples. Later receipts remain in the
+ledger for their own days. The existing within-day sampling grid and completeness
+checks still apply; a retry must not delete historical samples or replace retained
+calculations to hide a mismatch.
+
 Preserve publication intents and receipts across restarts. Resolve an uncertain
 submission before sending again. See [publication recovery](runbooks/publication-status-unknown.md).
 [Legacy epoch maintenance](LEGACY_EPOCH_MAINTENANCE.md) describes older modes,

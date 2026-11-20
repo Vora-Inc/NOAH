@@ -32,6 +32,12 @@ original dates of earnings and deposits. The next complete calculation must
 include those days' accounting; missing history must refuse. Only an actual
 finalized publication establishes that a score vector was applied on-chain.
 
+When reconstructing a historical day from a newer ledger, bound activity and
+holding cohorts to that day's cutoff. Compare the entire retained fixture and
+output, including zero-weight miners: matching only the positive weights can miss
+lost accounting history. Keep later receipts and original records intact when
+investigating a difference.
+
 See [the rules and examples](ORDINARY_SCORING.md). Older evidence formats remain
 supported for historical verification, documented in [legacy verification](LEGACY_VERIFYING_SCORES.md).
 No starter allocation should be added to a V5 result.

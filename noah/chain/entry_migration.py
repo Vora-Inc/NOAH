@@ -100,6 +100,7 @@ class FrozenEntries:
         if not isinstance(payload["records"], list):
             raise ValueError("entry records must be an array")
         self._store, self._seat, self._wallet = store, {}, {}
+        self._as_of_day = as_of_day
         self._registration_starts = {
             cold: max(
                 payload["asOfDay"] + 1,
@@ -159,12 +160,15 @@ class FrozenEntries:
             raise ValueError("entry receipts changed after validation")
         return remaining
 
-    def first_activity_day(self, coldkey):
+    def first_activity_day(self, coldkey, *, through_day=None):
         # A verified registration admits a never-paid, never-funded newcomer
         # starting no earlier than this policy's activation day.
         # Preserve the existing first activity of every established wallet;
         # the fallback adds no fictitious receipt, entry credit or payment.
-        observed = self._store.first_activity_day(coldkey)
+        cutoff = self._as_of_day
+        if through_day is not None:
+            cutoff = min(cutoff, integer(through_day, "through day"))
+        observed = self._store.first_activity_day(coldkey, through_day=cutoff)
         return observed if observed is not None else self._registration_starts.get(coldkey)
 
     def noah_deposits(self, coldkey, day):

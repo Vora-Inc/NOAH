@@ -92,7 +92,7 @@
     },
     "docs/EPOCH_MAINTENANCE.md": {
       "mode": "100644",
-      "sha256": "1388d2cc77e39f7ff1f36e0aa3f8ee739f1233c938ea925a78b1c8197c80a440"
+      "sha256": "6fb39bed2a8157b1f9e0bcb23b7d77deeb3202a6245e8fd1eecd0a2fafc00ec3"
     },
     "docs/GLOSSARY.md": {
       "mode": "100644",
@@ -104,7 +104,7 @@
     },
     "docs/LEGACY_EPOCH_MAINTENANCE.md": {
       "mode": "100644",
-      "sha256": "4314cf5fd39bd8848b25a22425b7f62a9027ea0de7806b77d04dba0dd240442f"
+      "sha256": "224abe541b1b31010621a0e81a2005ab545fab115fe21b88f355be6cd324a5ae"
     },
     "docs/LEGACY_PARTICIPATION.md": {
       "mode": "100644",
@@ -192,7 +192,7 @@
     },
     "docs/VERIFYING_SCORES.md": {
       "mode": "100644",
-      "sha256": "af9cc05630b8222aa897977181d0fa7894a52809f275d1fe03535212a901cd76"
+      "sha256": "e5d67125f82de0668369cbcdca12be81ec7e507aacca4d9400264e178422677f"
     },
     "docs/parameters/profiles/m1-revised-v1.json": {
       "mode": "100644",
@@ -440,7 +440,7 @@
     },
     "noah/chain/collection.py": {
       "mode": "100644",
-      "sha256": "3664419fa6a0b033bafb4c74f07613ed34c18e2ea659616ceb75cb6c992b99b9"
+      "sha256": "70c6783965a16eb9a05727681fbc7799327660fa759c46649a68c663e77449dd"
     },
     "noah/chain/dayblocks.py": {
       "mode": "100644",
@@ -476,11 +476,11 @@
     },
     "noah/chain/entry_migration.py": {
       "mode": "100644",
-      "sha256": "2af9a1e79ed3417907c4229236be5ac06111851ff0c5b5b8832b5dc89476c6d0"
+      "sha256": "0ff3c314e07fa86b781933a3ddc2ca26b159cd834528bed0828e897a1868975b"
     },
     "noah/chain/fixture_build.py": {
       "mode": "100644",
-      "sha256": "fb73b50296054740c5789ad74c426bf02422b20727e3e5c798c4607fce8833f9"
+      "sha256": "36bd3b7e18606aee6a7334a1d6eb8b348453ec077cf81a72ea69d7627749f231"
     },
     "noah/chain/foreign_rescan.py": {
       "mode": "100644",
@@ -532,7 +532,7 @@
     },
     "noah/chain/runner.py": {
       "mode": "100644",
-      "sha256": "ce4d86f8ffca6dc0c12ee4ad768cfe599e11ca9579b2c5168ddfa5ea9c27fad3"
+      "sha256": "d52a378197039cb61fefd8dcf4853fadfce60c2ac6843326bd48281c4d374e56"
     },
     "noah/chain/seats.py": {
       "mode": "100644",
@@ -548,7 +548,7 @@
     },
     "noah/chain/store.py": {
       "mode": "100644",
-      "sha256": "83bf11a920e8d3c0d3e57d5fb941ea7062f384be55aab8b8f8856f52c767b3c8"
+      "sha256": "b342b5a90f577c2ccf35d7306fdbe13c30371eee4642d5f5556828eb57d1b7f3"
     },
     "noah/chain/tests/__init__.py": {
       "mode": "100644",
@@ -653,6 +653,10 @@
     "noah/chain/tests/test_genesis_times.py": {
       "mode": "100644",
       "sha256": "73dd8f0257436b94c99b7502e8c7944f389f7fdddaccdfe3d00c7ccbea147f59"
+    },
+    "noah/chain/tests/test_historical_cutoff_retry.py": {
+      "mode": "100644",
+      "sha256": "6634245f04a2c061a4730ebce5d459855822eb6970d543511c995729fa2b0c51"
     },
     "noah/chain/tests/test_history_check.py": {
       "mode": "100644",
@@ -2917,8 +2921,8 @@
   },
   "review": {
     "date": "2026-11-20",
-    "evidence_sha256": "adb5cbbf17011466772a25456453e1653a238c6a753713d7f7b40eaeb6714924",
-    "owner": "Release owner with independent effective-Burn reachability reviewer",
+    "evidence_sha256": "611e6e5973004ab659f806e9097c71f41c1a0dc3e312a06b73a413b5680a89f2",
+    "owner": "Codex independent historical-cutoff security reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

@@ -79,9 +79,9 @@ class CollectionProgress:
         # A newly discovered or registered hotkey requires that wallet's sample
         # to be rechecked, including a formerly omitted never-funded entrant.
         # Keep the full-day stride anchored at the original start.
+        known = self.store.known_hotkeys_of(coldkey, through_day=self.day)
         return fingerprint(
-            [self.settings, block_hash,
-             sorted(set(self.store.known_hotkeys_of(coldkey)) | set(registered_hotkeys))]
+            [self.settings, block_hash, sorted(set(known) | set(registered_hotkeys))]
         )
 
     def sampled(self, coldkey, block, block_hash, registered_hotkeys=()):

@@ -177,7 +177,7 @@ def build_fixture(
     registration_days = registration_days or {}
     everybody = sorted(
         set(seats)
-        | set(store.wallets_seen())
+        | set(store.wallets_seen(through_day=eval_day))
         | set(_seat_overrides(entry_deposits, "an entry_deposits"))
         | set(_seat_overrides(registration_days, "a registration_days"))
     )
@@ -297,7 +297,7 @@ def withheld_from(
         )
     for coldkey in sorted(
         set(seats)
-        | set(store.wallets_seen())
+        | set(store.wallets_seen(through_day=eval_day))
         | set(_seat_overrides(entry_deposits, "an entry_deposits"))
         | set(_seat_overrides(registration_days, "a registration_days"))
     ):
@@ -336,7 +336,7 @@ def _first_activity_day(store, coldkey, eval_day, entry_deposits, registration_d
 
     Do not inherit an unrelated hotkey's earlier activity merely because it shares
     a coldkey."""
-    first = store.first_activity_day(coldkey)
+    first = store.first_activity_day(coldkey, through_day=eval_day)
 
     per_hotkey_deposits = {
         hotkey: _whole(value, f"an entry deposit for {coldkey}'s hotkey {hotkey}")

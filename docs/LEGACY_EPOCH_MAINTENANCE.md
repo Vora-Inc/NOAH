@@ -48,6 +48,12 @@ chunks on subsequent loop passes when behind. Timing follows the existing loop
 poll interval, not a new timer. A slow node can still delay a pass; chunking is a
 block-count limit, not a guaranteed time limit.
 
+Historical close/retry reads bound activity and holding cohorts to the day being
+evaluated. Later-day collection must not change an earlier day's first activity,
+registration fallback or sampling cohort. Same-day observations retain the
+existing grid and completeness checks. Future receipts remain in the ledger;
+retries do not delete old samples or replace retained calculations to force parity.
+
 ## Legacy/default publication safeguards
 
 A refresh requires the retained calculation files and their hashes, the exact
