@@ -13,12 +13,14 @@ not a ready-to-run production file. Never commit a filled file or signing materi
 
 ## Shipping defaults
 
-Both optional features ship OFF: `NOAH_SCORING_MODE=legacy`, empty
-`NOAH_POINTS_POLICY`, `NOAH_REPORT_GATE_ENABLED=false`, and empty
-`NOAH_REPORT_GATE_POLICY`. No feature is activated by installation or an offline
-preview. The reserved report ON setting currently refuses startup before chain
-access; authenticated production report enforcement is not implemented yet.
-See [report commands and the dependency advisory](REPORTS.md).
+The release ships with `NOAH_SCORING_MODE=legacy`, empty `NOAH_POINTS_POLICY`,
+`NOAH_REPORT_GATE_ENABLED=false`, empty `NOAH_REPORT_GATE_POLICY`,
+`NOAH_WEEKLY_ASSIGNMENTS=false`, and `NOAH_BURN_ALLOCATION_BPS=0`.
+Installation and offline previews do not activate these features. Authenticated
+report processing is implemented through a separate report worker and a verified
+report policy. The proposed combined rollout selects V2, explicitly selects
+`NOAH_REPORT_REWARD=bonus-20`, and selects temporary miner burn
+`NOAH_BURN_ALLOCATION_BPS=9800` only after testing and approval. See [report configuration and commands](REPORTS.md).
 
 Legacy retains its existing starter policy: preserve the verified original entry
 snapshot, all financial history and the healthy starter guard. Do not fabricate a
@@ -29,7 +31,11 @@ Reports use a separate `.venv-reports` environment (Python 3.11+).
 
 ## Optional V2.0 selection — not the shipping default
 
-The candidate selection below is for review, not activation:
+The candidate selection below is for review, not activation or an initial
+migration procedure. First migration requires the maintained held transitions
+Legacy → V3 → EMA V4 → V5, preserving financial state and predecessor evidence.
+Do not start intermediate modes or try to create the required policy by editing
+these settings alone:
 
 ```dotenv
 NOAH_SCORING_MODE=points-204040-v5
@@ -54,8 +60,11 @@ Before switching, reconcile pending old-mode sends and any active old overlay
 under the predecessor configuration. Preserve journals, backups and recovery
 receipts. The candidate refuses unresolved old publications. The old starter guard
 must not be running beside the V2.0 ordinary publisher; this does not remove
-the guard requirement while Legacy starter allocation remains selected. A code/config rollback after
-new-mode financial publication is not a safe automatic recovery.
+the guard requirement while Legacy starter allocation remains selected. Once a
+new financial policy has been installed, changing configuration or selecting an
+older executable is not a safe way to return to Legacy, even before the first V5
+publication. Recovery must preserve policy history, balances and consumed receipts;
+disabling optional reporting or burn does not undo that migration.
 
 A configured read-only preflight (requires the named readers and evidence) is:
 

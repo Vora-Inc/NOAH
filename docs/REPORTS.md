@@ -8,10 +8,11 @@ explicit per-command opt-in after activation approval.
 
 ## What reporting earns
 
-In the proposed `bonus-20` mode, an accurate, timely report can add up to 20
-points to the miner's daily payout calculation. Missing, late, invalid or
-inaccurate reports earn no bonus and leave the ordinary V2 score intact. A
-verified unresolved verdict also earns no bonus; a broken reader, worker or
+In the proposed `bonus-20` mode, all three assigned daily reports must be timely
+and verified to earn one bonus of up to 20 points in the miner's daily payout
+calculation. If fewer than three verify, the miner keeps their ordinary V2 score
+and each verified report is retained. Missing, late, invalid, inaccurate or
+verified unresolved reports earn no bonus; a broken reader, worker or
 evidence package can still stop validator publication rather than authorize an
 unverified result.
 
@@ -269,13 +270,16 @@ Miners receive up to three distinct supported subnets. Fewer than three targets
 can still produce observations but cannot earn the bonus. A newly registered or
 replaced miner waits for the next Sunday roster.
 
-Configure the URL and obtain the trusted public key independently from the
-operator, once. The miner's existing genesis and Ark identity settings must also
-match the signed file:
+The intended Mainnet assignment directory is
+`https://subnet82.com/miner-assignment/` once reporting is activated. Configuring
+it does not activate reporting or guarantee that the current week's file has
+been published. Obtain the trusted public key independently from the operator,
+once; the downloaded file cannot establish its own trusted signer. The miner's
+existing genesis and Ark identity settings must also match the signed file:
 
 ```ini
 [report]
-assignments_url = https://assignments.example/weekly-assignments/
+assignments_url = https://subnet82.com/miner-assignment/
 assignment_signer_public_key = OPERATOR_PROVIDED_64_LOWERCASE_HEX_PUBLIC_KEY
 ```
 

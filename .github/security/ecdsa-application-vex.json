@@ -164,7 +164,7 @@
     },
     "docs/REPORTS.md": {
       "mode": "100644",
-      "sha256": "920e5329c19f90c5cf4b5a69c7fc0da2e66b10a1197348d01efa052fc3934b91"
+      "sha256": "0231ca209fc818fd4726c6e391f2074a79b30068ae09a1e38898c3c5f1424b57"
     },
     "docs/REPORT_COMMITMENT_PROTOCOL.md": {
       "mode": "100644",
@@ -188,7 +188,7 @@
     },
     "docs/VALIDATOR_QUICKSTART.md": {
       "mode": "100644",
-      "sha256": "9158dcd0e7916505369b5e8b8a40902043eb0bce0d388565224f4c1e73a5ffa0"
+      "sha256": "2e5c7bd89ed0f4358c1c3e63dc3ecc90039656ab4db59d17f679da6551060de2"
     },
     "docs/VERIFYING_SCORES.md": {
       "mode": "100644",
@@ -2921,8 +2921,8 @@
   },
   "review": {
     "date": "2026-11-20",
-    "evidence_sha256": "611e6e5973004ab659f806e9097c71f41c1a0dc3e312a06b73a413b5680a89f2",
-    "owner": "Codex independent historical-cutoff security reviewer",
+    "evidence_sha256": "92c2343b9f74a385030253e58d8822f094de84108ef3ac2ae0c816b8b1b3dafa",
+    "owner": "Codex independent documentation follow-up reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",
