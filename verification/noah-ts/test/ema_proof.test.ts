@@ -32,3 +32,19 @@ test('fixture binds denominator, chain, parent boundary, row credit and date',()
 test('late-discovered preboundary receipt keeps old rule; no unused proofs',()=>{const p=proof(),f=fixture(p),r=row(p);f.pointsPricing={};r.block=98;r.reason='daily-reference';verifyEmaFixture(f,[r]);r.reason='ema-spot-reference';assert.throws(()=>verifyEmaFixture(f,[r]));assert.throws(()=>verifyEmaFixture(fixture(p),[]));});
 
 test('unreviewed EMA runtime486 refuses even with known lifecycle code',()=>{const p=proof();p.parent_runtime={spec_version:486,transaction_version:1,code_hash:'0x49781ac4cfda0ac6cf6e53cfceea7c728394d9c28da7881f47e3fbfbc239800f'};assert.throws(()=>validateEmaProof(p));});
+
+const reviewed:Record<number,string>={
+ 490:'0x32a16fe6163e49ae26ade2413e80b14d641c56ab4d3246d4d39013b688369d54',
+ 491:'0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
+ 492:'0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
+ 493:'0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
+};
+for(const [specText,code_hash] of Object.entries(reviewed))test(`reviewed EMA runtime${specText} admits a credited fixture and refuses wrong code`,()=>{
+ const p=proof(),spec_version=Number(specText);p.runtime={spec_version,code_hash,transaction_version:1};p.parent_runtime={...p.runtime};
+ assert.equal(validateEmaProof(p),proofDigest(p));verifyEmaFixture(fixture(p),[row(p)]);
+ p.runtime.code_hash=H;assert.throws(()=>validateEmaProof(p));
+});
+test('receipt493 and reference492 preserve separate reviewed identities',()=>{
+ const p=proof();p.runtime={spec_version:493,code_hash:reviewed[493],transaction_version:1};p.parent_runtime={spec_version:492,code_hash:reviewed[492],transaction_version:1};
+ verifyEmaFixture(fixture(p),[row(p)]);p.parent_runtime.code_hash=reviewed[493];assert.throws(()=>validateEmaProof(p));
+});

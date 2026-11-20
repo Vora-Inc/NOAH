@@ -21,6 +21,7 @@ SUPPORTED_SPECS = frozenset({490})
 SUBTENSOR_PIN = "d967d13588834f4f5aaa8ef4c8fc1a865d581462"
 SUBTENSOR_491_PIN = "be3a11b1a5300bb58d6fbad3c629e4a926bb2f44"
 SUBTENSOR_492_PIN = "541a50d38764acdce23578bd8ba54f80156ffb2a"
+SUBTENSOR_493_PIN = "8b407e40988ea7a251abb6dbc07a9ab7d602b740"
 
 # Reviewed runtime 483 adapter, restricted to the official release code.
 # Other chains/code with that spec number are not implicitly compatible.
@@ -31,10 +32,14 @@ RUNTIME_491_CODE_HASH = "0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc
 # Official v492 WASM matched both Mainnet readers and the reviewed v491
 # report storage, runtime API and call shapes.
 RUNTIME_492_CODE_HASH = "0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e"
+# Official v493 preserves the reviewed report storage, Swap/Commitments
+# arithmetic and calls; exact live WASM independently matched the release.
+RUNTIME_493_CODE_HASH = "0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591"
 RUNTIME_CODE_PINS = {
     483: RUNTIME_483_CODE_HASH,
     491: RUNTIME_491_CODE_HASH,
     492: RUNTIME_492_CODE_HASH,
+    493: RUNTIME_493_CODE_HASH,
 }
 
 MINIMUM_RESERVE = 1_000_000

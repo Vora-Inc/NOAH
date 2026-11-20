@@ -1,4 +1,4 @@
-"""Offline token and EMA admission with exact runtime 491 and 492 reference and parent."""
+"""Offline token and EMA admission with exact runtime 491, 492 and 493 reference and parent."""
 import pytest
 
 from noah.chain.sources import Unverified
@@ -9,6 +9,7 @@ from noah.points.tests.test_token_context import chain, h, height
 CODES = {
     491: '0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
     492: '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
+    493: '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
 }
 UNKNOWN = '0x' + '00' * 32
 
@@ -32,7 +33,7 @@ class ReviewedRuntime(EmaSDK):
         result = super().rpc_request(method, args)
         if method == 'state_getRuntimeVersion':
             if self.fault == 'spec':
-                result['result']['specVersion'] = 493
+                result['result']['specVersion'] = 494
             elif self.fault == 'transaction':
                 result['result']['transactionVersion'] = 2
         return result
@@ -43,7 +44,7 @@ def token_snapshot(a, b):
 
 
 @pytest.mark.parametrize(('capture', 'payload'), [(token_snapshot, 'assets'), (snapshot, 'prices')])
-@pytest.mark.parametrize('spec', [491, 492])
+@pytest.mark.parametrize('spec', [491, 492, 493])
 def test_exact_reviewed_runtime_keeps_reference_values(capture, payload, spec):
     current = capture(ReviewedRuntime(spec), ReviewedRuntime(spec))
     old = capture(Runtime490(), Runtime490())
@@ -56,7 +57,7 @@ def test_exact_reviewed_runtime_keeps_reference_values(capture, payload, spec):
 
 @pytest.mark.parametrize('capture', [token_snapshot, snapshot])
 @pytest.mark.parametrize('fault', ['code', 'spec', 'transaction'])
-@pytest.mark.parametrize('spec', [491, 492])
+@pytest.mark.parametrize('spec', [491, 492, 493])
 def test_unrecognized_tuple_refuses_before_values(capture, fault, spec):
     bad = ReviewedRuntime(spec, fault=fault)
     with pytest.raises(Unverified):
@@ -64,7 +65,7 @@ def test_unrecognized_tuple_refuses_before_values(capture, fault, spec):
     assert bad.batch_calls == 0 and bad.price_queries == []
 
 
-@pytest.mark.parametrize('spec', [491, 492])
+@pytest.mark.parametrize('spec', [491, 492, 493])
 def test_upgrade_token_uses_parent_metadata_but_ema_requires_target(spec):
     token = token_snapshot(ReviewedRuntime(spec, upgrade=True), ReviewedRuntime(spec, upgrade=True))
     assert token['runtime']['spec_version'] == spec

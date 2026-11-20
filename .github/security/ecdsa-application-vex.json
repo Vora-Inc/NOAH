@@ -76,7 +76,7 @@
     },
     "docs/BURN_EVIDENCE.md": {
       "mode": "100644",
-      "sha256": "ce6a3d06828473e37b0090079d3d485c6821ced64da391f512f2f743aef24fbd"
+      "sha256": "09be9f50e6c349b22ece2cc23d4e3fea31b75ece192b13ad10c871e9575d19e9"
     },
     "docs/COMMANDS.md": {
       "mode": "100644",
@@ -164,7 +164,7 @@
     },
     "docs/REPORTS.md": {
       "mode": "100644",
-      "sha256": "0231ca209fc818fd4726c6e391f2074a79b30068ae09a1e38898c3c5f1424b57"
+      "sha256": "3105630ffebe9ad12ac6973fc9d43c3fad8461169f067b6de76d0b0af701c48a"
     },
     "docs/REPORT_COMMITMENT_PROTOCOL.md": {
       "mode": "100644",
@@ -432,7 +432,7 @@
     },
     "noah/chain/burn_context.py": {
       "mode": "100644",
-      "sha256": "8c7ad1c92c2a587367094e4392c12b0f9574e15c6f0f82962cbb3328937ad7e4"
+      "sha256": "cce43a674a5b01ae461fd8b842e8f5c29eb76b17344c13e0b33aefcb66c62b79"
     },
     "noah/chain/collateral.py": {
       "mode": "100644",
@@ -460,7 +460,7 @@
     },
     "noah/chain/ema_context.py": {
       "mode": "100644",
-      "sha256": "f3eae69bb2bf1c087f31efdfebd5ef247f7abc9e97c0abc717bbd69b79143b16"
+      "sha256": "af0368713cd0e57425bb05a9ddc9f6e23e73c4118412a1cc4e24b66cd7957aaf"
     },
     "noah/chain/emission_state.py": {
       "mode": "100644",
@@ -572,7 +572,7 @@
     },
     "noah/chain/tests/fixtures/BURN_METADATA.md": {
       "mode": "100644",
-      "sha256": "e0da140c4998415bc0219285a7ec9d0a8eb49184918b96b4cf418565f4a2b7d6"
+      "sha256": "f8eeff64c62086d92f44d8a96171bb09f49fcef758b64a4be2b5fdc4ec49958d"
     },
     "noah/chain/tests/fixtures/runtime483-v15.scale.gz": {
       "mode": "100644",
@@ -581,6 +581,10 @@
     "noah/chain/tests/fixtures/runtime492-v15.scale.gz": {
       "mode": "100644",
       "sha256": "994c9b8918188c52844ff85ff2dc56c315352a9b9140e0efb6fbc364f30d45f5"
+    },
+    "noah/chain/tests/fixtures/runtime493-v15.scale.gz": {
+      "mode": "100644",
+      "sha256": "1a8f798d203eb98882798e5f962a1bc4c640db3b0605234722cd85c1e381ecbb"
     },
     "noah/chain/tests/test_alpha_price.py": {
       "mode": "100644",
@@ -734,6 +738,10 @@
       "mode": "100644",
       "sha256": "ca0252c72914f4b096857b7f71b563b91ea4d140e9ae8916394b31c939b0e94d"
     },
+    "noah/chain/tests/test_runtime493_burn.py": {
+      "mode": "100644",
+      "sha256": "5f9eeedbc077803b065930065037b63fbb33f526f7dade4e9db5ab69e5786f1d"
+    },
     "noah/chain/tests/test_seats.py": {
       "mode": "100644",
       "sha256": "815badc86ebba0cff21561070d2af6458f0884689b1a9c671839b1abe7f44e96"
@@ -752,7 +760,7 @@
     },
     "noah/chain/token_context.py": {
       "mode": "100644",
-      "sha256": "23877a65fd42aac2c9154543f2770e893ed07fc362cd72380768ca6775b0055d"
+      "sha256": "4486d809ee4da887412c8c12b667a04cee679aa01419a582c10715d99c1b39db"
     },
     "noah/chain/valuation.py": {
       "mode": "100644",
@@ -1760,7 +1768,11 @@
     },
     "noah/points/tests/test_runtime491_context.py": {
       "mode": "100644",
-      "sha256": "32f754518b65ac8f6a823915a70c9fa6755e5a2815f873a60081a38ec16f8f04"
+      "sha256": "5eb63f8f700384871e22d4951e82019a6464475c1398cbfa21b40970436b5f10"
+    },
+    "noah/points/tests/test_runtime_ema_twins.py": {
+      "mode": "100644",
+      "sha256": "4b1643addade2e0663ac216c706a035dca2e48a2a0d930a09d961735d65bd71b"
     },
     "noah/points/tests/test_token_context.py": {
       "mode": "100644",
@@ -1816,11 +1828,11 @@
     },
     "noah/reports/backing/commitment_quota.py": {
       "mode": "100644",
-      "sha256": "b52482a83eb6b757211cd366a64b11a330aad95033eef4b9db603144ff643e36"
+      "sha256": "8a50ba93a70156dd548b3c14e5c48a8966fbb56b03f07bb287ae2a794402803a"
     },
     "noah/reports/backing/constants.py": {
       "mode": "100644",
-      "sha256": "8a6d96a900292741b70f424cbaddf64fe311d78eda532cde8e8476b772f203ff"
+      "sha256": "bd5d9c06e4679cc157eae06adac3b0296fa1f3a6571847ddab8d2910918ea69e"
     },
     "noah/reports/backing/deposit_index.py": {
       "mode": "100644",
@@ -2172,7 +2184,7 @@
     },
     "noah/reports/tests/test_runtime491_reports.py": {
       "mode": "100644",
-      "sha256": "203fb857183f1a4cbc04f78ac4a0570c4a059b449577bcd75a5520380ac6e43e"
+      "sha256": "e62ae3d81c9c44d1594008552306d0de26714fe20e4ccc73848c0881ef46d40c"
     },
     "noah/reports/tests/test_scale_keys.py": {
       "mode": "100644",
@@ -2744,7 +2756,7 @@
     },
     "verification/noah-ts/src/ema_proof.ts": {
       "mode": "100644",
-      "sha256": "767e58983a89dff80a1e4af1b1da803b15a06a5f359cb5dbd9404081e7bb35d3"
+      "sha256": "5c26b6f24323f0481c9360a0089bdfc24224b11cb1cf5e22ea1922a379676bf8"
     },
     "verification/noah-ts/src/fixture.ts": {
       "mode": "100644",
@@ -2784,7 +2796,7 @@
     },
     "verification/noah-ts/test/ema_proof.test.ts": {
       "mode": "100644",
-      "sha256": "6458af60a6982f1f1feeacb9e3648abaecc9a69673062cef1b48e6d22aa0534d"
+      "sha256": "dc8cf07754f1a6083eb020db4f337b6f0932ccb119242cfe7138be918d799b29"
     },
     "verification/noah-ts/test/fixture.test.ts": {
       "mode": "100644",
@@ -2921,8 +2933,8 @@
   },
   "review": {
     "date": "2026-11-20",
-    "evidence_sha256": "92c2343b9f74a385030253e58d8822f094de84108ef3ac2ae0c816b8b1b3dafa",
-    "owner": "Codex independent documentation follow-up reviewer",
+    "evidence_sha256": "bd341371aeb92d51a1c6606cca458013213281449f7c5bee12d19d5e3fe48d0d",
+    "owner": "Codex independent runtime493 public delta reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

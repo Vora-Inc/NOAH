@@ -3,6 +3,7 @@
 The exact V15 digest authenticates the reviewed storage declaration, Identity
 u16 key, Default 0x00 and Burn=0/Recycle=1 layout. The exact deployed code hash
 binds that layout to run_coinbase's Burn-or-absent fallback at upstream commit
+8b407e40988ea7a251abb6dbc07a9ab7d602b740 (493),
 541a50d38764acdce23578bd8ba54f80156ffb2a (492) and
 db3fdeb98bc82c38b238bfac9f6a3303a3361ee4 (483). RPC errors are never runtime absence.
 No SDK defaults, parent-runtime codec or spec-only cache are used here.
@@ -17,6 +18,7 @@ from .sources import Unverified, validated_hash_digits
 REVIEWED = {
     483: ('0x99856ec64a61eb8011999a803bd336979512275214a173fea583abd5c89952d2', 'eb3df3b6d0f2677d96e515d667259ec046cedd6059a4bdfc6848d44f5fd1b15a'),
     492: ('0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e', 'a397a753ad67ba335fb02cd5c54ccb0c1149fbf981f3ed6d9df44d49ca5bf71d'),
+    493: ('0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591', '89f3e67a94db5f9a155678122b5a5daff5b2ddbb1f179ac669df996bd3332a98'),
 }
 SCHEMA = 'noah-effective-burn/1'
 

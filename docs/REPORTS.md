@@ -449,7 +449,7 @@ instruction to enable an installed validator.
 Nonzero burn requires V2; the accepted burn values are only `0` and `9800`.
 Burn activation also requires verified effective `RecycleOrBurn=Burn` behavior.
 An explicit raw Burn value follows the existing verification path. An absent
-value qualifies only for exact reviewed runtime 483 or 492 code and V15 metadata,
+value qualifies only for exact reviewed runtime 483, 492 or 493 code and V15 metadata,
 with matching raw-state evidence from the paired readers and author RPC at one
 finalized block. An SDK-supplied default alone never qualifies. These checks run
 again before sending; unknown semantics, unreadable state and Recycle refuse.
@@ -547,9 +547,9 @@ history corruption and the independent scoring toggle. The full runner includes
 that suite in its isolated third Python environment. Tests using synthetic or
 retained responses are not fresh live-chain qualification. Current protocol
 support includes runtime spec 490 and the exact official runtime-483 and
-runtime-491 and runtime-492 code hashes. The 483 adapter reads `NetworksAdded`
-for existence; 490, 491 and 492 use `SubnetState`. A different 483, 491 or 492
-code hash is refused.
+runtime-491, runtime-492 and runtime-493 code hashes. The 483 adapter reads
+`NetworksAdded` for existence; 490, 491, 492 and 493 use `SubnetState`. A different
+483, 491, 492 or 493 code hash is refused.
 Unsupported runtime behavior fails closed. Runtime compatibility does not
 enable reporting or change the separate activation settings.
 
@@ -558,6 +558,13 @@ exact-block SN82 raw-response corpus and its dedicated replay test are excluded
 because their records expose operational identities. Their private regression
 result is not a public reproducibility claim. Public tests still run every
 shipped report suite; no blanket skip replaces the omitted exact-chain case.
+
+The independent TypeScript EMA proof verifier now accepts the same reviewed
+483, 488, 490, 491, 492 and 493 code tuples as the Python verifier. This repairs
+a missing TypeScript admission for new foreign-deposit EMA credits on runtimes
+490–492; previously, such a V5 calculation refused despite valid Python evidence.
+Runtime 486 remains unsupported for EMA pricing. Credit arithmetic, maturity,
+debt and score formulas are unchanged.
 
 ## Dependency advisory under review
 

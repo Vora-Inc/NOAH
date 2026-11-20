@@ -1,4 +1,4 @@
-"""Offline exact runtime 491 and 492 report compatibility and admission checks."""
+"""Offline exact runtime 491, 492 and 493 report compatibility and admission checks."""
 import pytest
 
 from noah.reports.backing.commitment_quota import read_commitment_quota
@@ -12,10 +12,12 @@ from noah.reports.tests.test_signing_runtime_guard import PARENT, PIN, adapter, 
 
 RUNTIME_491_CODE_HASH = '0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c'
 RUNTIME_492_CODE_HASH = '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e'
-RUNTIME_CODE_HASHES = {491: RUNTIME_491_CODE_HASH, 492: RUNTIME_492_CODE_HASH}
+RUNTIME_493_CODE_HASH = '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591'
+RUNTIME_CODE_HASHES = {491: RUNTIME_491_CODE_HASH, 492: RUNTIME_492_CODE_HASH, 493: RUNTIME_493_CODE_HASH}
 SOURCES = {
     491: 'be3a11b1a5300bb58d6fbad3c629e4a926bb2f44',
     492: '541a50d38764acdce23578bd8ba54f80156ffb2a',
+    493: '8b407e40988ea7a251abb6dbc07a9ab7d602b740',
 }
 UNKNOWN = '0x' + '00' * 32
 BEST = '0x' + 'ef' * 32
@@ -44,7 +46,7 @@ def engine_chain(spec, code):
     return chain, calls
 
 
-@pytest.mark.parametrize("spec", [491, 492])
+@pytest.mark.parametrize("spec", [491, 492, 493])
 def test_reviewed_report_calculation_matches_490(spec):
     legacy, _ = engine_chain(490, RUNTIME_490_CODE_HASH)
     current, calls = engine_chain(spec, RUNTIME_CODE_HASHES[spec])
@@ -58,7 +60,8 @@ def test_reviewed_report_calculation_matches_490(spec):
 
 @pytest.mark.parametrize(('spec', 'code'), [(491, UNKNOWN), (491, None),
                                              (492, UNKNOWN), (492, None),
-                                             (492, RUNTIME_CODE_HASHES[491])])
+                                             (492, RUNTIME_CODE_HASHES[491]), (493, UNKNOWN),
+                                             (493, None), (493, RUNTIME_CODE_HASHES[492])])
 def test_unrecognized_runtime_refuses_before_pool_or_scan(spec, code):
     chain, calls = engine_chain(spec, code)
     assert _result(chain)['status'] == 'UNSUPPORTED'
@@ -99,7 +102,7 @@ def signing_chain(finalized_spec, finalized_code, parent_spec, parent_code):
 
 
 @pytest.mark.parametrize(('finalized_spec', 'parent_spec'), [(490, 491), (491, 491),
-                                                            (491, 492), (492, 492)])
+                                                            (491, 492), (492, 492), (492, 493), (493, 493)])
 def test_signer_gets_only_reviewed_sdk_parent(finalized_spec, parent_spec):
     chain, observed = signing_chain(
         finalized_spec, RUNTIME_CODE_HASHES.get(finalized_spec, RUNTIME_490_CODE_HASH),
@@ -115,11 +118,11 @@ def test_signer_gets_only_reviewed_sdk_parent(finalized_spec, parent_spec):
         assert ('state_getStorageHash', ['0x3a636f6465', PIN]) in observed
 
 
-@pytest.mark.parametrize('spec', [491, 492])
+@pytest.mark.parametrize('spec', [491, 492, 493])
 @pytest.mark.parametrize('mismatch', ['finalized', 'sdk-parent'])
 def test_unknown_runtime_never_reaches_signer(spec, mismatch):
     code = RUNTIME_CODE_HASHES[spec]
-    invalid_code = RUNTIME_CODE_HASHES[491] if spec == 492 else UNKNOWN
+    invalid_code = RUNTIME_CODE_HASHES[491] if spec in (492, 493) else UNKNOWN
     chain, observed = signing_chain(
         spec, invalid_code if mismatch == 'finalized' else code,
         spec, invalid_code if mismatch == 'sdk-parent' else code,
@@ -132,7 +135,7 @@ def test_unknown_runtime_never_reaches_signer(spec, mismatch):
     assert chain.substrate.compositions == (0 if mismatch == 'finalized' else 1)
 
 
-@pytest.mark.parametrize('spec', [491, 492])
+@pytest.mark.parametrize('spec', [491, 492, 493])
 def test_quota_binds_source_and_code_before_pinned_storage(spec):
     sdk = SDK()
     sdk.spec, sdk.code = spec, RUNTIME_CODE_HASHES[spec]
@@ -146,11 +149,12 @@ def test_quota_binds_source_and_code_before_pinned_storage(spec):
     assert all(len(call) == 3 and call[2] == QUOTA_PIN for call in sdk.calls[index+1:])
 
 
-@pytest.mark.parametrize(('spec', 'code'), [(491, UNKNOWN), (492, RUNTIME_CODE_HASHES[491])])
+@pytest.mark.parametrize(('spec', 'code'), [(491, UNKNOWN), (492, RUNTIME_CODE_HASHES[491]), (493, UNKNOWN),
+                                             (493, None), (493, RUNTIME_CODE_HASHES[492])])
 def test_unknown_code_does_not_read_quota_storage(spec, code):
     sdk = SDK()
     sdk.spec, sdk.code = spec, code
-    with pytest.raises(ReportError, match='unsupported finalized runtime'):
+    with pytest.raises(ReportError, match='unsupported finalized runtime|invalid block or code hash'):
         read_commitment_quota(sdk, mining_netuid=82, hotkey=HOT, required_space=100)
     assert ('state_getStorageHash', ['0x3a636f6465', QUOTA_PIN]) in sdk.calls
     assert all(len(call) == 2 for call in sdk.calls)

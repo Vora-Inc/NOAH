@@ -11,7 +11,7 @@ reads, malformed responses and unreviewed default semantics refuse publication.
 
 ## Runtime-default proof
 
-Only exact reviewed runtime 483 and 492 code/V15-metadata tuples are admitted.
+Only exact reviewed runtime 483, 492 and 493 code/V15-metadata tuples are admitted.
 Their official coinbase implementations burn owner-directed miner incentive
 when `RecycleOrBurn` is Burn or absent. Their declared storage default is Burn.
 The code constants are separate from general runtime compatibility lists.

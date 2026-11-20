@@ -2,7 +2,15 @@
 import { createHash } from 'node:crypto';
 import { canonicalJson } from './canonical.ts';
 import { emaFractionCredit, priceFraction } from './ema_pricing.ts';
-const codes: Record<number,string>={483:'0x99856ec64a61eb8011999a803bd336979512275214a173fea583abd5c89952d2',488:'0x3147daab804046184359d8a929cb333d75f490323b9e1327887a172c64eafa94'};
+// Independently reviewed EMA tuples; lifecycle-only runtime486 remains refused.
+const codes: Record<number,string>={
+ 483:'0x99856ec64a61eb8011999a803bd336979512275214a173fea583abd5c89952d2',
+ 488:'0x3147daab804046184359d8a929cb333d75f490323b9e1327887a172c64eafa94',
+ 490:'0x32a16fe6163e49ae26ade2413e80b14d641c56ab4d3246d4d39013b688369d54',
+ 491:'0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
+ 492:'0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
+ 493:'0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
+};
 export const EMA_SOURCES=['SubnetMovingPrice'];
 const hash=(v:unknown)=>typeof v==='string'&&/^0x[0-9a-f]{64}$/.test(v);
 const sha=(v:unknown)=>typeof v==='string'&&/^[0-9a-f]{64}$/.test(v);
