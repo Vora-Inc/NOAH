@@ -193,7 +193,9 @@ def test_actual_retained_metadata_decodes_usage_fields_and_counter_without_netwo
         raw.storage[key.to_hex()]=str(obj.encode(value))
     original=raw.call
     def call(method,params):
-        if method=='state_getStorageHash':return '0x'+'cd'*32 # Synthetic490 code observation only.
+        if method=='state_getStorageHash':
+            from noah.reports.backing.constants import RUNTIME_492_CODE_HASH
+            return RUNTIME_492_CODE_HASH  # Raw fixture now advertises reviewed492.
         return original(method,params)
     raw.call=call
     receipt=read_commitment_quota(sdk,mining_netuid=82,hotkey=hotkey,required_space=909)

@@ -6,10 +6,10 @@ from .mode import check_publication_mode
 from .outage import authorize
 
 
-def check_before_send(adapter, reference, vector):
+def check_before_send(adapter, reference, vector, *, refresh=None):
     """Bind amounts to finalized hotkey AND coldkey immediately before sending."""
     from ..core.report_runtime import check_before_send as check_reports
-    check_reports(adapter, reference, vector)
+    check_reports(adapter, reference, vector, **({} if refresh is None else {"refresh": refresh}))
     check_publication_mode(adapter, reference)
     root = adapter._submitted_record_dir
     manifest = verify(root, reference)

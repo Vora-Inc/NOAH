@@ -3,6 +3,12 @@
 SCHEMA_ID = "bfpoc-calc-v1"
 VERSION = "0.1.0"
 
+# Evidence/admissibility revision; the three committed integer answers and
+# signed calculation identity are unchanged. Legacy is retained replay only.
+COVERAGE_LEGACY = "alpha-out-v1"
+COVERAGE_STAKED_V2 = "total-alpha-staked-v2"
+STAKED_COVERAGE_SPECS = frozenset({483, 492, 493})
+
 # Public Ark coldkey. SS58 prefix 42. Not a secret.
 ARK_SS58 = "5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3"
 ARK_PUBKEY_HEX = "0x64257dfaf373a54793ed9f72be4df3e74044322c653fad72448252c5f5f52ec9"

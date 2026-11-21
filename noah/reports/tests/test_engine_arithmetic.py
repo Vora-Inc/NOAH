@@ -1,7 +1,7 @@
 """Engine behavior on a scripted chain: arithmetic, locks, and fail-closed gates."""
 
 from noah.reports.backing.constants import ARK_PUBKEY_HEX, PERQUINTILL_ONE
-from noah.reports.backing.engine import compute
+from noah.reports.backing.engine import _compute as compute
 from noah.reports.backing.keys import hex_decode
 from noah.reports.backing.result import canonical_dumps, percent_string
 from noah.reports.backing.scale import Availability, SimSwap

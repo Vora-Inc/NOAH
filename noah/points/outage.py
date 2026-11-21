@@ -300,7 +300,8 @@ def republish_plain(adapter, epoch, head, *, before_send):
     adapter._calculation_reference = reference
     before_send()
     from .publication import check_before_send
-    check_before_send(adapter, reference, {int(k): v for k, v in marker["vector"].items()})
+    check_before_send(adapter, reference, {int(k): v for k, v in marker["vector"].items()},
+                      refresh={"epoch": epoch, "day": marker["day"], "height": marker["height"]})
     adapter.publish_direct(
         {int(k): v for k, v in marker["vector"].items()},
         marker["height"],

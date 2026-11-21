@@ -288,16 +288,19 @@ def _output(value, target=None):
 
 
 def validate_engine(value):
+    require(type(value) is dict, "backing engine object")
     from .backing.result import definitions
-    from .backing.constants import ARK_LABEL, ARK_NOTE
+    from .backing.constants import ARK_LABEL, ARK_NOTE, COVERAGE_STAKED_V2
+    versioned = value.get("coverage_method") == COVERAGE_STAKED_V2
+    method_field = {"coverage_method": _enum(COVERAGE_STAKED_V2)} if versioned else {}
     if value.get('status') in ('UNAVAILABLE', 'UNSUPPORTED'):
-        _shape(value, {'schema': _enum('bfpoc-calc-v1'), 'status': _enum('UNAVAILABLE', 'UNSUPPORTED'),
+        _shape(value, {**method_field, 'schema': _enum('bfpoc-calc-v1'), 'status': _enum('UNAVAILABLE', 'UNSUPPORTED'),
                 'block_hash': lambda item: _hash(item, prefix=True), 'block_number': _nullable(_nat),
                 'spec_version': _nullable(_nat), 'netuid': _nat, 'reason': _text,
                 'definitions': lambda item: require(item == definitions(), 'backing definitions')})
         # Gated results have no account identity labels to project.
         return []
-    fields(value, 'schema ark_coldkey ark_context block_hash block_number block_timestamp_ms coverage definitions flags holder netuid output1 output2 output3 pool reason spec_version status', 'backing engine')
+    fields(value, ('coverage_method ' if versioned else '') + 'schema ark_coldkey ark_context block_hash block_number block_timestamp_ms coverage definitions flags holder netuid output1 output2 output3 pool reason spec_version status', 'backing engine')
     require(value['schema'] == 'bfpoc-calc-v1' and value['status'] == 'OK' and value['reason'] is None, 'backing engine schema/status')
     _hash(value['ark_coldkey'], prefix=True); _hash(value['block_hash'], prefix=True)
     for name in ('block_number', 'block_timestamp_ms', 'netuid', 'spec_version'): _nat(value[name])
@@ -305,7 +308,7 @@ def validate_engine(value):
     _shape(value['ark_context'], {'available_rao': _nat, 'locked_rao': _nat, 'total_rao': _nat,
             'present': _bool, 'label': lambda item: require(item == ARK_LABEL, 'Ark label'),
             'note': lambda item: require(item == ARK_NOTE, 'Ark note')})
-    _shape(value['coverage'], {**{name: _nat for name in 'coldkey_count coverage_ppm gap_rao subnet_alpha_out_rao sum_available_rao sum_locked_rao sum_total_rao'.split()}, 'coverage_gap_exceeds_holder': _bool})
+    _shape(value['coverage'], {**({'basis': _enum('total-alpha-staked-v2'), 'stake_pool_total_rao': _nat} if versioned else {}), **{name: _nat for name in 'coldkey_count coverage_ppm gap_rao subnet_alpha_out_rao sum_available_rao sum_locked_rao sum_total_rao'.split()}, 'coverage_gap_exceeds_holder': _bool})
     _shape(value['flags'], {**{name: _nat for name in ('sum_available_all_rao', 'sum_available_ex_ark_rao')},
             **{name: _bool for name in 'exceeds_available_all_10 exceeds_available_all_20 exceeds_available_ex_ark_10 exceeds_available_ex_ark_20'.split()}})
     _shape(value['holder'], {**{name: _nat for name in 'available_rao collateral_derived_rao locked_rao tie_count total_rao'.split()},

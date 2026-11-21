@@ -27,7 +27,8 @@ def read_bytes(path, *, protected=False):
             info = parent.lstat()
             require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0
                     and not info.st_mode & 0o022, 'handoff ancestor is not protected')
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    # Open without waiting for a FIFO writer; reject nonregular files via fstat.
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     try:
         before = os.fstat(fd)
         require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1
@@ -190,9 +191,142 @@ def verify_proof(root, proof):
     return value
 
 
-def check_send(adapter, proof):
+def check_send(adapter, proof, *, refresh=None, reference=None, vector=None):
     value = verify_proof(adapter._submitted_record_dir, proof)
     if value is not None:
         selected, _ = configured(adapter)
-        require(selected == value and source_identity() == value['to_release']['candidate'],
-                'handoff sending producer or authorization changed')
+        require(selected == value, 'handoff sending producer or authorization changed')
+        if source_identity() != value['to_release']['candidate']:
+            _confirmed_refresh(adapter, value, proof, refresh, reference, vector)
+
+
+def refresh_attempt(adapter):
+    """Return context only for this call's exact, not-yet-signed new intent."""
+    owned = getattr(adapter, '_report_refresh_attempt', None)
+    if owned is None:
+        return None
+    marker = adapter._publish_intent.load()
+    require(type(marker) is dict and encoded(marker) == owned
+            and marker.get('successor_kind') is None
+            and 'prepared_transaction' not in marker and 'result' not in marker
+            and type(marker.get('refresh_epoch')) is int,
+            'handoff refresh attempt changed or may already be signed')
+    return {'epoch': marker['refresh_epoch'], 'day': marker['day'], 'height': marker['height']}
+
+
+def _confirmed_refresh(adapter, value, proof, refresh, reference, vector):
+    """Reconfirm one unchanged DAILY publication; a refresh request is not authority.
+
+    Never authorize a first send, uncertain intent, replacement calculation or
+    new burn-zero transition. Original handoff bytes and historical proof stay
+    unchanged. All ordinary/report policy and live recipient guards still run.
+    """
+    from . import direct
+    from .burn_publication import confirmed_transition, report_subject, transition_dir
+    from .submitted_record import SCHEMA as SUBMITTED_SCHEMA, submitted_record_path
+    from ..reports.adjudication_contract import strict_json
+
+    require(type(refresh) is dict and set(refresh) == {'epoch', 'day', 'height'}
+            and all(type(refresh[k]) is int for k in refresh)
+            and refresh['epoch'] > 0 and refresh['day'] == value['day']
+            and refresh['height'] >= 0, 'handoff sending producer or authorization changed')
+    require(type(reference) is dict
+            and set(reference) == {'path', 'sha256', 'day', 'genesis_hash', 'candidate_sha256'}
+            and type(reference['day']) is int and reference['day'] == value['day']
+            and reference['genesis_hash'] == value['genesis_hash']
+            and all(type(reference[k]) is str and SHA.fullmatch(reference[k])
+                    for k in ('sha256', 'candidate_sha256'))
+            and reference['path'] == f"evidence/{reference['sha256']}.json"
+            and type(vector) is dict and bool(vector)
+            and all(type(k) is int and 0 <= k < 65536 and type(v) is int and 0 <= v <= 65535
+                    for k, v in vector.items()),
+            'handoff refresh lacks exact calculation and vector')
+    inputs = encoded({'refresh': refresh, 'reference': reference, 'vector': vector})
+    root = adapter._submitted_record_dir
+    day = refresh['day']
+    daily_path = submitted_record_path(root, day)
+    daily_raw = read_bytes(daily_path)
+    daily = strict_json(daily_raw)
+    replacement = confirmed_transition(root, day)
+    path, raw, record = daily_path, daily_raw, daily
+    if replacement is not None:
+        replacement_ref = replacement['direct_intent']['calculation_evidence']
+        path = transition_dir(root, day) / replacement_ref['sha256'] / f'day-{day}.submitted.json'
+        raw = read_bytes(path)
+        record = strict_json(raw)
+        require(record == replacement, 'handoff refresh replacement changed')
+    require(type(record) is dict, 'handoff refresh receipt is not an object')
+    marker = record.get('direct_intent')
+    requested = {str(k): v for k, v in vector.items()}
+    require(type(record) is dict and record.get('schema') == SUBMITTED_SCHEMA and type(marker) is dict
+            and all(type(doc.get(k)) is int for doc in (record, marker) for k in ('day', 'height', 'netuid'))
+            and marker.get('refresh_epoch') is None
+            and marker.get('day') == record.get('day') == day
+            and marker.get('height') == record.get('height') == refresh['height']
+            and marker.get('calculation_evidence') == record.get('calculation_evidence') == reference
+            and marker.get('vector') == record.get('submitted_weights_u16') == requested
+            and record.get('publish_mode') == 'direct'
+            and record.get('netuid') == marker.get('netuid') == adapter.netuid,
+            'handoff refresh differs from canonical daily receipt')
+    result = marker.get('result')
+    require(type(result) is dict and type(result.get('block')) is int
+            and type(result.get('extrinsic_index')) is int
+            and type(record.get('block')) is int and type(record.get('extrinsic_index')) is int
+            and result['block'] == record.get('block')
+            and result['extrinsic_index'] == record.get('extrinsic_index')
+            and result.get('block_hash') == record.get('block_hash')
+            and bool(result.get('block_hash')), 'handoff refresh lacks finalized daily inclusion')
+    manifest = verify(root, reference)
+    context = artifact(root, manifest, 'context')
+    require(manifest['day'] == day and manifest['netuid'] == adapter.netuid
+            and manifest['genesis_hash'] == value['genesis_hash']
+            and manifest['publishable_weights_u16'] == requested,
+            'handoff refresh calculation identity differs')
+    subject, _ = report_subject(root, reference, vector) if 'burn_allocation' in context else (reference, vector)
+    inner = artifact(root, verify(root, subject), 'context')
+    require(inner.get('report_gate') == proof, 'handoff refresh report proof differs')
+
+    def current():
+        pending = adapter._publish_intent.load() if adapter._publish_intent is not None else None
+        own_attempt = (pending is not None and refresh_attempt(adapter) == refresh
+                       and pending.get('calculation_evidence') == reference
+                       and pending.get('vector') == requested)
+        require(getattr(adapter, 'epoch_republication', False) is True
+                and adapter.publish_mode == 'direct'
+                and adapter._publish_intent is not None and (pending is None or own_attempt),
+                'handoff refresh is not an idle direct epoch publication')
+        for guard in (adapter._publish_hold, adapter._failure_backoff):
+            if guard is not None:
+                if guard is adapter._publish_hold: guard.raise_if_held()
+                else: guard.raise_if_blocked()
+        chain = adapter.runner_chain
+        head = chain.head_block()
+        epoch = adapter.reader._query('LastEpochBlock', [adapter.netuid], block=head)
+        require(type(epoch) is int and 0 < epoch <= head and epoch == refresh['epoch'],
+                'handoff refresh epoch is stale')
+        require(adapter.last_update(adapter.uid, adapter.netuid) < epoch
+                and head - adapter.last_update(adapter.uid, adapter.netuid) >= adapter.rate_limit(adapter.netuid),
+                'handoff refresh is already published or rate limited')
+        now = chain.block_timestamp(head)
+        require(type(now) is int and 0 <= (now - adapter.day_anchor_ts) // 86400 - 1 - day <= 1,
+                'handoff refresh day is stale')
+        require(chain.genesis_hash() == manifest['genesis_hash']
+                and context.get('ark_address') == adapter.ark_coldkey
+                and context.get('designated_validator_hotkey') == adapter.designated_validator_hotkey
+                and context.get('scoring_dials') == adapter.dials
+                and context.get('day_start_utc_unix') == adapter.day_anchor_ts + day * 86400
+                and chain.block_hash(context['to_block']) == context.get('to_block_hash'),
+                'handoff refresh configuration or finalized calculation changed')
+        adapter._check_direct_identity(marker)
+        require(configured(adapter)[0] == value, 'handoff refresh authorization changed')
+
+    current()
+    # Exact transaction, scoped success, paired finalized hash and complete
+    # stored vector are checked by the existing verifier, not a saved boolean.
+    direct.reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
+    current()
+    require(verify_proof(root, proof) == value and verify(root, reference) == manifest
+            and read_bytes(daily_path) == daily_raw and read_bytes(path) == raw
+            and confirmed_transition(root, day) == replacement
+            and encoded({'refresh': refresh, 'reference': reference, 'vector': vector}) == inputs,
+            'handoff refresh inputs changed during confirmation')

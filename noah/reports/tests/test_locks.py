@@ -1,7 +1,7 @@
 """Lock, collateral, tie, and Ark selection checks from plan section 5.C."""
 
 from noah.reports.backing.constants import ARK_NOTE, ARK_PUBKEY_HEX, PERQUINTILL_ONE
-from noah.reports.backing.engine import compute
+from noah.reports.backing.engine import _compute as compute
 from noah.reports.backing.keys import coldkey_miner_collateral_key, hex_decode, hex_encode
 from noah.reports.backing.scale import Availability, encode_u64
 from noah.reports.tests.fakes import FakeChain, alpha_storage_key

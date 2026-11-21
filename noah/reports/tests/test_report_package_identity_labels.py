@@ -193,7 +193,7 @@ def test_real_producer_failure_paths_remain_scannable(tmp_path, monkeypatch, var
 @pytest.mark.parametrize('variant', ['unsupported', 'rpc_failure'])
 def test_gated_engine_exact_shapes_without_identity_exemptions(variant):
     from noah.reports.tests.test_engine_arithmetic import _chain, BLOCK, NETUID
-    from noah.reports.backing.engine import compute
+    from noah.reports.backing.engine import _compute as compute
     source = _chain()
     if variant == 'unsupported':
         source.spec = 0

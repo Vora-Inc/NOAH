@@ -1,5 +1,5 @@
 from noah.reports.backing.constants import PERQUINTILL_ONE
-from noah.reports.backing.engine import compute
+from noah.reports.backing.engine import _compute as compute
 from noah.reports.backing.scale import Availability
 from noah.reports.tests.fakes import FakeChain, alpha_storage_key
 

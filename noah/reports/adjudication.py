@@ -299,8 +299,15 @@ def resolve_seats(request, artifacts):
     return decisions
 
 
-def _semantic_reconstruction(request, root, *, budget=None, shared=False):
+def _semantic_reconstruction(request, root, *, budget=None, shared=False, fresh=False):
     artifacts, summaries = [], []
+    from .artifacts import retained_coverage_method
+    methods = {retained_coverage_method(root / 'rounds' / digest(contract) / label / 'collection', contract)
+               for contract in request['policy']['required_rounds'] for label in ('reader_a', 'reader_b')}
+    require(len(methods) == 1, 'mixed coverage methods in report package')
+    if fresh:
+        from .backing.constants import COVERAGE_STAKED_V2
+        require(methods == {COVERAGE_STAKED_V2}, 'fresh collection requires current coverage method')
     for label in ('reader_a', 'reader_b'):
         paths = [root / 'seats' / label / f'{pin}.jsonl.gz' for pin, _ in _seat_groups(request)]
         if shared:
@@ -438,7 +445,7 @@ def _adjudicate(invocation, output, budget):
         else:
             for contract in request['policy']['required_rounds']:
                 _collect_reader(request, contract, source, root / 'rounds' / digest(contract) / source['id'], budget)
-    summaries, decisions, artifacts = _semantic_reconstruction(request, root, budget=budget, shared=shared)
+    summaries, decisions, artifacts = _semantic_reconstruction(request, root, budget=budget, shared=shared, fresh=True)
     for artifact in artifacts:
         directory = root / 'rounds' / digest(artifact['contract'])
         _write(directory / 'required-roster.json', artifact['required_roster'])

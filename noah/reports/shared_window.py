@@ -196,7 +196,10 @@ def reconstruct_readers(request, root, label, *, budget=None, version=2):
             settings = _evaluation_inputs(directory)
             require(settings == {'evaluation': request['evaluation'], 'max_ancestor_distance': 10000},
                     'shared evaluation settings differ')
+            from .artifacts import retained_coverage_method
+            coverage_method = retained_coverage_method(directory, contract)
             result = _collect(substrate, 'retained-package', [], contract, None, hotkeys, lambda: 0,
+                replay_coverage_method=coverage_method,
                 chain_source=engine.for_round(receipts) if engine is not None else ReplaySource(receipts, '0x' + contract['block_hash']),
                 evaluation=request['evaluation'], evaluation_ancestor_limit=10000,
                 capture_window=True, shared_window=window,

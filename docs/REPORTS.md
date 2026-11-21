@@ -228,6 +228,46 @@ URLs) and `require_pair: true`. Keep credentials in this private file. Capture
 the JSON result as the retained resolution. Offline verification requires paired
 agreement. Resolving a day does not enable report processing or V2 scoring.
 
+## Holder coverage and historical evidence
+
+Fresh miner calculations and validator collection use the explicit engine
+`coverage_method: "total-alpha-staked-v2"`, including unavailable outcomes.
+The three committed integers, holder selection, price simulation, rounding,
+locked/collateral deductions and Ark exclusion are unchanged. The signed
+calculation identity and weekly template remain unchanged; existing signed weeks
+continue working after the software update.
+
+The corrected availability check uses `TotalAlphaStaked`, the runtime's maintained
+sum of hotkey stake pools, to bound unobserved holder stake. `SubnetAlphaOut` also
+contains non-holder inventory, so it remains diagnostic data rather than the
+holder-coverage denominator. Cumulative burn or protocol counters are not
+subtracted. The new coverage records its basis and `stake_pool_total_rao`.
+
+Only reviewed, code-pinned runtimes 483, 492 and 493 qualify for fresh coverage.
+The stake-cache migration must be complete with no remaining cursor. Observed
+coldkey stake above the pool total refuses the calculation. Otherwise the
+unobserved bound is pool total minus observed stake; the existing refusal when
+that bound exceeds the largest non-Ark available holding remains. Missing or
+malformed evidence never falls back to legacy coverage.
+
+This changes reporting availability and therefore which reports can earn the
+optional bonus. It does not change ordinary V2 scoring or the three report
+answers. Unsupported daily state can still make a report unavailable. Weekly
+target selection establishes supported initialized pools and completed cache
+migration at the Sunday snapshot; it cannot guarantee future daily availability.
+
+Historical engine artifacts without the new marker retain the original
+`SubnetAlphaOut` coverage arithmetic and verdicts. Offline verification selects
+that behavior only from the retained artifact shape and engine binding, then
+recomputes the complete result from that reader's raw inputs. Unknown or mixed
+methods, stripped markers with new fields, and altered results refuse. The
+trusted outer package/reference hash remains essential: standalone replay proves
+internal consistency, not the provenance of a replaced package. Fresh collection
+requires the new method; there is no CLI switch to produce legacy coverage.
+
+No existing report, frozen request, signed week or financial receipt is rewritten.
+An unavailable historical report is not retroactively awarded a bonus.
+
 ## Weekly assignments
 
 Weekly reporting is OFF by default. The proposed Testnet mode preserves ordinary

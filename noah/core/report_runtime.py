@@ -634,8 +634,9 @@ def starter_input(adapter, source_reference, raw):
                                                    if earns_reporting_bonus(r, request))} if bonus else {})}}
 
 
-def check_before_send(adapter, reference, vector):
+def check_before_send(adapter, reference, vector, *, refresh=None):
     """A new send uses the current selected policy and the original frozen proof."""
+    outer_reference, outer_vector = reference, vector
     root = adapter._submitted_record_dir
     manifest = verify(root, reference)
     context = artifact(root, manifest, "context")
@@ -671,7 +672,7 @@ def check_before_send(adapter, reference, vector):
         return  # Pre-effective financial days keep their original allocation.
     require(proof is not None, "new send lacks selected report enforcement")
     from .report_source_handoff import check_send
-    check_send(adapter, proof)
+    check_send(adapter, proof, refresh=refresh, reference=outer_reference, vector=outer_vector)
     require(proof.get("reward", "gate") == selected_reward(adapter, manifest["day"]),
             "report reward differs from frozen calculation")
     require(proof.get("reward_transition") == transition_reference(adapter, manifest["day"]),

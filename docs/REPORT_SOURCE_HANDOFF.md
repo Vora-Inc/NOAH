@@ -83,7 +83,7 @@ content-addressed handoff document; old proofs remain readable without that fiel
    cannot install these settings or act as the human approval step.
 6. After restart, verify the retained R1's `source_handoff` reference, original
    request/R0, report replay and actual publication through the usual paired
-   reconciliation. Every retry checks the running full source identity and
+   reconciliation. Every unconfirmed retry checks the running full source identity and
    current authorization pin. Normal policy, migration, maturity/debt,
    current miner identity and burn checks still apply.
 
@@ -93,6 +93,28 @@ request, source pair or changed economics. Subsequent days use the successor
 normally. When removing the selected handoff or disabling reports, remove both
 configuration settings together while preserving the immutable historical
 handoff and original request/R0 evidence.
+
+## Refresh a confirmed day after a later upgrade
+
+A later qualified executable can refresh the exact already-confirmed daily
+allocation without a new handoff. The original protected authorization, frozen
+request, R0/R1 records and daily receipt remain unchanged. The validator must
+independently reconfirm the canonical daily transaction against the finalized
+chain, including its exact call, scoped success and complete stored vector.
+A saved `confirmed` flag is insufficient.
+
+This path applies only to a current epoch refresh with the same day, attempt
+height, full calculation reference and submitted vector. It checks the current
+policy, configuration, identities, rate limit, outage deadline and burn proof.
+The check repeats before transport against the exact newly opened intent;
+that attempt-local permission is discarded on success or failure. An uncertain
+send must reconcile and cannot reuse it after restart.
+
+A first send, a new burn-zero replacement or an unconfirmed retry still requires
+the handoff's exact successor source. An already confirmed burn-zero replacement
+can subsequently refresh its own unchanged allocation. This does not recalculate
+the old report, change its verdict or bonus, reopen a completed day, or introduce
+a manual-send bypass. The new artifact must pass the normal release checks.
 
 ## Backup and restore
 

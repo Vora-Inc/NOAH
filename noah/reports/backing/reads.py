@@ -116,6 +116,21 @@ class Reader:
     def alpha_out(self, netuid: int) -> int:
         return self._u64(subnet_alpha_out_key(netuid), default=0)
 
+    def require_staked_coverage(self) -> None:
+        """Only completed caches under independently reviewed, code-pinned runtimes."""
+        from .constants import STAKED_COVERAGE_SPECS
+        from .keys import total_alpha_staked_complete_key, total_alpha_staked_migration_key
+        if self.runtime_spec not in STAKED_COVERAGE_SPECS:
+            raise RunFailure("stake_coverage_runtime_unsupported")
+        # Missing completion evidence is never an implicit completed migration.
+        if (self._raw(total_alpha_staked_complete_key()) != b"\x01"
+                or self._raw(total_alpha_staked_migration_key()) is not None):
+            raise RunFailure("stake_coverage_migration_incomplete")
+
+    def total_alpha_staked(self, netuid: int) -> int:
+        from .keys import total_alpha_staked_key
+        return self._u64(total_alpha_staked_key(netuid), default=0)
+
     def quote_parts(self, netuid: int) -> int:
         raw = self._raw(swap_balancer_key(netuid))
         if raw is None:

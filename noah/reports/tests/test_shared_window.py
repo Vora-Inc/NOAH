@@ -21,7 +21,7 @@ from noah.reports.package_inventory import ReportPackageRefused
 from noah.reports.shared_window import ENGINE_SCHEMA as SCHEMA
 from noah.reports.backing.chain_session import commitment_info
 from noah.reports.backing.constants import PERQUINTILL_ONE
-from noah.reports.backing.engine import compute
+from noah.reports.backing.engine import _compute as compute
 from noah.reports.backing.protocol.context_commitment import build_commitment
 from noah.reports.backing.protocol.preimage import ReportSubmission
 from noah.reports.backing.rpc import result_sha256

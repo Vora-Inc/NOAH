@@ -181,7 +181,7 @@ class Chain:
         from noah.reports.backing import keys as k
         from noah.reports.roster import _prefix
         hot=bytes.fromhex('44'*32)
-        self.rows={k.total_networks_key():(2).to_bytes(2,'little'),
+        self.rows={k.total_alpha_staked_complete_key():b'\x01', k.total_networks_key():(2).to_bytes(2,'little'),
                    k.networks_added_key(1):b'\x01', k.networks_added_key(2):b'\x01',
                    k.subnet_mechanism_key(1):b'\x01\x00', k.subtoken_enabled_key(1):b'\x01',
                    k.pal_swap_initialized_key(1):b'\x01',
@@ -308,7 +308,7 @@ def test_root_may_read_own_group_readable_service_key(case,tmp_path,monkeypatch)
         assert a.load_assignment_key(path,trusted_public_key=case.key)==case.pair
 
 
-@pytest.mark.parametrize('spec', [483, 490])
+@pytest.mark.parametrize('spec', [483, 492])
 def test_sparse_subnet_ids_use_complete_pinned_storage_keys(spec):
     from noah.reports.backing import keys as k
     from noah.reports.backing.reads import Reader
@@ -318,11 +318,14 @@ def test_sparse_subnet_ids_use_complete_pinned_storage_keys(spec):
     for make in (k.subnet_mechanism_key, k.subtoken_enabled_key,
                  k.pal_swap_initialized_key, k.subnet_alpha_in_key, k.subnet_tao_key):
         source.rows[make(7)] = source.rows[make(1)]
-    if spec == 490:
+    if spec == 492:
         for n in (1, 2, 7): source.rows[k.subnet_state_key(n)] = b'\x01'
     original = source.call
     def call(method, params):
         if method == 'state_getRuntimeVersion': return {'specVersion': spec}
+        if method == 'state_getStorageHash':
+            from noah.reports.backing.constants import RUNTIME_CODE_PINS
+            return RUNTIME_CODE_PINS[spec]
         # Force small pages: the consumer must continue even below requested size.
         result = original(method, params)
         return result[:1] if method == 'state_getKeysPaged' else result

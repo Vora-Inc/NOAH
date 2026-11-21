@@ -2249,14 +2249,18 @@ class ChainAdapter:
             # an impossible-to-reconcile intent blocking the expiry guard.
             from .publication_diagnostics import publication_phase
             try:
+                from .report_source_handoff import refresh_attempt
+                refresh = refresh_attempt(self)
                 from ..points.onboarding import enabled
                 if enabled(self):
                     from ..points.publication import check_before_send
-                    check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
+                    check_before_send(self, self._calculation_reference, dict(zip(uids, values)),
+                                          **({} if refresh is None else {"refresh": refresh}))
                 else:
                     from ..starter.publication import check_before_send, verify_overlay
                     with publication_phase("pre_send_evidence"):
-                        check_before_send(self, self._calculation_reference, dict(zip(uids, values)))
+                        check_before_send(self, self._calculation_reference, dict(zip(uids, values)),
+                                          **({} if refresh is None else {"refresh": refresh}))
                     with publication_phase("pre_send_overlay"):
                         proof = verify_overlay(self._submitted_record_dir, self._calculation_reference)
                     if proof is not None and proof['mode'] == 'starter-overlay':
@@ -2557,7 +2561,10 @@ class ChainAdapter:
                 from ..points.publication import check_before_send
             else:
                 from ..starter.publication import check_before_send
-            check_before_send(self, self._calculation_reference, vector)
+            refresh = ({"epoch": refresh_epoch, "day": source_day, "height": height}
+                       if refresh_epoch is not None and successor is None else None)
+            check_before_send(self, self._calculation_reference, vector,
+                              **({} if refresh is None else {"refresh": refresh}))
         if self._calculation_reference is not None:
             from .burn_publication import allocation_of, recheck_for_send
             from .calculation_record import artifact, verify
@@ -2605,9 +2612,22 @@ class ChainAdapter:
             recovery["intent_id"] = marker["intent_id"]
         self._publication_event(marker, "submitting")
         try:
-            published = publish_weights_direct(
-                self, vector=vector, uid=self.uid, netuid=self.netuid, hotkey=self.wallet_hotkey
-            )
+            from .calculation_record import encoded
+            self._report_refresh_attempt = None
+            if refresh_epoch is not None and successor is None:
+                opened = self._publish_intent.load()
+                from .report_publication import require
+                require(type(opened) is dict
+                        and {k: v for k, v in opened.items() if k not in ('schema_version', 'at')} == marker,
+                        "new refresh intent changed before submission")
+                self._report_refresh_attempt = encoded(opened)
+            try:
+                published = publish_weights_direct(
+                    self, vector=vector, uid=self.uid, netuid=self.netuid, hotkey=self.wallet_hotkey
+                )
+            finally:
+                # Never carry authority through an uncertain send or restart.
+                self._report_refresh_attempt = None
         except (CommitRejected, PublicationRefused) as error:
             self._publication_event(
                 marker, "rejected" if isinstance(error, CommitRejected) else "refused"

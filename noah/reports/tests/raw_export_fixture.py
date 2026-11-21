@@ -1,6 +1,6 @@
 """Entirely synthetic RPC facts; Finney is only the fixture's protocol domain.
 
-The unchanged runtime490 metadata supplies SCALE types, not chain observations.
+The unchanged runtime490 metadata supplies SCALE types for synthetic runtime492 responses, not chain observations.
 No real receipt, account state, block, approval or signature is reused. Zero
 signature bytes merely encode a signed-extrinsic shape; no signing occurs.
 """
@@ -124,8 +124,11 @@ class RawChain:
         if method == 'chain_getBlock':
             return deepcopy(self.blocks[params[0]])
         if method == 'state_getRuntimeVersion':
-            return {'specName': 'node-subtensor', 'implName': 'synthetic-fixture', 'specVersion': 490,
+            return {'specName': 'node-subtensor', 'implName': 'synthetic-fixture', 'specVersion': 492,
                 'transactionVersion': 1, 'authoringVersion': 1, 'implVersion': 1, 'apis': []}
+        if method == 'state_getStorageHash':
+            from noah.reports.backing.constants import RUNTIME_492_CODE_HASH
+            return RUNTIME_492_CODE_HASH
         if method == 'state_getMetadata':
             return self.metadata
         if method == 'rpc_methods':
@@ -139,6 +142,11 @@ class RawChain:
             if key == hex_encode(timestamp_now_key()):
                 n = int(self.headers[pin]['number'], 16)
                 return hex_encode((T0+n*12000).to_bytes(8,'little'))
+            from noah.reports.backing.keys import total_alpha_staked_complete_key, total_alpha_staked_migration_key, total_alpha_staked_key
+            if key == hex_encode(total_alpha_staked_complete_key()): return '0x01'
+            if key == hex_encode(total_alpha_staked_migration_key()): return None
+            if key.startswith(hex_encode(total_alpha_staked_key(0))[:-4]):
+                return hex_encode(sum(row.total for row in self.engine.availability.values()).to_bytes(8,'little'))
             if key in self.events:
                 return self.events[key].get(pin, '0x00')
             return self.storage[key] if key in self.storage else self.engine.storage.get(key)

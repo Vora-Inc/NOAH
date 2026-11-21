@@ -96,7 +96,7 @@ def collect(round_contract: dict, urls: list[str], out_dir: Path, hotkeys: list[
                 pass
 
 
-def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock, *, chain_source=None, history_checkpoint=None, prior_responses=None, history_dir=None, evaluation=None, evaluation_ancestor_limit=None, budget=None, shared_window=None, capture_window=False, shared_engine=None, mining_netuid_filter=None):
+def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock, *, chain_source=None, history_checkpoint=None, prior_responses=None, history_dir=None, evaluation=None, evaluation_ancestor_limit=None, budget=None, shared_window=None, capture_window=False, shared_engine=None, mining_netuid_filter=None, replay_coverage_method=None):
     from .protocol.preimage import REPORT_POLICY
     report_only = round_contract["eligibility_policy_version"] == REPORT_POLICY
     if report_only and any(value is not None for value in (history_checkpoint, prior_responses, history_dir)):
@@ -265,12 +265,22 @@ def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock,
     else:
         source = chain_source
         calc_receipts = []
-    engine, _meta = compute(
+    if replay_coverage_method is None:
+        calculate = compute
+        replay_args = {}
+    else:
+        from .engine import replay_compute
+        if chain_source is None or out_dir is not None:
+            raise ValueError("legacy coverage is retained replay only")
+        calculate = replay_compute
+        replay_args = {"coverage_method": replay_coverage_method}
+    engine, _meta = calculate(
         source,
         round_contract["reported_netuid"],
         pin,
         round_contract["block_number"],
         ark=bytes.fromhex(round_contract["ark_coldkey"]),
+        **replay_args,
     )
     calculation = calculation_for_shadow(round_contract, engine, allow_unavailable_outputs=True) if engine.get("status") == "OK" else None
     observation = _observation(substrate, hotkeys, round_contract["mining_netuid"], version, metadata_sha, endpoint)

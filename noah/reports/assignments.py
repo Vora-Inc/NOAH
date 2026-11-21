@@ -412,9 +412,10 @@ def load_cached(directory, week_start, *, trusted_public_key, expected_template_
 
 
 def supported_targets(reader):
-    """Subnets the existing calculator can score at this block."""
+    """Supported initialized pools; daily holder/output checks remain required."""
     from .backing.engine import _read_pool
     _require(reader.qualified_runtime(reader.spec_version()), 'assignment runtime unsupported')
+    reader.require_staked_coverage()
     from .backing.keys import networks_added_key, subnet_state_key
     # Both reviewed layouts use Identity(NetUid=u16), not a dense ID range.
     key = networks_added_key if reader.runtime_spec == 483 else subnet_state_key

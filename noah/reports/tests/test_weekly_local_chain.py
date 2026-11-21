@@ -162,8 +162,9 @@ class Chain(RawChain):
             return block_hash(7)
         if method == 'state_getStorageHash' and params[0] == '0x3a636f6465':
             assert params[1] in self.headers
-            # Synthetic observed code identity; supported490 qualification is unchanged.
-            return '0x' + 'ab' * 32
+            # The synthetic source advertises492 and supplies its reviewed code pin.
+            from noah.reports.backing.constants import RUNTIME_492_CODE_HASH
+            return RUNTIME_492_CODE_HASH
         if method == 'state_getKeysPaged':
             prefix, count, start, _pin = params
             keys = sorted(set(self.storage) | set(self.engine.storage) | set(self.engine.alpha_keys))

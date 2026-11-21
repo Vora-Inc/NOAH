@@ -679,6 +679,65 @@ def _source_inventory_labels(text: str) -> str:
     except (ValueError, TypeError, RecursionError):
         return text
 
+def _source_handoff_labels(text: str) -> str:
+    """Disambiguate only verified source path labels in a canonical handoff.
+
+    Digest values, approval text and original intrinsic-credential scans remain
+    untouched. This recognizes public inventory syntax, not operator authority
+    or the financial validity of the referenced calculation evidence.
+    """
+    if '\"schema\": \"noah-report-source-handoff/1\"' not in text:
+        return text
+    try:
+        from noah.core.report_source_handoff import document
+        from noah.core.report_publication import ReportPublicationRefused
+        try:
+            value = document(text.encode('utf-8'))
+        except ReportPublicationRefused:
+            return text
+        for key, release_key in (('source', 'from_release'), ('successor', 'to_release')):
+            reference = value[key]
+            if (type(reference) is not dict or set(reference) !=
+                    {'path', 'sha256', 'day', 'genesis_hash', 'candidate_sha256'}
+                    or type(reference['sha256']) is not str
+                    or re.fullmatch(r'[0-9a-f]{64}', reference['sha256']) is None
+                    or reference['path'] != 'evidence/' + reference['sha256'] + '.json'
+                    or type(reference['day']) is not int or reference['day'] != value['day']
+                    or reference['genesis_hash'] != value['genesis_hash']
+                    or reference['candidate_sha256'] != value[release_key]['candidate']['source_sha256']):
+                return text
+        component = r"[a-zA-Z_][a-zA-Z_0-9]*"
+        folders = rf"(?:{component}/)*"
+        source_path = (
+            rf"(?:(?:noah|neurons)/{folders}{component}\.py"
+            rf"|verification/noah-ts/src/{folders}{component}\.ts"
+            r"|noah/starter/verify-allocation\.mjs)"
+        )
+        for key in ('from_release', 'to_release'):
+            candidate = value[key]['candidate']
+            if any(re.fullmatch(source_path, path) is None for path in candidate['files']):
+                return text
+        # document() enforces canonical bytes, exact release/candidate fields,
+        # digest shapes and each complete source-inventory digest. Restrict each
+        # replacement to its exact root release object and files indentation.
+        projected = text
+        for key in ('from_release', 'to_release'):
+            release = value[key]
+            lines = json.dumps(release, sort_keys=True, indent=2).splitlines()
+            region = '  "' + key + '": ' + lines[0] + '\n' + '\n'.join('  ' + line for line in lines[1:])
+            if projected.count(region) != 1:
+                return text
+            replacement = region
+            for path in release['candidate']['files']:
+                label = '        ' + json.dumps(path) + ':'
+                if replacement.count(label) != 1:
+                    return text
+                replacement = replacement.replace(label, '        "' + 'f' * len(path) + '":', 1)
+            projected = projected.replace(region, replacement, 1)
+        return projected
+    except (ImportError, ValueError, TypeError, KeyError, RecursionError, UnicodeError):
+        return text
+
 def _points_cache_labels(text: str) -> str:
     """Recognize one canonical cache index label, never exempt digest values.
 
@@ -833,7 +892,7 @@ def _report_identity_labels(text: str) -> str:
 def scan_text(text: str, name: str = "<text>", depth: int = 0) -> list:
     """Scan decoded text. ``name`` is used as given (callers mask it)."""
     projected = None
-    for transform in (_source_inventory_labels, _points_cache_labels, _report_identity_labels):
+    for transform in (_source_inventory_labels, _source_handoff_labels, _points_cache_labels, _report_identity_labels):
         candidate = transform(text)
         if candidate != text and len(candidate) == len(text):
             if projected is None:

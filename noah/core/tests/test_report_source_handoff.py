@@ -254,3 +254,55 @@ def test_uncertain_intent_refuses_before_handoff_authorization(handoff,monkeypat
     with pytest.raises(ReportPublicationRefused,match='unresolved publication intent'):
         runtime.resume_raw_source(x.p.a,x.successor,x.p.raw,request_raw=x.raw)
     assert all(path.read_bytes()==raw for path,raw in before.items())
+
+
+def test_fifo_authorization_refuses_without_waiting_for_a_writer(tmp_path):
+    import os
+    import select
+    import subprocess
+    import sys
+    fifo = tmp_path / 'authorization.fifo'
+    os.mkfifo(fifo, 0o600)
+    code = """
+import sys
+sys.path.insert(0, sys.argv[1])
+from noah.core.report_source_handoff import read_bytes
+from noah.core.report_publication import ReportPublicationRefused
+print('READY', flush=True)
+try:
+    read_bytes(sys.argv[2])
+except ReportPublicationRefused as error:
+    if str(error) != 'handoff file shape refused':
+        raise
+    print('REFUSED_FIFO', flush=True)
+else:
+    raise AssertionError('nonregular authorization accepted')
+"""
+    # Start the request timeout only after imports finish. The child has no FIFO
+    # writer; the original blocking open hangs here and is killed by the parent.
+    child = subprocess.Popen([sys.executable, '-B', '-c', code,
+                              str(Path(h.__file__).resolve().parents[2]), str(fifo)],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+    try:
+        assert select.select([child.stdout], [], [], 20)[0], 'reader imports did not finish'
+        assert child.stdout.readline().strip() == b'READY'
+        output, error = child.communicate(timeout=2)
+        assert child.returncode == 0, error
+        assert output == b'REFUSED_FIFO\n'
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.communicate(timeout=5)
+    assert fifo.is_fifo()
+
+
+def test_nonblocking_regular_read_preserves_bytes_and_closes_descriptor(tmp_path,monkeypatch):
+    import os
+    path = tmp_path / 'authorization.json'; raw = b'{"synthetic": true}\n'; path.write_bytes(raw)
+    opened = []; original = os.open
+    def capture(file, flags, *args, **kwargs):
+        fd = original(file, flags, *args, **kwargs); opened.append((fd, flags)); return fd
+    monkeypatch.setattr(h.os, 'open', capture)
+    assert h.read_bytes(path) == raw
+    assert len(opened) == 1 and opened[0][1] & os.O_NOFOLLOW and opened[0][1] & os.O_NONBLOCK
+    with pytest.raises(OSError): os.fstat(opened[0][0])

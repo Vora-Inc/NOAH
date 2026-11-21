@@ -7,6 +7,7 @@ from typing import Any
 
 from .constants import (
     ARK_PUBKEY_HEX,
+    COVERAGE_LEGACY, COVERAGE_STAKED_V2,
     MECHANISM_DYNAMIC,
     MINIMUM_RESERVE,
     RAO_STEP,
@@ -43,13 +44,34 @@ class _Timer:
         return int((time.perf_counter() - self.started) * 1000)
 
 
-def compute(
+def compute(source, netuid, block_hash, block_number=None, *, ark=None):
+    """Fresh calculation always requires the current holder-coverage evidence."""
+    result, meta = _compute(source, netuid, block_hash, block_number, ark=ark,
+                            coverage_method=COVERAGE_STAKED_V2)
+    result["coverage_method"] = COVERAGE_STAKED_V2
+    return result, meta
+
+
+def replay_compute(source, netuid, block_hash, block_number=None, *, ark=None, coverage_method):
+    """Private retained-input path; never a network or fresh-production option."""
+    from .source import ReplaySource
+    if not isinstance(source, ReplaySource):
+        raise ValueError("coverage replay requires retained raw inputs")
+    if coverage_method == COVERAGE_STAKED_V2:
+        return compute(source, netuid, block_hash, block_number, ark=ark)
+    if coverage_method != COVERAGE_LEGACY:
+        raise ValueError("unknown retained coverage method")
+    return _compute(source, netuid, block_hash, block_number, ark=ark)
+
+
+def _compute(
     source,
     netuid: int,
     block_hash: str,
     block_number: int | None = None,
     *,
     ark: bytes | None = None,
+    coverage_method: str = COVERAGE_LEGACY,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Calculate one subnet at one block.
 
@@ -57,6 +79,8 @@ def compute(
     The default is the production Ark. Passing another key does not change the
     price, drop, or threshold arithmetic.
     """
+    if coverage_method not in (COVERAGE_LEGACY, COVERAGE_STAKED_V2):
+        raise ValueError("unsupported coverage method")
     block_hash = block_hash.lower()
     ark_key = _ARK if ark is None else ark
     timer = _Timer()
@@ -73,9 +97,15 @@ def compute(
         if isinstance(pool, tuple):
             status, reason = pool
             return _gated(status, reason, netuid, block_hash, number, spec), _finish(meta, timer, reader, source)
+        if coverage_method == COVERAGE_STAKED_V2:
+            reader.require_staked_coverage()
+            pool["stake_pool_total"] = reader.total_alpha_staked(netuid)
         coldkeys = timer.run("alpha_v2_scan", lambda: reader.discover_coldkeys(netuid))
         rows = timer.run("availability", lambda: reader.availability(coldkeys, netuid))
         _consistency(rows)
+        if (coverage_method == COVERAGE_STAKED_V2
+                and sum(row.total for row in rows.values()) > pool["stake_pool_total"]):
+            raise RunFailure("stake_coverage_observed_exceeds_pool")
         timer.run("lock_cross_check", lambda: _cross_check(reader, netuid, rows))
         holder, tie_count = _select_holder(rows, ark_key)
         if holder is None:
@@ -212,8 +242,9 @@ def _success(netuid, block_hash, number, timestamp_ms, spec, pool, rows, pubkey,
     sum_available = sum(item.available for item in rows.values())
     sum_available_ex_ark = sum(item.available for key, item in rows.items() if key != ark)
     alpha_out = pool["alpha_out"]
-    gap = 0 if sum_total >= alpha_out else alpha_out - sum_total
-    coverage_ppm = (sum_total * 1_000_000) // alpha_out if alpha_out else 0
+    coverage_total = pool.get("stake_pool_total", alpha_out)
+    gap = 0 if sum_total >= coverage_total else coverage_total - sum_total
+    coverage_ppm = (sum_total * 1_000_000) // coverage_total if coverage_total else 0
     ark_row = rows.get(ark)
     return {
         "ark_context": ark_context(
@@ -226,6 +257,8 @@ def _success(netuid, block_hash, number, timestamp_ms, spec, pool, rows, pubkey,
         "block_number": number,
         "block_timestamp_ms": timestamp_ms,
         "coverage": {
+            **({"basis": "total-alpha-staked-v2", "stake_pool_total_rao": pool["stake_pool_total"]}
+               if "stake_pool_total" in pool else {}),
             "coldkey_count": len(rows),
             "coverage_gap_exceeds_holder": gap > row.available,
             "coverage_ppm": coverage_ppm,

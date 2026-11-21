@@ -114,7 +114,7 @@ def test_raw_provider_and_default_exporter_reconstruct_without_core_mocks(comple
     output = execute(complete.args)
     assert output['status'] == 'PREPARED' and output['publication_performed'] is False
     report = json.loads(Path(output['public_file']).read_bytes())
-    assert report['report_id'] == 'ee0d98f0f30521f24e9456d0a58632a05c811bb1baac0d035d6f2bc6776a285e'
+    assert report['report_id'] == 'c244a8e381f5a5747c25d9041f6f8c95bd1d4f859d0c3ecc0ccde4286eff4b45'
     assert report['verification']['status'] == 'verified'
     assert report['verification']['required_submissions'] == report['verification']['counts']['VERIFIED'] == 1
     expected = complete.readers['reader_a'].expected_engine

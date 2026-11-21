@@ -158,6 +158,20 @@ def subtoken_enabled_key(netuid: int) -> bytes:
     return map_identity(PALLET_SUBTENSOR, "SubtokenEnabled", netuid)
 
 
+def total_alpha_staked_key(netuid: int) -> bytes:
+    return map_identity(PALLET_SUBTENSOR, "TotalAlphaStaked", netuid)
+
+
+def total_alpha_staked_migration_key() -> bytes:
+    return storage_prefix(PALLET_SUBTENSOR, "TotalAlphaStakedMigration")
+
+
+def total_alpha_staked_complete_key() -> bytes:
+    from .scale import encode_compact
+    name = b"migrate_total_alpha_staked"
+    return storage_prefix(PALLET_SUBTENSOR, "HasMigrationRun") + encode_compact(len(name)) + name
+
+
 def total_networks_key() -> bytes:
     return storage_prefix(PALLET_SUBTENSOR, "TotalNetworks")
 

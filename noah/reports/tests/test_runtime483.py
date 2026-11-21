@@ -2,7 +2,7 @@
 import pytest
 
 from noah.reports.backing.constants import RUNTIME_483_CODE_HASH
-from noah.reports.backing.engine import compute
+from noah.reports.backing.engine import _compute as compute
 from noah.reports.backing.keys import hex_encode, networks_added_key, subnet_state_key
 from noah.reports.backing.rpc import RpcClient, RunFailure
 from noah.reports.tests.test_engine_arithmetic import _chain, _add, BLOCK, NETUID

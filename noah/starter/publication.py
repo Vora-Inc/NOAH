@@ -134,9 +134,9 @@ def verify_overlay(directory, reference):
     return proof
 
 
-def check_before_send(adapter, reference, vector):
+def check_before_send(adapter, reference, vector, *, refresh=None):
     from ..core.report_runtime import check_before_send as check_reports
-    check_reports(adapter, reference, vector)
+    check_reports(adapter, reference, vector, **({} if refresh is None else {"refresh": refresh}))
     from ..points.mode import check_publication_mode
 
     check_publication_mode(adapter, reference)

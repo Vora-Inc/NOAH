@@ -70,6 +70,8 @@ def verify_package(path: Path, saved: dict | None = None, *, include_evidence: b
         substrate = SubstrateInterface(websocket=_ReplaySocket(index), auto_discover=False)
         substrate.init_runtime()
         pin = "0x" + round_contract["block_hash"]
+        from noah.reports.artifacts import retained_coverage_method
+        coverage_method = retained_coverage_method(directory, round_contract)
         result = _collect(
             substrate,
             "retained-package",
@@ -79,6 +81,7 @@ def verify_package(path: Path, saved: dict | None = None, *, include_evidence: b
             hotkeys,
             lambda: 0,
             chain_source=ReplaySource(receipts, pin),
+            replay_coverage_method=coverage_method,
             history_checkpoint=history_checkpoint,
             history_dir=history_dir,
             evaluation=evaluation_settings["evaluation"] if evaluation_settings else None,
