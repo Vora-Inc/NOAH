@@ -29,7 +29,9 @@ from noah.runtime_events import bind as bind_event_context, emit as emit_event, 
 from noah.core.loop import run_forever  # noqa: E402
 from noah.core.pinning import NoSettledPeriod, period_bounds, period_of, pin_height  # noqa: E402
 from noah.core.reader import ChainReader, ChainUnreadable, Connection  # noqa: E402
-from noah.core.settings import Settings, SettingsError, parse_env_file  # noqa: E402
+from noah.core.settings import (  # noqa: E402
+    Settings, SettingsError, parse_env_file, require_report_gate_runtime_ready,
+)
 from noah.core.startup import (  # noqa: E402
     CannotPublishYet,
     DirectPathMisconfigured,
@@ -169,6 +171,7 @@ def connect(settings, *, open_client=None, env=None, genesis_connection=None):
     each endpoint is identified with a state-free ``chain_getBlockHash(0)`` (see
     ``noah.core.mainnet.RpcGenesis``), so a pruned own node can be an endpoint.
     """
+    require_report_gate_runtime_ready(settings)
     open_client = open_client or _open_bt_client
     endpoint = settings.chain_endpoint or settings.network
     expected = {"finney": "MAINNET", "test": "TESTNET", "local": "LOCAL"}[settings.network]
@@ -561,6 +564,13 @@ def main(argv=None):
     urls = (settings.chain_endpoint, settings.second_chain_endpoint, settings.submit_endpoint)
     try:
         client, genesis = connect(settings)
+        if getattr(settings, "report_gate_enabled", False) is True:
+            from noah.core.report_runtime import startup_binding
+            try:
+                startup_binding(settings, genesis, _submitted_record_dir())
+            except SettingsError:
+                _close_quietly(client)
+                raise
         reader = ChainReader(client)
         height = reader.current_block()
     except SettingsError as error:

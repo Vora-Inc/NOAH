@@ -246,7 +246,16 @@ def test_installed_sdk_nonce_preparation_bypasses_cache(monkeypatch):
         )
     )
     assert prepared["nonce"] == 217
-    assert asyncio.run(cache.next_for(SIGNER)) == 216  # reproduces old defect
+    # Cache synchronization differs between supported SDK releases. The
+    # safety contract is that preparation sees a fresh chain nonce, including
+    # after an earlier preparation, not how next_for mutates SDK internals.
+    rpc.next_nonce = 219
+    prepared_again = asyncio.run(
+        interface.SubstrateConnection.prepare_unsigned(
+            facade, b"call", address=SIGNER, era={"period": 128}
+        )
+    )
+    assert prepared_again["nonce"] == 219
 
 
 def test_pinned_sdk_bridge_contract_without_connecting():

@@ -36,6 +36,8 @@ COMPLETE = {
     "NOAH_HOLDING_STRIDE_BLOCKS": "",
     "NOAH_ENTRY_DEPOSIT_RAO": "",
     "NOAH_PUBLISH_MODE": "",
+    "NOAH_REPORT_GATE_ENABLED": "false",
+    "NOAH_REPORT_GATE_POLICY": "",
     "NOAH_EPOCH_COLLECTION": "false",
     "NOAH_EPOCH_REPUBLICATION": "false",
     # #112: known to Settings' _refuse_unknown (so a real, documented line
@@ -234,6 +236,8 @@ class RequiredAndRanges(unittest.TestCase):
             "NOAH_PUBLISH_MODE",
             "NOAH_EPOCH_COLLECTION",
             "NOAH_EPOCH_REPUBLICATION",
+            "NOAH_REPORT_GATE_ENABLED",
+            "NOAH_REPORT_GATE_POLICY",
         )
         for key in COMPLETE:
             if key in optional:

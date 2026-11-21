@@ -79,6 +79,8 @@ to start.
 | `reserve_noah` | Amount kept back from what can be sent. If the key is left out, 0. The file written by `init-config` sets it to 1, so a newcomer starts with a 1 NOAH reserve. |
 | `[evidence] file` | Path to the evidence JSON file (section 5). |
 | `[state] dir` | Folder for the ledger file `deposits.db`. Default `./noah-deposit-state`. |
+| `[report] assignments_url` | Optional weekly assignment source supplied by the operator. The URL alone does not establish trust; signatures must match the pinned public key below. |
+| `assignment_signer_public_key` | Operator-provided assignment signing public key: exactly 64 lowercase hexadecimal characters, obtained through a trusted channel. Required with the assignment source; never use a private key. |
 
 ### Which `stake_position`
 

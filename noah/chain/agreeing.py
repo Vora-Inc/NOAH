@@ -96,6 +96,17 @@ class AgreeingChain:
         if errors:
             raise errors[0]
 
+    def refresh_read_connections(self):
+        """Close every independent read session, without retrying any chain query."""
+        errors = []
+        for source in self._sources.values():
+            try:
+                source.refresh_read_connection()
+            except (Exception, Refusal) as error:
+                errors.append(error)
+        if errors:
+            raise errors[0]
+
     @property
     def endpoints(self):
         """The source-name-to-endpoint mapping this chain was built with.
@@ -184,12 +195,20 @@ class AgreeingChain:
     def events(self, block):
         return self._agreed("blockEvents", block, lambda client: client.events(block))
 
+    def block_timestamp_ms(self, block):
+        return self._agreed("blockTimeMs", block, lambda client: client.block_timestamp_ms(block),
+                            zero_is_impossible=True)
+
     def extrinsics(self, block):
         """Read this block's decoded extrinsics, preserving the indexes used by events."""
         return self._agreed("blockExtrinsics", block, lambda client: client.extrinsics(block))
 
     def incentive(self, block):
         return self._agreed("incentive", block, lambda client: client.incentive(block))
+
+    def publication_state(self, netuid, uid, block, mecid=0):
+        return self._agreed("publicationState", block,
+                            lambda client: client.publication_state(netuid, uid, block, mecid))
 
 
     def seat_hotkeys(self, block):
@@ -277,6 +296,26 @@ class AgreeingChain:
         return self._agreed(
             "holdingMapsDeclared", block, lambda client: client.holding_maps_declared(block)
         )
+
+    def burn_context(self, block, netuid, *, expected_block_hash):
+        return self._agreed('effectiveBurnContext', block,
+                            lambda client: client.burn_context(
+                                block, netuid, expected_block_hash=expected_block_hash))
+
+    def token_reference_context(self, block, netuids):
+        return self._agreed("tokenReferenceContext", block,
+                            lambda client: client.token_reference_context(block, netuids))
+
+    def ema_price_snapshot(self, block, netuids, *, expected_block_hash, ema_source):
+        return self._agreed("emaPriceSnapshot", block,
+                            lambda client: client.ema_price_snapshot(
+                                block, netuids, expected_block_hash=expected_block_hash,
+                                ema_source=ema_source))
+
+    def reference_price_at(self, block, netuid, *, expected_block_hash):
+        return self._agreed("rawReferencePrice", block,
+                            lambda client: client.reference_price_at(
+                                block, netuid, expected_block_hash=expected_block_hash))
 
     def alpha_price_at(self, block, netuid, *, expected_block_hash=None):
         """A subnet's spot alpha price at exactly ``block``, only when every source

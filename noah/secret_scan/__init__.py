@@ -460,11 +460,25 @@ _QPAIR = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.\-]{1,64})[\"']\s*,\s*[\"']([^\
 _LEAD = re.compile(r"[\"']((?:[A-Za-z]+[ _-]){1,2})$")
 
 
+_ENVIRONMENT_ASSIGNMENT = re.compile(r"(?i)\bEnvironment\s*=\s*")
+
+
+def _has_function_prefix(line: str) -> bool:
+    """Recognize the typed-parameter exception with linear string operations."""
+    prefix = line.lstrip()
+    if prefix.startswith("async") and len(prefix) > 5 and prefix[5].isspace():
+        prefix = prefix[5:].lstrip()
+    return prefix.startswith("def") and len(prefix) > 3 and prefix[3].isspace()
+
+
 def _kv_hits(lines_text, add_line) -> None:
     for line_no, line in lines_text:
         if len(line) < 4:
             continue
-        is_def = re.match(r"\s*(?:async\s+)?def\s", line) is not None
+        # A quote is non-whitespace: these ends exactly match the former
+        # anchored prefix search, without rescanning a growing JSON prefix.
+        environment_ends = {match.end() for match in _ENVIRONMENT_ASSIGNMENT.finditer(line)}
+        is_def = _has_function_prefix(line)
         for q in _QPAIR.finditer(line):  # SQL rows: VALUES('api_token','<value>')
             if (
                 _name_is_secretish(q.group(1))
@@ -492,7 +506,7 @@ def _kv_hits(lines_text, add_line) -> None:
             qpos = m.start("name") - 1
             if (
                 not quoted and qpos >= 0 and line[qpos] in ("'", '"')
-                and re.search(r"(?i)\bEnvironment\s*=\s*$", line[:qpos]) is not None
+                and qpos in environment_ends
             ):
                 close = val.find(line[qpos])  # systemd: Environment="NAME=value with (punctuation)!"
                 if close > 0:
@@ -665,9 +679,228 @@ def _source_inventory_labels(text: str) -> str:
     except (ValueError, TypeError, RecursionError):
         return text
 
+def _source_handoff_labels(text: str) -> str:
+    """Disambiguate only verified source path labels in a canonical handoff.
+
+    Digest values, approval text and original intrinsic-credential scans remain
+    untouched. This recognizes public inventory syntax, not operator authority
+    or the financial validity of the referenced calculation evidence.
+    """
+    if '\"schema\": \"noah-report-source-handoff/1\"' not in text:
+        return text
+    try:
+        from noah.core.report_source_handoff import document
+        from noah.core.report_publication import ReportPublicationRefused
+        try:
+            value = document(text.encode('utf-8'))
+        except ReportPublicationRefused:
+            return text
+        for key, release_key in (('source', 'from_release'), ('successor', 'to_release')):
+            reference = value[key]
+            if (type(reference) is not dict or set(reference) !=
+                    {'path', 'sha256', 'day', 'genesis_hash', 'candidate_sha256'}
+                    or type(reference['sha256']) is not str
+                    or re.fullmatch(r'[0-9a-f]{64}', reference['sha256']) is None
+                    or reference['path'] != 'evidence/' + reference['sha256'] + '.json'
+                    or type(reference['day']) is not int or reference['day'] != value['day']
+                    or reference['genesis_hash'] != value['genesis_hash']
+                    or reference['candidate_sha256'] != value[release_key]['candidate']['source_sha256']):
+                return text
+        component = r"[a-zA-Z_][a-zA-Z_0-9]*"
+        folders = rf"(?:{component}/)*"
+        source_path = (
+            rf"(?:(?:noah|neurons)/{folders}{component}\.py"
+            rf"|verification/noah-ts/src/{folders}{component}\.ts"
+            r"|noah/starter/verify-allocation\.mjs)"
+        )
+        for key in ('from_release', 'to_release'):
+            candidate = value[key]['candidate']
+            if any(re.fullmatch(source_path, path) is None for path in candidate['files']):
+                return text
+        # document() enforces canonical bytes, exact release/candidate fields,
+        # digest shapes and each complete source-inventory digest. Restrict each
+        # replacement to its exact root release object and files indentation.
+        projected = text
+        for key in ('from_release', 'to_release'):
+            release = value[key]
+            lines = json.dumps(release, sort_keys=True, indent=2).splitlines()
+            region = '  "' + key + '": ' + lines[0] + '\n' + '\n'.join('  ' + line for line in lines[1:])
+            if projected.count(region) != 1:
+                return text
+            replacement = region
+            for path in release['candidate']['files']:
+                label = '        ' + json.dumps(path) + ':'
+                if replacement.count(label) != 1:
+                    return text
+                replacement = replacement.replace(label, '        "' + 'f' * len(path) + '":', 1)
+            projected = projected.replace(region, replacement, 1)
+        return projected
+    except (ImportError, ValueError, TypeError, KeyError, RecursionError, UnicodeError):
+        return text
+
+def _points_cache_labels(text: str) -> str:
+    """Recognize one canonical cache index label, never exempt digest values.
+
+    Short synthetic block numbers place a public block hash near the word
+    ``key``. Validate the complete public cache shape before neutralizing only
+    that three-character label. Intrinsic credential scans retain original text.
+    """
+    if '"kind": "day"' not in text:
+        return text
+    try:
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('duplicate cache key')
+                result[key] = value
+            return result
+        doc = json.loads(text, object_pairs_hook=unique)
+        if (type(doc) is not dict or set(doc) != {'identity', 'value', 'sha256'}
+                or text != json.dumps(doc, sort_keys=True, indent=2) + '\n'):
+            return text
+        identity = doc['identity']
+        if (type(identity) is not dict or set(identity) != {'genesis', 'key', 'kind'}
+                or identity['kind'] != 'day'
+                or not isinstance(identity['genesis'], str)
+                or not re.fullmatch('0x[0-9a-f]{64}', identity['genesis'])):
+            return text
+        key = identity['key']
+        if type(key) is not list or len(key) != 8:
+            return text
+        native, asset, start, end, first, first_hash, last, last_hash = key
+        if (any(type(n) is not int for n in (native, asset, start, end, first, last))
+                or not 0 < native < 65536 or not 0 <= asset < 65536
+                or start < 0 or start % 86400 or end != start + 86400 or not 0 < first <= last
+                or any(not isinstance(h, str) or not re.fullmatch('0x[0-9a-f]{64}', h)
+                       for h in (first_hash, last_hash))):
+            return text
+        rows = doc['value']
+        if type(rows) is not list or not rows or len(rows) > last - first + 1:
+            return text
+        cursor = start
+        for row in rows:
+            if (type(row) is not dict or set(row) != {'start', 'end', 'noah_price_rao', 'asset_price_rao'}
+                    or any(type(v) is not int for v in row.values())
+                    or row['start'] != cursor or not cursor < row['end'] <= end
+                    or not 0 < row['noah_price_rao'] < 2**64
+                    or not 0 < row['asset_price_rao'] < 2**64):
+                return text
+            cursor = row['end']
+        data = (json.dumps(rows, sort_keys=True, indent=2) + '\n').encode()
+        if cursor != end or hashlib.sha256(data).hexdigest() != doc['sha256']:
+            return text
+        # Exact canonical shape guarantees this is the sole key label.
+        return text.replace('    "key": [\n', '    "idx": [\n', 1)
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return text
+
+
+def _report_identity_labels(text: str) -> str:
+    """Recognize validated report AccountId labels; preserve every value.
+
+    This is a credential-scanner projection, not authentication or publication
+    permission. Unknown fields, arbitrary key files and intrinsic credential
+    patterns still receive the original scan. Same-length labels preserve lines.
+    """
+    if not any(schema in text for schema in ('noah.report-', 'noah.backing.round.v1', 'bfpoc-calc-v1', 'noah.reports.backing.collector', 'noah.weekly-assignment')):
+        return text
+    try:
+        def unique(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('duplicate report key')
+                result[key] = value
+            return result
+        doc = json.loads(text, object_pairs_hook=unique)
+        pretty = json.dumps(doc, sort_keys=True, indent=2, allow_nan=False) + '\n'
+        compact = json.dumps(doc, sort_keys=True, separators=(',', ':'), allow_nan=False)
+        spaced = json.dumps(doc, sort_keys=True, allow_nan=False)
+        if text not in (pretty, compact, compact + '\n', spaced, spaced + '\n'):
+            return text
+        approved = {}
+        def mark_round(contract):
+            approved[id(contract)] = {'ark_coldkey', 'ark_validator_hotkey'}
+        def visit(node):
+            if isinstance(node, dict):
+                schema = node.get('schema')
+                try:
+                    from noah.reports.identity_shapes import (validate_adjudication, validate_roster,
+                        validate_required_roster, validate_verdicts, validate_engine, validate_collector,
+                        validate_weekly_identities, validate_shared_window)
+                    validators = {
+                        'noah.report-adjudication-manifest/1': validate_adjudication,
+                        'noah.report-adjudication-manifest/2': validate_adjudication,
+                        'noah.report-adjudication-manifest/3': validate_adjudication,
+                        'noah.report-shared-window/1': validate_shared_window,
+                        'noah.report-shared-window/2': validate_shared_window,
+                        'noah.report-adjudication-result/1': validate_adjudication,
+                        'noah.report-snapshot-roster/1': validate_roster,
+                        'noah.report-required-roster/1': validate_required_roster,
+                        'noah.report-final-verdicts/1': validate_verdicts,
+                        'bfpoc-calc-v1': validate_engine,
+                        'noah.weekly-assignment-template/2': validate_weekly_identities,
+                        'noah.weekly-assignments/2': validate_weekly_identities,
+                    }
+                    validator = validators.get(schema)
+                    if validator is None and set(node) == {'evidence', 'observation'}:
+                        validator = validate_collector
+                    if validator is not None:
+                        nodes = validator(node)
+                        for owner, names in nodes:
+                            approved.setdefault(id(owner), set()).update(names)
+                    elif schema == 'noah.report-adjudication-request/1':
+                        from noah.reports.adjudication_contract import validate_request
+                        validate_request(node)
+                        for seat in node['scored_seats'] + node.get('assignments', []):
+                            approved[id(seat)] = {'hotkey', 'coldkey'}
+                    elif schema == 'noah.report-policy/1':
+                        from noah.reports.adjudication_contract import validate_policy
+                        validate_policy(node)
+                        for contract in node['required_rounds']:
+                            mark_round(contract)
+                    elif schema == 'noah.backing.round.v1':
+                        from noah.reports.verification import validate_round
+                        validate_round(node)
+                        mark_round(node)
+                    elif schema == 'noah.report-schedule/1':
+                        from noah.reports.schedule import validate_schedule
+                        validate_schedule(node)
+                        mark_round(node)
+                except (ImportError, ValueError, TypeError, KeyError):
+                    pass  # Invalid schemas never acquire an identity-label exception.
+                for value in node.values():
+                    visit(value)
+            elif isinstance(node, list):
+                for value in node:
+                    visit(value)
+        visit(doc)
+        def project(node):
+            if isinstance(node, dict):
+                names = approved.get(id(node), set())
+                return {('p' * len(key) if key in names else key): project(value) for key, value in node.items()}
+            return [project(value) for value in node] if isinstance(node, list) else node
+        if text == pretty:
+            return json.dumps(project(doc), indent=2, allow_nan=False) + '\n'
+        separators = (', ', ': ') if text in (spaced, spaced + '\n') else (',', ':')
+        return json.dumps(project(doc), separators=separators, allow_nan=False) + ('\n' if text.endswith('\n') else '')
+    except (ValueError, TypeError, KeyError, RecursionError):
+        return text
+
+
 def scan_text(text: str, name: str = "<text>", depth: int = 0) -> list:
     """Scan decoded text. ``name`` is used as given (callers mask it)."""
-    credential_text = _source_inventory_labels(text)
+    projected = None
+    for transform in (_source_inventory_labels, _source_handoff_labels, _points_cache_labels, _report_identity_labels):
+        candidate = transform(text)
+        if candidate != text and len(candidate) == len(text):
+            if projected is None:
+                projected = list(text)
+            for index, (original, replacement) in enumerate(zip(text, candidate)):
+                if original != replacement:
+                    projected[index] = replacement
+    credential_text = ''.join(projected) if projected is not None else text
     found = []
     decoded = depth > 0
     pre = "decoded-" if decoded else ""

@@ -39,6 +39,7 @@ import os
 import re
 import stat
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import Optional
 
 PREFIX = "NOAH_"
@@ -64,6 +65,19 @@ FALSE_SPELLINGS = ("false",)
 WHOLE_NUMBER = re.compile(r"^[0-9]+$")
 
 KEYS = (
+    "NOAH_SCORING_MODE",
+    "NOAH_POINTS_POLICY",
+    "NOAH_REPORT_GATE_ENABLED",
+    "NOAH_REPORT_GATE_POLICY",
+    "NOAH_REPORT_REWARD",
+    "NOAH_REPORT_SOURCE_HANDOFF",
+    "NOAH_REPORT_SOURCE_HANDOFF_SHA256",
+    "NOAH_WEEKLY_ASSIGNMENTS",
+    "NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE",
+    "NOAH_BURN_ALLOCATION_BPS",
+    # Interpreter override owned by reports.dispatch and report test scripts.
+    # Runtime-only: Settings never reads/executes it or changes scoring from it.
+    "NOAH_REPORT_PYTHON",
     "NOAH_STARTER_ENTRY_SNAPSHOT",
     "NOAH_WALLET_NAME",
     "NOAH_WALLET_HOTKEY",
@@ -420,6 +434,8 @@ class Settings:
     holding_stride_blocks: Optional[int]
     entry_deposit_rao: Optional[int]
     publish_mode: str
+    scoring_mode: str = "legacy"
+    points_policy: Optional[str] = None
     starter_entry_snapshot: Optional[str] = None
     epoch_collection: bool = False
     epoch_republication: bool = False
@@ -427,6 +443,14 @@ class Settings:
     submit_endpoint: Optional[str] = None
     expected_signer_address: Optional[str] = None
     proxy_signer_address: Optional[str] = None
+    report_gate_enabled: bool = False
+    report_gate_policy: Optional[str] = None
+    report_reward: str = "gate"
+    report_source_handoff: Optional[str] = None
+    report_source_handoff_sha256: Optional[str] = None
+    weekly_assignments: bool = False
+    weekly_assignment_signing_key_file: Optional[str] = None
+    burn_allocation_bps: int = 0
 
     def __repr__(self):
         # Endpoint fields show their label only: a hosted RPC URL may carry an API key.
@@ -463,6 +487,44 @@ class Settings:
         if (epoch_flags["NOAH_EPOCH_REPUBLICATION"]
                 and mapping.get("NOAH_PUBLISH_MODE", PUBLISH_MODE_DEFAULT) != "direct"):
             raise BadSetting("epoch republication requires direct publication mode")
+        scoring_mode = _one_of_or_default(
+            mapping, "NOAH_SCORING_MODE", ("legacy", "points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5"), "legacy"
+        )
+        points_policy = mapping.get("NOAH_POINTS_POLICY", "").strip() or None
+        if (scoring_mode in ("points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5")) != bool(points_policy):
+            raise BadSetting("points scoring mode and NOAH_POINTS_POLICY must be selected together")
+
+        report_gate_enabled = _flag(
+            {"NOAH_REPORT_GATE_ENABLED": mapping.get("NOAH_REPORT_GATE_ENABLED", "false")},
+            "NOAH_REPORT_GATE_ENABLED",
+        )
+        report_reward = _one_of_or_default(mapping, "NOAH_REPORT_REWARD", ("gate", "bonus-20"), "gate")
+        weekly_assignments = _flag(
+            {"NOAH_WEEKLY_ASSIGNMENTS": mapping.get("NOAH_WEEKLY_ASSIGNMENTS", "false")},
+            "NOAH_WEEKLY_ASSIGNMENTS",
+        )
+        burn_text = mapping.get("NOAH_BURN_ALLOCATION_BPS", "0").strip()
+        if burn_text not in ("0", "9800"):
+            raise BadSetting(
+                "NOAH_BURN_ALLOCATION_BPS accepts only 0 or 9800. "
+                f"It is {_shown(burn_text)}."
+            )
+        burn_allocation_bps = int(burn_text)
+        if burn_allocation_bps and scoring_mode != "points-204040-v5":
+            raise BadSetting("nonzero burn allocation requires points-204040-v5 scoring")
+        # OFF does not resolve, inspect or retain an unused policy path.
+        report_gate_policy = None
+        if report_gate_enabled:
+            report_gate_policy = _present(mapping, "NOAH_REPORT_GATE_POLICY")
+
+        report_source_handoff = mapping.get("NOAH_REPORT_SOURCE_HANDOFF", "").strip() or None
+        report_source_handoff_sha256 = mapping.get("NOAH_REPORT_SOURCE_HANDOFF_SHA256", "").strip() or None
+        if bool(report_source_handoff) != bool(report_source_handoff_sha256):
+            raise BadSetting("report source handoff needs both path and SHA256")
+        if report_source_handoff and (not report_gate_enabled
+                or not Path(report_source_handoff).is_absolute()
+                or re.fullmatch(r"[0-9a-f]{64}", report_source_handoff_sha256) is None):
+            raise BadSetting("report source handoff requires reports ON, absolute path and SHA256")
 
         endpoint = mapping.get("NOAH_CHAIN_ENDPOINT", "").strip()
         second_endpoint = _second_endpoint(mapping)
@@ -531,6 +593,16 @@ class Settings:
             publish_mode=_one_of_or_default(
                 mapping, "NOAH_PUBLISH_MODE", PUBLISH_MODES, PUBLISH_MODE_DEFAULT
             ),
+            points_policy=points_policy,
+            report_gate_enabled=report_gate_enabled,
+            report_gate_policy=report_gate_policy,
+            report_reward=report_reward,
+            report_source_handoff=report_source_handoff,
+            report_source_handoff_sha256=report_source_handoff_sha256,
+            weekly_assignments=weekly_assignments,
+            weekly_assignment_signing_key_file=(mapping.get("NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE", "").strip() or None) if weekly_assignments and report_gate_enabled else None,
+            burn_allocation_bps=burn_allocation_bps,
+            scoring_mode=scoring_mode,
             starter_entry_snapshot=mapping.get("NOAH_STARTER_ENTRY_SNAPSHOT", "").strip() or None,
             epoch_collection=epoch_flags["NOAH_EPOCH_COLLECTION"],
             epoch_republication=epoch_flags["NOAH_EPOCH_REPUBLICATION"],
@@ -540,3 +612,19 @@ class Settings:
             or None,
             proxy_signer_address=mapping.get("NOAH_PROXY_SIGNER_ADDRESS", "").strip() or None,
         )
+
+
+def require_report_gate_runtime_ready(settings):
+    """Validate opt-in prerequisites before connecting or loading a wallet."""
+    if not getattr(settings, "report_gate_enabled", False):
+        return
+    if settings.publish_mode != "direct":
+        raise BadSetting("report enforcement requires direct publication")
+    if settings.scoring_mode not in ("legacy", "points-204040-v5"):
+        raise BadSetting("report enforcement supports only Legacy or V2.0 scoring")
+    from .report_runtime import load_policy
+    from .report_publication import check_worker_ready
+    policy = load_policy(settings.report_gate_policy)
+    if policy["mining_netuid"] != settings.netuid:
+        raise BadSetting("report policy mining subnet differs from validator settings")
+    check_worker_ready()

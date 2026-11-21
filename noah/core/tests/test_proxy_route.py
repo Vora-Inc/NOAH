@@ -617,7 +617,7 @@ class BuildWiring(unittest.TestCase):
         for key, value in settings_extra.items():
             setattr(Settings, key, value)
         wallet = SimpleNamespace(hotkey=SimpleNamespace(ss58_address=SIGNER, public_key=public_key_of(SIGNER)))
-        with mock.patch("async_substrate_interface.SubstrateInterface", FakeSubstrateInterface):
+        with mock.patch("noah.chain.read_connection.ReadSubstrateInterface", FakeSubstrateInterface):
             return ca.build_chain_adapter(
                 client=object(), settings=Settings(), reader=FakeReader(), wallet=wallet, uid=0,
                 day_anchor_ts=FLOORED_ANCHOR, ark_coldkey=ARK, designated_validator_hotkey=VALIDATOR_HOTKEY,

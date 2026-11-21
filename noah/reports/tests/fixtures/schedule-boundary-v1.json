@@ -1,0 +1,600 @@
+{
+  "day": 1,
+  "resolution": {
+    "boundary_proof": {
+      "readers": [
+        {
+          "finalized": {
+            "block_hash": "0000000000000000000000000000000000000000000000000000000000002328",
+            "block_number": 9000,
+            "timestamp_ms": 1794895200000
+          },
+          "predecessor": {
+            "block_hash": "0000000000000000000000000000000000000000000000000000000000001c51",
+            "block_number": 7249,
+            "timestamp_ms": 1794874188000
+          },
+          "receipts": [
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                0
+              ],
+              "result": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "method": "chain_getFinalizedHead",
+              "params": [],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000002328"
+            },
+            {
+              "method": "chain_getHeader",
+              "params": [
+                "0x0000000000000000000000000000000000000000000000000000000000002328"
+              ],
+              "result": {
+                "number": "0x2328",
+                "parentHash": "0x0000000000000000000000000000000000000000000000000000000000002327"
+              }
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                9000
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000002328"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000002328"
+              ],
+              "result": "0x003f17e8a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                4500
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001194"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001194"
+              ],
+              "result": "0x8045dfe4a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                6750
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001a5e"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001a5e"
+              ],
+              "result": "0x40427be6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7875
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001ec3"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001ec3"
+              ],
+              "result": "0xa04049e7a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7313
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c91"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c91"
+              ],
+              "result": "0xe058e2e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7032
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001b78"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001b78"
+              ],
+              "result": "0x00e5aee6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7173
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c05"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c05"
+              ],
+              "result": "0x60b6c8e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7243
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c4b"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c4b"
+              ],
+              "result": "0xa087d5e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7278
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c6e"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c6e"
+              ],
+              "result": "0x40f0dbe6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7261
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c5d"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c5d"
+              ],
+              "result": "0x60d3d8e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7252
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c54"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c54"
+              ],
+              "result": "0x802dd7e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7248
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c50"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c50"
+              ],
+              "result": "0x0072d6e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7250
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c52"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c52"
+              ],
+              "result": "0xc0cfd6e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7249
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c51"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c51"
+              ],
+              "result": "0xe0a0d6e6a1010000"
+            },
+            {
+              "method": "chain_getHeader",
+              "params": [
+                "0x0000000000000000000000000000000000000000000000000000000000001c52"
+              ],
+              "result": {
+                "number": "0x1c52",
+                "parentHash": "0x0000000000000000000000000000000000000000000000000000000000001c51"
+              }
+            }
+          ],
+          "snapshot": {
+            "block_hash": "0000000000000000000000000000000000000000000000000000000000001c52",
+            "block_number": 7250,
+            "timestamp_ms": 1794874200000
+          }
+        },
+        {
+          "finalized": {
+            "block_hash": "000000000000000000000000000000000000000000000000000000000000238c",
+            "block_number": 9100,
+            "timestamp_ms": 1794896400000
+          },
+          "predecessor": {
+            "block_hash": "0000000000000000000000000000000000000000000000000000000000001c51",
+            "block_number": 7249,
+            "timestamp_ms": 1794874188000
+          },
+          "receipts": [
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                0
+              ],
+              "result": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+              "method": "chain_getFinalizedHead",
+              "params": [],
+              "result": "0x000000000000000000000000000000000000000000000000000000000000238c"
+            },
+            {
+              "method": "chain_getHeader",
+              "params": [
+                "0x000000000000000000000000000000000000000000000000000000000000238c"
+              ],
+              "result": {
+                "number": "0x238c",
+                "parentHash": "0x000000000000000000000000000000000000000000000000000000000000238b"
+              }
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                9100
+              ],
+              "result": "0x000000000000000000000000000000000000000000000000000000000000238c"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x000000000000000000000000000000000000000000000000000000000000238c"
+              ],
+              "result": "0x808e29e8a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                4550
+              ],
+              "result": "0x00000000000000000000000000000000000000000000000000000000000011c6"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x00000000000000000000000000000000000000000000000000000000000011c6"
+              ],
+              "result": "0x406de8e4a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                6825
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001aa9"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001aa9"
+              ],
+              "result": "0xe0fd88e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7963
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001f1b"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001f1b"
+              ],
+              "result": "0xa05d59e7a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7394
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001ce2"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001ce2"
+              ],
+              "result": "0xc02df1e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7110
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001bc6"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001bc6"
+              ],
+              "result": "0x402dbde6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7252
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c54"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c54"
+              ],
+              "result": "0x802dd7e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7181
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c0d"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c0d"
+              ],
+              "result": "0x602dcae6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7217
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c31"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c31"
+              ],
+              "result": "0xe0c4d0e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7235
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c43"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c43"
+              ],
+              "result": "0xa010d4e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7244
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c4c"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c4c"
+              ],
+              "result": "0x80b6d5e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7248
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c50"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c50"
+              ],
+              "result": "0x0072d6e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7250
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c52"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c52"
+              ],
+              "result": "0xc0cfd6e6a1010000"
+            },
+            {
+              "method": "chain_getBlockHash",
+              "params": [
+                7249
+              ],
+              "result": "0x0000000000000000000000000000000000000000000000000000000000001c51"
+            },
+            {
+              "method": "state_getStorage",
+              "params": [
+                "0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb",
+                "0x0000000000000000000000000000000000000000000000000000000000001c51"
+              ],
+              "result": "0xe0a0d6e6a1010000"
+            },
+            {
+              "method": "chain_getHeader",
+              "params": [
+                "0x0000000000000000000000000000000000000000000000000000000000001c52"
+              ],
+              "result": {
+                "number": "0x1c52",
+                "parentHash": "0x0000000000000000000000000000000000000000000000000000000000001c51"
+              }
+            }
+          ],
+          "snapshot": {
+            "block_hash": "0000000000000000000000000000000000000000000000000000000000001c52",
+            "block_number": 7250,
+            "timestamp_ms": 1794874200000
+          }
+        }
+      ],
+      "schema": "noah.report-schedule-boundary/1",
+      "target_ms": 1794874200000
+    },
+    "policy": {
+      "effective_day": 1,
+      "eligibility_policy_version": "registered-at-b-accurate-report-v1",
+      "genesis_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mining_netuid": 2,
+      "required_rounds": [
+        {
+          "ark_coldkey": "2222222222222222222222222222222222222222222222222222222222222222",
+          "ark_validator_hotkey": "3333333333333333333333333333333333333333333333333333333333333333",
+          "block_hash": "0000000000000000000000000000000000000000000000000000000000001c52",
+          "block_number": 7250,
+          "block_timestamp_ms": 1794874200000,
+          "calculation_version": "76f629a3933967170229a732c4b02740be22e5eb",
+          "commit_close_ms": 1794882000000,
+          "commit_open_ms": 1794874800000,
+          "eligibility_policy_version": "registered-at-b-accurate-report-v1",
+          "genesis_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "mining_netuid": 2,
+          "release_prefix": "98120dcac3074d4b44a75a73b749b2a7",
+          "reported_netuid": 3,
+          "reveal_close_ms": 1794889200000,
+          "reveal_open_ms": 1794882000000,
+          "round_date": "2026-11-17",
+          "schema": "noah.backing.round.v1",
+          "scoring_release": "test-schedule"
+        }
+      ],
+      "schema": "noah.report-policy/1"
+    },
+    "round": {
+      "ark_coldkey": "2222222222222222222222222222222222222222222222222222222222222222",
+      "ark_validator_hotkey": "3333333333333333333333333333333333333333333333333333333333333333",
+      "block_hash": "0000000000000000000000000000000000000000000000000000000000001c52",
+      "block_number": 7250,
+      "block_timestamp_ms": 1794874200000,
+      "calculation_version": "76f629a3933967170229a732c4b02740be22e5eb",
+      "commit_close_ms": 1794882000000,
+      "commit_open_ms": 1794874800000,
+      "eligibility_policy_version": "registered-at-b-accurate-report-v1",
+      "genesis_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mining_netuid": 2,
+      "release_prefix": "98120dcac3074d4b44a75a73b749b2a7",
+      "reported_netuid": 3,
+      "reveal_close_ms": 1794889200000,
+      "reveal_open_ms": 1794882000000,
+      "round_date": "2026-11-17",
+      "schema": "noah.backing.round.v1",
+      "scoring_release": "test-schedule"
+    },
+    "schedule_sha256": "98120dcac3074d4b44a75a73b749b2a74406378fc6ba02d8b699a76eb0f041bd"
+  },
+  "schedule": {
+    "ark_coldkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "ark_validator_hotkey": "3333333333333333333333333333333333333333333333333333333333333333",
+    "calculation_version": "76f629a3933967170229a732c4b02740be22e5eb",
+    "commit_seconds": 7200,
+    "day_anchor_ts": 1794787200,
+    "effective_day": 1,
+    "eligibility_policy_version": "registered-at-b-accurate-report-v1",
+    "genesis_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "mining_netuid": 2,
+    "prepare_lead_seconds": 600,
+    "reported_netuid": 3,
+    "reveal_seconds": 7200,
+    "schema": "noah.report-schedule/1",
+    "scoring_release": "test-schedule",
+    "snapshot_offset_seconds": 600
+  }
+}

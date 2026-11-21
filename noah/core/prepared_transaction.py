@@ -7,6 +7,9 @@ its public submit_signature combines byte assembly and transmission.
 
 from dataclasses import dataclass
 from hashlib import blake2b, sha256
+import re
+
+from ..chain.sources import Refusal
 
 from .reader import ChainUnreadable
 
@@ -46,6 +49,14 @@ class Prepared:
     evidence: dict
 
 
+def _preparation_refusal(message, predicate, *, heads=None):
+    error = ChainUnreadable(message)
+    error._noah_preparation_predicate = predicate
+    if heads is not None:
+        error._noah_preparation_heads = heads
+    return error
+
+
 class SDKPreparedTransport:
     def __init__(self, client, wallet):
         self.client, self.wallet = client, wallet
@@ -62,6 +73,9 @@ class SDKPreparedTransport:
         client._client._executor._enforce_raw_call(None)
         head = _integer(chain.head_block(), "head")
         agreed = chain.signing_context(wallet.ss58_address, head)
+        if (type(agreed) is not dict or set(agreed) != {"nonce", "specVersion", "transactionVersion"}
+                or any(type(value) is not int or not 0 <= value <= 2**64 - 1 for value in agreed.values())):
+            raise _preparation_refusal("finalized signing context is malformed", "runtime")
         # prepare_call -> prepare_unsigned fetches account_nextIndex uncached.
         unsigned = client.prepare_call(
             call,
@@ -70,43 +84,70 @@ class SDKPreparedTransport:
             period=ERA_PERIOD,
         )
         runtime = self._live_runtime()  # uncached RPC, not SDK head-codec TTL
+        # Identity/runtime failures never authorize reader refresh. Nonce failure
+        # keeps its original precedence, but a separately validated mortality-ahead
+        # condition may close stale readers before the NEXT normal attempt.
+        if unsigned.address != wallet.ss58_address or unsigned.genesis_hash != chain.genesis_hash():
+            raise _preparation_refusal(
+                "prepared signer/nonce/genesis/runtime differs from finalized readers", "identity"
+            )
         if (
-            unsigned.address != wallet.ss58_address
-            or unsigned.genesis_hash != chain.genesis_hash()
-            or unsigned.nonce != agreed["nonce"]
-            or runtime != {key: agreed[key] for key in runtime}
+            runtime != {key: agreed[key] for key in runtime}
             or unsigned.spec_version != runtime["specVersion"]
             or unsigned.transaction_version != runtime["transactionVersion"]
+            or type(unsigned.spec_version) is not int
+            or type(unsigned.transaction_version) is not int
         ):
-            raise ChainUnreadable(
-                "prepared signer/nonce/genesis/runtime differs from finalized readers"
+            raise _preparation_refusal(
+                "prepared signer/nonce/genesis/runtime differs from finalized readers", "runtime"
             )
-        _integer(unsigned.nonce, "nonce")
+        if type(unsigned.nonce) is not int or not 0 <= unsigned.nonce <= 2**64 - 1:
+            raise _preparation_refusal("prepared transaction nonce is malformed", "nonce")
+        nonce_matches = unsigned.nonce == agreed["nonce"]
         era = unsigned.era
         if (
             not isinstance(era, dict)
+            or set(era) != {"period", "current"}
+            or type(era.get("period")) is not int
             or era.get("period") != ERA_PERIOD
             or type(era.get("current")) is not int
+            or not 0 <= era["current"] <= 2**64 - 1
         ):
-            raise ChainUnreadable(
-                "prepared transaction has no exact bounded mortal era"
-            )
+            raise _preparation_refusal("prepared transaction has no exact bounded mortal era", "era")
         current = era["current"]
-        # At period128 the SCALE mortality phase is unquantized: birth=current.
-        # Require this independently finalized point so no best-head assumption
-        # becomes the recorded mortality proof.
-        if current > chain.head_block() or current < head:
-            raise ChainUnreadable(
-                "prepared mortality head is not current finalized history"
-            )
-        birth = current
-        if unsigned.era_block_hash != chain.block_hash(birth):
-            raise ChainUnreadable(
-                "prepared mortality birth hash differs from finalized readers"
-            )
+        after = _integer(chain.head_block(), "head after preparation")
+        heads = {"before": head, "prepared": current, "after": after}
+        if not 0 <= head <= after <= 2**64 - 1:
+            raise _preparation_refusal("finalized reader head regressed or is invalid", "mortality", heads=heads)
+        # Validate the public hash/call shape before deciding whether a socket
+        # refresh is warranted. It cannot make this attempt eligible to sign.
+        if not isinstance(unsigned.era_block_hash, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", unsigned.era_block_hash):
+            raise _preparation_refusal("prepared mortality birth hash is malformed", "birth_hash", heads=heads)
         composed = client.compose(call)
         if bytes(composed.data) != bytes(unsigned.call_data):
-            raise ChainUnreadable("prepared call bytes changed")
+            raise _preparation_refusal("prepared call bytes changed", "call_bytes", heads=heads)
+        if not nonce_matches or not head <= current <= after:
+            error = _preparation_refusal(
+                "prepared signer/nonce/genesis/runtime differs from finalized readers" if not nonce_matches
+                else "prepared mortality head is not current finalized history",
+                "nonce" if not nonce_matches else "mortality", heads=heads,
+            )
+            if current > after:
+                # No signature/persistence/send has happened. Close BOTH read
+                # sessions, still refuse, then let normal scheduling start afresh.
+                # Never apply this to a generic nonce error or uncertain send.
+                try:
+                    chain.refresh_read_connections()
+                except (Exception, Refusal):
+                    error._noah_reader_refresh = "failed"
+                else:
+                    error._noah_reader_refresh = "closed"
+            raise error
+        birth = current
+        if unsigned.era_block_hash != chain.block_hash(birth):
+            raise _preparation_refusal(
+                "prepared mortality birth hash differs from finalized readers", "birth_hash", heads=heads
+            )
         from bittensor._transport.extrinsics import sign_unsigned
 
         signature = client._call(sign_unsigned(unsigned, wallet))

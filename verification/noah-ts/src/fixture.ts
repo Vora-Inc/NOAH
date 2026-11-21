@@ -181,7 +181,7 @@ function parseDials(v: unknown, path: string): Dials {
   return d;
 }
 
-function parseDayEntry(v: unknown, path: string): DayEntry {
+function parseDayEntry(v: unknown, path: string, earningsAuthoritative = false): DayEntry {
   const o = obj(v, path);
   exactKeys(o, DAY_KEYS, path);
   const e: DayEntry = {
@@ -193,13 +193,13 @@ function parseDayEntry(v: unknown, path: string): DayEntry {
     noFault: bool(o.noFault, `${path}.noFault`),
   };
   // A no-fault flag alongside nonzero pay is a validation error.
-  if (e.noFault && e.paidRao > 0n) {
+  if (!earningsAuthoritative && e.noFault && e.paidRao > 0n) {
     fail(path, `noFault true with nonzero paidRao (${e.paidRao})`);
   }
   return e;
 }
 
-function parseMiner(v: unknown, path: string, evalDay: bigint): MinerInput {
+function parseMiner(v: unknown, path: string, evalDay: bigint, earningsAuthoritative = false): MinerInput {
   const o = obj(v, path);
   exactKeys(o, MINER_KEYS, path);
   const uid = o.uid === null ? null : smallInt(o.uid, `${path}.uid`);
@@ -215,7 +215,7 @@ function parseMiner(v: unknown, path: string, evalDay: bigint): MinerInput {
     if (d < firstActivityDay || d > evalDay) {
       fail(`${path}.days.${dk}`, `day outside firstActivityDay..evalDay (${firstActivityDay}..${evalDay})`);
     }
-    days.set(d, parseDayEntry(dv, `${path}.days.${dk}`));
+    days.set(d, parseDayEntry(dv, `${path}.days.${dk}`, earningsAuthoritative));
   }
   // An absent day in range is a validation error, never an implied miss and
   // never an implied neutral day.
@@ -286,19 +286,19 @@ const _strictNumberReviver: SourceAwareReviver = (key, value, context) => {
   return value;
 };
 
-function parseStrict(jsonText: string): unknown {
+export function parseStrict(jsonText: string): unknown {
   return JSON.parse(jsonText, _strictNumberReviver as Parameters<typeof JSON.parse>[1]);
 }
 
-export function loadFixture(jsonText: string): Fixture {
+export function loadFixture(jsonText: string, expectedSchema = "noah-fixture/6", earningsAuthoritative = false): Fixture {
   const root = obj(parseStrict(jsonText), "$");
   exactKeys(root, ROOT_KEYS, "$");
-  if (root.schema !== "noah-fixture/6") {
-    fail("$.schema", `expected "noah-fixture/6", got ${JSON.stringify(root.schema)}`);
+  if (root.schema !== expectedSchema) {
+    fail("$.schema", `expected ${JSON.stringify(expectedSchema)}, got ${JSON.stringify(root.schema)}`);
   }
   const evalDay = big(root.evalDay, "$.evalDay");
   const miners = arr(root.miners, "$.miners").map((mv, mi) =>
-    parseMiner(mv, `$.miners[${mi}]`, evalDay),
+    parseMiner(mv, `$.miners[${mi}]`, evalDay, earningsAuthoritative),
   );
   // uid stays unique across the whole fixture regardless: it is the
   // per-seat identity both engines key their output on, and a coldkey may

@@ -134,7 +134,7 @@ def current_input(adapter, source_reference, head):
         totals.setdefault((m["coldkey"], selected[int(m["uid"])]), 0)
     all_pairs = set(totals) | set(pending)
     excluded = adapter.owner_uids()
-    return dict(
+    raw = dict(
         schema="noah-starter-epoch-preview/4",
         policyId=POLICY_ID,
         fixture=fixture,
@@ -177,3 +177,5 @@ def current_input(adapter, source_reference, head):
             ],
         ),
     )
+    from ..core.report_runtime import starter_input
+    return starter_input(adapter, source_reference, raw)

@@ -1,3 +1,7 @@
+> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+
+> Candidate scope: `points-204040-v5`. [Older contribution rules](LEGACY_CONTRIBUTIONS.md) remain available for historical replay.
+
 # Contribution rules
 
 > **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
@@ -37,7 +41,7 @@ it does not turn the Ark into a subnet or give the owner control over its funds.
 
 ## What the validator checks
 
-A qualifying NOAH contribution must arrive at the official Ark coldkey,
+A qualifying contribution must arrive at the official Ark coldkey,
 delegated to the designated Ark Validator, and be attributable to an eligible
 miner. The reader uses chain events and, where needed, the transaction's
 contents to establish those facts.
@@ -52,28 +56,17 @@ it earns no qualifying mining credit. Every contribution must identify its
 miner, even when a wallet has only one miner.
 An unnamed deposit receives no mining credit.
 
-## Starter entry and ongoing contributions
+## Ordinary onboarding and ongoing contributions
 
-Current Mainnet starter eligibility does not require an upfront NOAH purchase
-or Ark deposit. Register normally and follow the [starter policy](STARTER_ENTRY.md).
-Registration collateral is separate: its return is not earnings, and locked
-collateral cannot fund a contribution.
+In review candidate `points-204040-v5`, a new miner starts with 0.2 points and no
+entry deposit or starter pool. Its actual earnings create the 50% contribution
+obligation the next UTC day. NOAH, qualifying foreign alpha, root TAO or mixtures
+can satisfy it. Read [ordinary scoring](ORDINARY_SCORING.md) for exact conversion,
+bonuses, prepayment, debt and catch-up rules. This is not an activation claim.
 
-The ongoing target is **50% of eligible spendable earnings**, including starter
-earnings. Qualifying contributions accumulate with their actual receipt dates.
-Early contributions are retained, but do not stack ordinary weight with starter
-weight. After the starter allowance is exhausted, ordinary scoring determines
-rewards. Advance and catch-up deposits still require the correct Ark destination,
-Ark Validator delegation and miner attribution.
-
-### Historical credit preserved at activation
-
-Before the cutoff, the legacy rule required ten NOAH per miner hotkey. The frozen
-snapshot preserves existing qualifying credit and its original dates; those same
-tokens are excluded from ongoing credit exactly once. This historical accounting
-explains the retained numeric field in the profile. It is **not** a payment
-instruction for a new miner. Post-cutoff contributions are not used to create a
-new legacy entry fee. See the [activation commitments](STARTER_ENTRY.md#mainnet-activation-and-reproduction).
+Historical entry amounts, consumed receipts and balances retain their frozen
+migration treatment. They are not new deposits and cannot be counted twice.
+The historical snapshot is an accounting record, not an active allocation pool.
 
 ## Shared wallets
 
@@ -114,20 +107,19 @@ obligations. If you first contribute 30 and later contribute 20, the later
 payment clears the 20 NOAH shortfall. These examples exclude any preserved
 legacy entry credit and assume no other earnings or deposits in the interval.
 
-That is the coverage calculation. Your score also depends on credit aging and
+That is the coverage calculation. Your score also depends on maturity, cumulative contribution and
 streak history. Clearing a debt does not turn every previous missed day into
 an on-time contribution. The [scoring guide](SCORING.md) separates those parts.
 
-## Other subnet tokens
+## Other subnet tokens and root TAO
 
-The scoring engine accepts other-token contributions as a NOAH-equivalent
-value. They can add matching credit, limited by the miner's NOAH credit.
-They do not replace NOAH in the contribution-compliance calculation.
-
-The chosen valuation policy uses the token's current price when it enters the
-Ark, not an EMA or the lower of two prices. This guide covers NOAH
-contributions; other subnet tokens require separate verification of their
-deposit and valuation path.
+The candidate accepts attributed eligible foreign alpha and root TAO without
+requiring a native NOAH deposit or matching native credit. Native NOAH counts
+by amount. Foreign/root value is converted once to NOAH-equivalent using the
+verified block immediately before its receipt, applying the lower of the
+foreign/NOAH EMA ratio and spot-price ratio. Root TAO has a one-TAO numerator.
+See [the complete valuation rule](ORDINARY_SCORING.md#which-tokens-count).
+Historical accepted credits are preserved rather than repriced.
 
 ## Checking a receipt
 
@@ -139,7 +131,7 @@ Keep the transaction identifier and the miner hotkey it was intended to
 credit. The [deposit helper](../noah/deposits/assistant/USAGE.md) can track its own sends,
 but its credited status compares supplied totals rather than proving which
 individual receipt earned the credit. Once daily input
-and score files are available, [recompute the score](SCORING.md#check-a-score)
+and score files are available, [recompute the score](VERIFYING_SCORES.md)
 and compare the recorded receipt with the chain.
 
 Read the [deposit notices](DEPOSIT_NOTICES.md) before transferring stake.

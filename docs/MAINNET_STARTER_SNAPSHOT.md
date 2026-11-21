@@ -1,3 +1,5 @@
+> Version scope: this document retains predecessor rules and receipt/history details. For candidate `points-204040-v5`, [ordinary scoring](ORDINARY_SCORING.md) governs onboarding, contribution, bonuses and publication. Historical starter descriptions below do not activate a pool in V5.
+
 # Reproduce the Mainnet starter-entry snapshot
 
 Mainnet subnet 82 preserves entry credit through **November 2, 2026 UTC

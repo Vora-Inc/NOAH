@@ -95,10 +95,10 @@ def test_conflict_and_partial_write_do_not_replace_prior_calculation(tmp_path):
 
 def test_recovery_retains_calculation_link_and_refuses_lost_artifact(tmp_path):
     built, client = adapter(tmp_path)
-    score = {"evalDay": "0", "weightsU16": {str(k): v for k, v in VECTOR.items()}}
+    score = {"schema": "noah-score-output/6", "evalDay": "0", "weightsU16": {str(k): v for k, v in VECTOR.items()}}
     ref = retain(
         tmp_path / "scores",
-        fixture={"evalDay": "0"},
+        fixture={"schema": "noah-fixture/6", "evalDay": "0"},
         agreed_text=encoded(score).decode(),
         vector=VECTOR,
         context=context(0),

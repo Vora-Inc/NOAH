@@ -1,0 +1,3004 @@
+{
+  "advisory_sha256": "011da9c732cc06f31d90b02a0ce9e2819a423137401d381ad2440a424c049b42",
+  "component": {
+    "advisory": "PYSEC-2026-1325",
+    "affected": true,
+    "aliases": [
+      "CVE-2024-23342",
+      "GHSA-wj6h-64fc-37mp",
+      "PYSEC-2026-1325"
+    ],
+    "name": "ecdsa",
+    "version": "0.19.2"
+  },
+  "control_review": {
+    "date": "2026-11-18",
+    "evidence_sha256": "1e00babf793e6af40ca4786f8eff68cbd3821ccf09e3dfc4b530c6861bbcb268",
+    "owner": "Codex independent public VEX control reviewer",
+    "status": "reviewed"
+  },
+  "files": {
+    ".env.validator.mainnet.example": {
+      "mode": "100644",
+      "sha256": "e4c6500dba38e9d94f61f318eac6b6c6c265fdf8c7fe9491301f1293649f2a89"
+    },
+    ".github/security/check_application_vex.py": {
+      "mode": "100644",
+      "sha256": "00cd28b392ecea4ce87f50b921c57524b9b9d70726ffa61672ecd5e8f255e0b8"
+    },
+    ".github/security/test_application_vex.py": {
+      "mode": "100644",
+      "sha256": "a664087bdd3211406b5b104691660134425cc296727934901196a2d5237e1dbd"
+    },
+    ".github/workflows/checks.yml": {
+      "mode": "100644",
+      "sha256": "c8040c7be6e15e6288f0577e1faedc69df84f4db01f1b7b93a96b1b3c0a3ea32"
+    },
+    ".github/workflows/dependency-audit.yml": {
+      "mode": "100644",
+      "sha256": "7009a5f0d7a0e3a011fe0cbd9471123b845f38660025e4531e40f8fe62191779"
+    },
+    ".gitignore": {
+      "mode": "100644",
+      "sha256": "6d6c64592f5134df7b7de1433640c23c805463c8822160f4e5c4aab3d85dedc2"
+    },
+    ".test-suite-omissions.json": {
+      "mode": "100644",
+      "sha256": "d0fa5dd4cb5df36d8957dd43fb1e0293eadc57f6fb3394ab0296c3ecb32df506"
+    },
+    "CONTRIBUTING.md": {
+      "mode": "100644",
+      "sha256": "1695aacbc7027e8b15e8eacfcce4fd9137b256289ee5dbfaec7e6a584789b955"
+    },
+    "LICENSE": {
+      "mode": "100644",
+      "sha256": "8c66167be77c13d640caadb15a3c86c8992bafca7fb1286e32733abb85a42fc9"
+    },
+    "README.md": {
+      "mode": "100644",
+      "sha256": "fad83dfd7208cf3208c6cf64d7a26fb675f2a5b115769ef63954aa43fe9ee326"
+    },
+    "SECURITY.md": {
+      "mode": "100644",
+      "sha256": "d7725ef244a7638e9dffb4cfa14a36436adc0b33d70109d7fd5637a632aff587"
+    },
+    "conftest.py": {
+      "mode": "100644",
+      "sha256": "8914634d54afa2bac14b91f6030776c914403c3fac74bb888f8a1ab2bdbbf943"
+    },
+    "constraints.txt": {
+      "mode": "100644",
+      "sha256": "829dacaa5df77d3bfd8f186131a59a613fa5251d4919d4109ede4b3e8edf1652"
+    },
+    "docs/APPLICATION_EVENTS.md": {
+      "mode": "100644",
+      "sha256": "8376a73496b4a504176a726f3a33c4995ba8cd99670481e982e4059e74b3dfc0"
+    },
+    "docs/BURN_EVIDENCE.md": {
+      "mode": "100644",
+      "sha256": "09be9f50e6c349b22ece2cc23d4e3fea31b75ece192b13ad10c871e9575d19e9"
+    },
+    "docs/COMMANDS.md": {
+      "mode": "100644",
+      "sha256": "d6274badd8fb3305d27e3751e44ae9b910678720d04b9a0a6132d593d7567ac1"
+    },
+    "docs/CONTRIBUTIONS.md": {
+      "mode": "100644",
+      "sha256": "23ba7ae1a9fa0c82bb2530ac7a7da13ea325770e8096f68413e2d1b745683cd4"
+    },
+    "docs/DEPOSIT_NOTICES.md": {
+      "mode": "100644",
+      "sha256": "71eaadf3ab2187521eda5d5296e04e1b801557204c0ac459f002d5a010d613da"
+    },
+    "docs/EPOCH_MAINTENANCE.md": {
+      "mode": "100644",
+      "sha256": "6fb39bed2a8157b1f9e0bcb23b7d77deeb3202a6245e8fd1eecd0a2fafc00ec3"
+    },
+    "docs/GLOSSARY.md": {
+      "mode": "100644",
+      "sha256": "f8dc4d39bf7d11fdffd1b6d5766aade024a2733d6437973ca8818a0155135783"
+    },
+    "docs/LEGACY_CONTRIBUTIONS.md": {
+      "mode": "100644",
+      "sha256": "8ea325472a89efcaaa28a4446451d604acfcb643de5e9083526397280ce9f05e"
+    },
+    "docs/LEGACY_EPOCH_MAINTENANCE.md": {
+      "mode": "100644",
+      "sha256": "224abe541b1b31010621a0e81a2005ab545fab115fe21b88f355be6cd324a5ae"
+    },
+    "docs/LEGACY_PARTICIPATION.md": {
+      "mode": "100644",
+      "sha256": "be327568efeaf3c2f968e9780828e04e1159356b9e69734f6539450e58deb581"
+    },
+    "docs/LEGACY_POINTS_MODE.md": {
+      "mode": "100644",
+      "sha256": "1e2a9948625906c3c74d1d599cd4eab145a5e71e325e42117cc0980c908f1be6"
+    },
+    "docs/LEGACY_SCORING.md": {
+      "mode": "100644",
+      "sha256": "0fe05f18a2bf9d302d580e9944f7f3ae8eb8189460b81278eff9e02149e00dac"
+    },
+    "docs/LEGACY_VALIDATOR_QUICKSTART.md": {
+      "mode": "100644",
+      "sha256": "6761b3ae10954d97846141454809f3415470cc33fdd1e209838e6277b0ef0ef1"
+    },
+    "docs/LEGACY_VERIFYING_SCORES.md": {
+      "mode": "100644",
+      "sha256": "6ba019d9ad7bf00dddaf2ca830a9d2ddac58c20ff91ba584b4da97eb5d7b8104"
+    },
+    "docs/MAINNET_STARTER_SNAPSHOT.md": {
+      "mode": "100644",
+      "sha256": "780559e53f41a919ae107f163a1c7bad1336efc755aebe16d895ffb7d037abed"
+    },
+    "docs/MINER_MIXED.md": {
+      "mode": "100644",
+      "sha256": "7b5cf4b76a8c0bd9965c0cf948e1def25f8fce16e7f6bec4791a2b11adee57b7"
+    },
+    "docs/MINER_PROXY.md": {
+      "mode": "100644",
+      "sha256": "d53e4f2eb7b77319b98181f81df4ac863f514b2290743c54b3dcc60834696f3c"
+    },
+    "docs/MINER_QUICKSTART.md": {
+      "mode": "100644",
+      "sha256": "4387d1c5e267401a1f4c0d4e910ad5491d09c7a8c604f4673a6d53ed2697fd4f"
+    },
+    "docs/MINER_SETUP.md": {
+      "mode": "100644",
+      "sha256": "b824f12e20d1e06151b380e6a7e447469e71ca8bd44d407320fa183f13e8799e"
+    },
+    "docs/ORDINARY_SCORING.md": {
+      "mode": "100644",
+      "sha256": "7e846803ff68bb0e85e830f721d3436569e9077c0bd9f9e4a46deb4946a028b6"
+    },
+    "docs/PARTICIPATION.md": {
+      "mode": "100644",
+      "sha256": "dd49da10b639b853f2c85667d2f90812984e771b6ddd420832266ecd6a325006"
+    },
+    "docs/POINTS_MODE.md": {
+      "mode": "100644",
+      "sha256": "84e70c9dcc9bada3bd093e4194fb5da877bd97eb23afbcc9c5e888062574fb3a"
+    },
+    "docs/RECEIPT_READER_RELEASE.md": {
+      "mode": "100644",
+      "sha256": "04f35d6dea7fad05160162ccdb4896ba01c848f610437b4c89c26e4a624a5fdd"
+    },
+    "docs/REPORTS.md": {
+      "mode": "100644",
+      "sha256": "fb4bf2e21b98a46b6d4ef3e0d5eef9060bd953c93e1f0634b94f7e1a9af4456e"
+    },
+    "docs/REPORT_COMMITMENT_PROTOCOL.md": {
+      "mode": "100644",
+      "sha256": "66fbd518eb268434e4609cc11cc1e24fe0be81c2f621530348aa1565e0467b6c"
+    },
+    "docs/REPORT_SOURCE_HANDOFF.md": {
+      "mode": "100644",
+      "sha256": "e6fdbe8d56e9486e5416a1853ea27ccd9a47e1b80d5d2495f6f583b0a807429a"
+    },
+    "docs/REVIEW.md": {
+      "mode": "100644",
+      "sha256": "26188a51a27f7f8618311022b368140d7dc4f6e9cd827905bab4045ec52f11f2"
+    },
+    "docs/SCORING.md": {
+      "mode": "100644",
+      "sha256": "d6a3fda101aa46c0bd421420cf2a9fdbd68ab6a6a286e37c22c0c46e02f84e85"
+    },
+    "docs/STARTER_ENTRY.md": {
+      "mode": "100644",
+      "sha256": "834c0e0d07bd9aaa41656074303f7d6f3789ec3ef7ccb42c51eb7d9ed3f8d79e"
+    },
+    "docs/TESTING.md": {
+      "mode": "100644",
+      "sha256": "77814ca54d9f9aa48b5ddcece05e5dd17b9cdcafc44a5c2cf3dd8809d10dac00"
+    },
+    "docs/VALIDATOR_QUICKSTART.md": {
+      "mode": "100644",
+      "sha256": "2e5c7bd89ed0f4358c1c3e63dc3ecc90039656ab4db59d17f679da6551060de2"
+    },
+    "docs/VERIFYING_SCORES.md": {
+      "mode": "100644",
+      "sha256": "e5d67125f82de0668369cbcdca12be81ec7e507aacca4d9400264e178422677f"
+    },
+    "docs/parameters/profiles/m1-revised-v1.json": {
+      "mode": "100644",
+      "sha256": "bd87ebaa2606c1a31c5ad18d7fe56939d0b13f81ae54f9ad8218aa19c359e278"
+    },
+    "docs/parameters/profiles/mainnet-production-points-204040-v5.json": {
+      "mode": "100644",
+      "sha256": "789809a37cfa0d04c633ef44117426d6a25acaf6bfb13ffbb84b601ece6f799c"
+    },
+    "docs/parameters/profiles/mainnet-production-points-402040-v1.json": {
+      "mode": "100644",
+      "sha256": "9d21e0a102d74417490e470fe2876adc05808478f9cd81d31d3dc2a9e50da1ee"
+    },
+    "docs/parameters/profiles/mainnet-production-starter-25bps-v1.json": {
+      "mode": "100644",
+      "sha256": "1689f6510f94ec1505c77c57d91e5d13cfc2e4a980a5f3dc38e74c11e8923182"
+    },
+    "docs/parameters/profiles/mainnet-production-v1.json": {
+      "mode": "100644",
+      "sha256": "fae4ae1ab9d3c838bd41b99d762c23d0e08d8326d2a0bd1f79613d979bbf1fc8"
+    },
+    "docs/reference/WALLET_ADDRESSES.md": {
+      "mode": "100644",
+      "sha256": "730e17aac79ae0da681a9071c80e06995c4c65430f65c44b721b92ba550a89ff"
+    },
+    "docs/runbooks/publication-status-unknown.md": {
+      "mode": "100644",
+      "sha256": "89ba4fa708e1978a5741d53bcf4e0c3758905f4a620d1f4ecb939bfd7bf88d78"
+    },
+    "fixtures/shared/MANIFEST.sha256": {
+      "mode": "100644",
+      "sha256": "18c83a2531fcff645864d82013aa20eb86058caa9be60c3945ba9337bfc2ddfc"
+    },
+    "fixtures/shared/all-in.json": {
+      "mode": "100644",
+      "sha256": "56912f148971b55a5bd92dd753e4d1b0569b580ac90cabda9a7dc9dddef10ad2"
+    },
+    "fixtures/shared/behavioral-miss.json": {
+      "mode": "100644",
+      "sha256": "aaa40eb8a97c7a79e3233f50046c14ce1f51dde96d733aa70481b3caec5bf60d"
+    },
+    "fixtures/shared/catchup-long-delay.json": {
+      "mode": "100644",
+      "sha256": "b4d7e35403794253bbb8cc2ba5828a50b52e3275618148d983d69a591b966ba3"
+    },
+    "fixtures/shared/collateral-capture.json": {
+      "mode": "100644",
+      "sha256": "477749b0dff8f9ac3cc950905e4dc14df6ce9f858b08238db1bcb32ef68664c2"
+    },
+    "fixtures/shared/door-closed.json": {
+      "mode": "100644",
+      "sha256": "d020cbcf579a104f1173ca42c14d78875d2a36866f2b763dffc56aedc87aa5ff"
+    },
+    "fixtures/shared/entry-deposit.json": {
+      "mode": "100644",
+      "sha256": "05c2e16ba8fa38fd1cd781b761bd5166d1c9a128cc29660b880dd41c8ef4c83c"
+    },
+    "fixtures/shared/floor-boundary.json": {
+      "mode": "100644",
+      "sha256": "da7a2043e5a97aadcf02be0bc7bea5b9efdfa680962292fc203082b71367d88f"
+    },
+    "fixtures/shared/holding-door-three-coldkeys.json": {
+      "mode": "100644",
+      "sha256": "cececd07d66df981696e922f5727408040b29231f24ecffcd6852316f6a08a3b"
+    },
+    "fixtures/shared/matcher.json": {
+      "mode": "100644",
+      "sha256": "e28247b40f63be21aa21afb07a2ae1e2df70db443ca7cad8f1feb47845de1884"
+    },
+    "fixtures/shared/multi-seat-coldkey.json": {
+      "mode": "100644",
+      "sha256": "82d6575e3315e2a5c2a9921eda145003cf48c641af5ebca51f2d063cc0592b15"
+    },
+    "fixtures/shared/new-wallet-early-days.json": {
+      "mode": "100644",
+      "sha256": "fe012f92a69b3577f2a006dc639f8d21a98e0fb34b06c9baaf0f28aefa9567dd"
+    },
+    "fixtures/shared/no-fault-day.json": {
+      "mode": "100644",
+      "sha256": "b3464ddd7fcc120f1bddc2db183e5c002d2662f4b45b20b3310664a551c7f066"
+    },
+    "fixtures/shared/out-python/all-in.score.json": {
+      "mode": "100644",
+      "sha256": "dc0fa1e3ffdd95688d11cb4fb77e24f2f9dbc5b836b4597df3d74266d515f484"
+    },
+    "fixtures/shared/out-python/behavioral-miss.score.json": {
+      "mode": "100644",
+      "sha256": "707638db43d2ae80fcd1b73dd8ba3b36f7ac6c72f27f55945f9543363945c97b"
+    },
+    "fixtures/shared/out-python/catchup-long-delay.score.json": {
+      "mode": "100644",
+      "sha256": "f4db4bf0f099bc289db8c175824c5a3018c878426daff7bc1a66d647ebad4ba7"
+    },
+    "fixtures/shared/out-python/collateral-capture.score.json": {
+      "mode": "100644",
+      "sha256": "53feb3fd3606ae33e065349de8f1877781a5febc820f7d415b3d3297590619bf"
+    },
+    "fixtures/shared/out-python/door-closed.score.json": {
+      "mode": "100644",
+      "sha256": "6f93745d75298ab5dc0f3be4971bf0dc9d4a234ba083ac7cbdaf7adb502916c5"
+    },
+    "fixtures/shared/out-python/entry-deposit.score.json": {
+      "mode": "100644",
+      "sha256": "327e5697f2589b02c8fb388bd168fa65ed5b55a3545e527985006614b0461b88"
+    },
+    "fixtures/shared/out-python/floor-boundary.score.json": {
+      "mode": "100644",
+      "sha256": "dd46c17899e6ddaff0f2b26336694f109e884a44a6e9c40421780b5507445dfd"
+    },
+    "fixtures/shared/out-python/holding-door-three-coldkeys.score.json": {
+      "mode": "100644",
+      "sha256": "7e2083413f6028d89400b78cdba4db19eeb1074c02697df7269f9a06adf9afb0"
+    },
+    "fixtures/shared/out-python/matcher.score.json": {
+      "mode": "100644",
+      "sha256": "e1d3f2ff70e472348dab52d3f1b19096de8049c2aa7407f601baa4381f210f13"
+    },
+    "fixtures/shared/out-python/multi-seat-coldkey.score.json": {
+      "mode": "100644",
+      "sha256": "9ca4320ee77afb18bc4c3d6cd329e1a37d26209f27f6063d6fe861194796fd25"
+    },
+    "fixtures/shared/out-python/new-wallet-early-days.score.json": {
+      "mode": "100644",
+      "sha256": "5022dc66de9babb20074a826bf55c70b7b41c26c284f440cb186993581c491ce"
+    },
+    "fixtures/shared/out-python/no-fault-day.score.json": {
+      "mode": "100644",
+      "sha256": "05863ec7478c61c0c4fdc50f6980302df05d127a5c01e37693bc00e3ef85d849"
+    },
+    "fixtures/shared/out-python/prepaid-reserve.score.json": {
+      "mode": "100644",
+      "sha256": "1f80e989060bdb79148759e87bceb1165d3c6a82a6a9c51e100ee86ccf483469"
+    },
+    "fixtures/shared/out-python/quantization-tie.score.json": {
+      "mode": "100644",
+      "sha256": "073b43261dec5a359f269bfccfcc226228fe2b5d28e0e1538bba1021598447cf"
+    },
+    "fixtures/shared/out-python/registration-at-evalday.score.json": {
+      "mode": "100644",
+      "sha256": "2363f54158307da3237c8dbcab854d259a95ab25ede80412c014fe203343ba09"
+    },
+    "fixtures/shared/out-python/slipper.score.json": {
+      "mode": "100644",
+      "sha256": "c9f7e5b075a4e14ae6f1719b8ff210ba8b292f00b2cef40f0b7b633e2efbaf0a"
+    },
+    "fixtures/shared/out-python/steady-at-target.score.json": {
+      "mode": "100644",
+      "sha256": "c68bff42f55f219425523243f5db7ec29da4e59a6d2ce381d02c6c2eee261927"
+    },
+    "fixtures/shared/out-python/substitutor.score.json": {
+      "mode": "100644",
+      "sha256": "5a45ba99c30555cefc899908d43fe6abbb11dd3ed947c46527ab2b7509550695"
+    },
+    "fixtures/shared/out-python/surplus-bonus-2x.score.json": {
+      "mode": "100644",
+      "sha256": "cea7a867c65973f3037268dc129f10bf11968f90c4936b54c12da477355a8cbf"
+    },
+    "fixtures/shared/out-python/surplus-bonus-protections.score.json": {
+      "mode": "100644",
+      "sha256": "95015e22a1c7c4553082bbd90f25fd2d83e91af11c7086a225b251821f63359e"
+    },
+    "fixtures/shared/out-python/unlock-arrival.score.json": {
+      "mode": "100644",
+      "sha256": "01431740e0da4015d5f6b172ce280852a69756a98f5b9d55b08e7282bc67100c"
+    },
+    "fixtures/shared/prepaid-reserve.json": {
+      "mode": "100644",
+      "sha256": "3ebb5a03af42bc16d75360286da9c0e343aed06595a39a756b350e1ce6d30e33"
+    },
+    "fixtures/shared/quantization-tie.json": {
+      "mode": "100644",
+      "sha256": "14ccb99d2f7974631bce2b154e29457c849b4500d45662e32e37205eec45cf75"
+    },
+    "fixtures/shared/registration-at-evalday.json": {
+      "mode": "100644",
+      "sha256": "9f9f2e189ea9f5f22c1b73e1ec6865f9b040e0029f25df27c78fec3b6ec28794"
+    },
+    "fixtures/shared/slipper.json": {
+      "mode": "100644",
+      "sha256": "491435591894d83d5fe7dbe98504c5c09aa17d3d010719439018759f055ef1b2"
+    },
+    "fixtures/shared/steady-at-target.json": {
+      "mode": "100644",
+      "sha256": "9622bb96cdd18167e4d9f81371c1a9132b199b233554f48a5a8c11a2a94b5c7a"
+    },
+    "fixtures/shared/substitutor.json": {
+      "mode": "100644",
+      "sha256": "32b8dee5f5ae5938af063f2ced645d2a20fa677711252e92f89742583092bafd"
+    },
+    "fixtures/shared/surplus-bonus-2x.json": {
+      "mode": "100644",
+      "sha256": "fcf9bb8e43bf1b7fba41db1cc5485de2a718e49e728e39f454e628e98bafedfb"
+    },
+    "fixtures/shared/surplus-bonus-protections.json": {
+      "mode": "100644",
+      "sha256": "14274889e29b4e4ec1aed88266444bb5252c271fa9e0c39c71c7284cf6cc9441"
+    },
+    "fixtures/shared/unlock-arrival.json": {
+      "mode": "100644",
+      "sha256": "5d282f716a0b37ccd79a5df79b01dce8c694b1af3bf70d614543615c2035a6c3"
+    },
+    "neurons/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "neurons/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "neurons/tests/test_history_depth.py": {
+      "mode": "100644",
+      "sha256": "01df953c0434b9e9e11fa6697b3fd98a6e9a48caa2401fc208db24f35f36025e"
+    },
+    "neurons/tests/test_validator_endpoint_prints.py": {
+      "mode": "100644",
+      "sha256": "874e4cb77f24d4bc23b8258b1be547ea0a71d2b9844e8fb18e370340f9167d56"
+    },
+    "neurons/tests/test_validator_entry.py": {
+      "mode": "100644",
+      "sha256": "64332ddbe56e9fa9dceb48900b4c4fdd3aa43fff21fdb52cf36c729211c1bb72"
+    },
+    "neurons/validator.py": {
+      "mode": "100644",
+      "sha256": "7a7e955620018da8d37d2e2bf3a1ab1b5ed0135164d8bb120d0943c6e00ef753"
+    },
+    "noah/__init__.py": {
+      "mode": "100644",
+      "sha256": "7a687a9992a349e37e28fc78119377907e1489f9f164b942676eae8182dd7e93"
+    },
+    "noah/chain/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/chain/agreeing.py": {
+      "mode": "100644",
+      "sha256": "519881289b46e301492d73d8fd61f3208bf0964cd7fdc2172788956d28fef982"
+    },
+    "noah/chain/burn_context.py": {
+      "mode": "100644",
+      "sha256": "cce43a674a5b01ae461fd8b842e8f5c29eb76b17344c13e0b33aefcb66c62b79"
+    },
+    "noah/chain/collateral.py": {
+      "mode": "100644",
+      "sha256": "5cefcd32f2244036c0dc9b96dc6e57ba7092e737d28236fcc89e0abf799e3048"
+    },
+    "noah/chain/collection.py": {
+      "mode": "100644",
+      "sha256": "70c6783965a16eb9a05727681fbc7799327660fa759c46649a68c663e77449dd"
+    },
+    "noah/chain/dayblocks.py": {
+      "mode": "100644",
+      "sha256": "9d4b0d1bada4b59a67b5922c87834a860c8ccc4ea18745561bad0951b4db94b4"
+    },
+    "noah/chain/deposit_batches.py": {
+      "mode": "100644",
+      "sha256": "a38690cb2892adf4b90e546a9730cde7258d0189faa447129eb3f66aff5c20ea"
+    },
+    "noah/chain/deposits.py": {
+      "mode": "100644",
+      "sha256": "84c240d9cda93c70450df4159275cab0b7032f6cb1ae1cee9287403e66823e54"
+    },
+    "noah/chain/duplicate_coldkeys.py": {
+      "mode": "100644",
+      "sha256": "fc75b65a96b9ac76224765e4503dfe733f9acd3dc74068e38439eb2e96dbe00d"
+    },
+    "noah/chain/ema_context.py": {
+      "mode": "100644",
+      "sha256": "af0368713cd0e57425bb05a9ddc9f6e23e73c4118412a1cc4e24b66cd7957aaf"
+    },
+    "noah/chain/emission_state.py": {
+      "mode": "100644",
+      "sha256": "97aa90e1f66b279a64ca1c96d19cb9fd41a1934e6c582eeae6d36777511e144d"
+    },
+    "noah/chain/emissions.py": {
+      "mode": "100644",
+      "sha256": "cc5d8f35c0e46439bcde0a116e9f74afa74ac2c9c7a8de924d94502ef64cebf2"
+    },
+    "noah/chain/entry_history.py": {
+      "mode": "100644",
+      "sha256": "61a75e6598d625e0e54d252f1aecab8f8ebfec41c051cdc4bbb01ef3e21b0d1e"
+    },
+    "noah/chain/entry_migration.py": {
+      "mode": "100644",
+      "sha256": "0ff3c314e07fa86b781933a3ddc2ca26b159cd834528bed0828e897a1868975b"
+    },
+    "noah/chain/fixture_build.py": {
+      "mode": "100644",
+      "sha256": "36bd3b7e18606aee6a7334a1d6eb8b348453ec077cf81a72ea69d7627749f231"
+    },
+    "noah/chain/foreign_rescan.py": {
+      "mode": "100644",
+      "sha256": "746d6eda4ed1d54fb556f1826a5ccd2a012eb1b957db3350fe74ebcb86f61228"
+    },
+    "noah/chain/foreign_value.py": {
+      "mode": "100644",
+      "sha256": "22b4606af87e416d18231854b6a5baf8a0e9145777894485e60c8151d54447e9"
+    },
+    "noah/chain/genesis_times.py": {
+      "mode": "100644",
+      "sha256": "1cf2096e0598ab2e44a600497fc267d9f2bdbf6ba0f7024be807eee55eebdc81"
+    },
+    "noah/chain/history_check.py": {
+      "mode": "100644",
+      "sha256": "48a2f3894c2629ab09aab776a342f6e1860bd5632a99a9cda8022b7051d52c2b"
+    },
+    "noah/chain/holdings.py": {
+      "mode": "100644",
+      "sha256": "7455cdea7f5116b5c3a66b60e832425048a38c463dcef43c34ba2dd8a4a73718"
+    },
+    "noah/chain/live.py": {
+      "mode": "100644",
+      "sha256": "b1334810822e7dde5682bb40161f5acb73abd287ea3e1367a1bb004a8cacd662"
+    },
+    "noah/chain/migration_fields.py": {
+      "mode": "100644",
+      "sha256": "fed63e47213d08db2061e575c0f72adb4c1a4d97da635e1bb7d971a7d040be0a"
+    },
+    "noah/chain/nofault.py": {
+      "mode": "100644",
+      "sha256": "0ee2518f89781769a2817b019f3c74558eae3a094d8b3af694b7c73c98f0fef9"
+    },
+    "noah/chain/owner_events.py": {
+      "mode": "100644",
+      "sha256": "1f7a4404c06bd15eef451cd9a17339e7e04f9ec3c3b7c4a035e40569cf68aaac"
+    },
+    "noah/chain/pay.py": {
+      "mode": "100644",
+      "sha256": "1b57e7ffe7e68db6bc963d7dae7485eac4b342b74041b1740e62f8b479c42605"
+    },
+    "noah/chain/read_connection.py": {
+      "mode": "100644",
+      "sha256": "92caf331cefde840154c7eb67fb520eb04892038a82c484285fb959e143864e7"
+    },
+    "noah/chain/reads.py": {
+      "mode": "100644",
+      "sha256": "c4075ec348503d94002b7918fd75fd9cbdb10a0f3f35179307b48dc2d3458c79"
+    },
+    "noah/chain/runner.py": {
+      "mode": "100644",
+      "sha256": "d52a378197039cb61fefd8dcf4853fadfce60c2ac6843326bd48281c4d374e56"
+    },
+    "noah/chain/seats.py": {
+      "mode": "100644",
+      "sha256": "0527b2a54a7d2087d7c1aa185af13366396bf910f4e61354bde3dd5dcc3a242c"
+    },
+    "noah/chain/sources.py": {
+      "mode": "100644",
+      "sha256": "b6ebcadd2ada9dd2ac7bdce1307f3f04b6a9700b6ae521256e74f99c641300d8"
+    },
+    "noah/chain/ss58.py": {
+      "mode": "100644",
+      "sha256": "afb21b6b397956c961f3ead8f420fd1101aa578d2dbd432a9e24cabdfab3ea0b"
+    },
+    "noah/chain/store.py": {
+      "mode": "100644",
+      "sha256": "b342b5a90f577c2ccf35d7306fdbe13c30371eee4642d5f5556828eb57d1b7f3"
+    },
+    "noah/chain/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/chain/tests/_agreeing_helpers.py": {
+      "mode": "100644",
+      "sha256": "79f90f04fcff8ad8440edb828a32e03bcb82397a81c9fb2640219c34532b71de"
+    },
+    "noah/chain/tests/_deposit_helpers.py": {
+      "mode": "100644",
+      "sha256": "0af3d73364a4dd5a39c2e62b8273e476d3ef5be3e8aaeed9b3f3ae2f4076ca0a"
+    },
+    "noah/chain/tests/_fixture_helpers.py": {
+      "mode": "100644",
+      "sha256": "5402e457d59cfbf6696a59dba6d39af6862eb78ca4456ed9f54e38ac0a31d761"
+    },
+    "noah/chain/tests/_scenario_helpers.py": {
+      "mode": "100644",
+      "sha256": "e1dfd99e74757cff2002189d1a2f016cb7cc26847999bd330f49d8f5f11c2098"
+    },
+    "noah/chain/tests/fixtures/BURN_METADATA.md": {
+      "mode": "100644",
+      "sha256": "f8eeff64c62086d92f44d8a96171bb09f49fcef758b64a4be2b5fdc4ec49958d"
+    },
+    "noah/chain/tests/fixtures/runtime483-v15.scale.gz": {
+      "mode": "100644",
+      "sha256": "64c0d88358a68ef5543ac2da471538bb7736af0b2fd991641ed8f449f2fc399f"
+    },
+    "noah/chain/tests/fixtures/runtime492-v15.scale.gz": {
+      "mode": "100644",
+      "sha256": "994c9b8918188c52844ff85ff2dc56c315352a9b9140e0efb6fbc364f30d45f5"
+    },
+    "noah/chain/tests/fixtures/runtime493-v15.scale.gz": {
+      "mode": "100644",
+      "sha256": "1a8f798d203eb98882798e5f962a1bc4c640db3b0605234722cd85c1e381ecbb"
+    },
+    "noah/chain/tests/test_alpha_price.py": {
+      "mode": "100644",
+      "sha256": "0eeb76b5aea27eaa5d804d5571b54615e45441185b8e948054004abf6506a76b"
+    },
+    "noah/chain/tests/test_burn_context.py": {
+      "mode": "100644",
+      "sha256": "d384fee53f443c2bea2717618ffb09618c712fe727f7cc4a4ca6152ee7851112"
+    },
+    "noah/chain/tests/test_collateral.py": {
+      "mode": "100644",
+      "sha256": "574c48652fef136eeba24c0804155a1b805e92aa00d9abfc6a9e85eb59230333"
+    },
+    "noah/chain/tests/test_collateral_subnet.py": {
+      "mode": "100644",
+      "sha256": "80777fc3998114c29c19b428be638268c4dfc5b01b5ac8cd555d42de5eaddc18"
+    },
+    "noah/chain/tests/test_dayblocks.py": {
+      "mode": "100644",
+      "sha256": "254ebdff9bc8e759c755953c17246bf8a3dfd7223c31a5107dedc6c96a3a12d6"
+    },
+    "noah/chain/tests/test_deposit_filter_positive_control.py": {
+      "mode": "100644",
+      "sha256": "0d7ad0b834cdaa60f2a4632fc4f5eda42c06c2fec3e02877e177953bb4d16e69"
+    },
+    "noah/chain/tests/test_deposits_read.py": {
+      "mode": "100644",
+      "sha256": "bda649ee498e7f50229288f4a7e4ba0b92585ff4f65ceb4b35d541ced59d8f13"
+    },
+    "noah/chain/tests/test_deposits_unnamed_reason.py": {
+      "mode": "100644",
+      "sha256": "fad726307cae6942b06d578a15b287f664abaffaa1f007e8cfab02ad5bacb474"
+    },
+    "noah/chain/tests/test_duplicate_coldkeys.py": {
+      "mode": "100644",
+      "sha256": "ad67f8f7426dbaf0f27d49a5547da5af64be90ed472ab12ca4439ce2d9682657"
+    },
+    "noah/chain/tests/test_emission_state.py": {
+      "mode": "100644",
+      "sha256": "b215f0ff684a936028e6eb6715e8c48e979a2fc5b1e12e89f2424450973442b2"
+    },
+    "noah/chain/tests/test_emissions.py": {
+      "mode": "100644",
+      "sha256": "3d853be4b26a7557fa9dcacba820c21892132098e6fbffc2bfb8a31d01197ed5"
+    },
+    "noah/chain/tests/test_epoch_collection.py": {
+      "mode": "100644",
+      "sha256": "feea08e140c56812df668300579b1da95432dd34bb19de15557bcf318e4258b6"
+    },
+    "noah/chain/tests/test_first_day_outcomes.py": {
+      "mode": "100644",
+      "sha256": "b687b6d4f429712962329237d4c3b5fc7e9d308637c33ce2b708ee1bf3e27072"
+    },
+    "noah/chain/tests/test_foreign_credit.py": {
+      "mode": "100644",
+      "sha256": "fb5c249e1859f5fce830164db99cf1e10d736b4c2f6b03b98ff5895624b018fd"
+    },
+    "noah/chain/tests/test_foreign_price_hash.py": {
+      "mode": "100644",
+      "sha256": "997d94fa121dbaae45873f7c328f55eb2186d8821bef52b11a40a6a2d31130e1"
+    },
+    "noah/chain/tests/test_foreign_rescan.py": {
+      "mode": "100644",
+      "sha256": "0435a1449e90a08810fd4601859febd576ded4b01b1764189337abfb01642527"
+    },
+    "noah/chain/tests/test_foreign_store_migration.py": {
+      "mode": "100644",
+      "sha256": "de037cd6e03d23ab5aa88453a2274aeb0ea117d97f91eba647364a9394c50800"
+    },
+    "noah/chain/tests/test_genesis_times.py": {
+      "mode": "100644",
+      "sha256": "73dd8f0257436b94c99b7502e8c7944f389f7fdddaccdfe3d00c7ccbea147f59"
+    },
+    "noah/chain/tests/test_historical_cutoff_retry.py": {
+      "mode": "100644",
+      "sha256": "6634245f04a2c061a4730ebce5d459855822eb6970d543511c995729fa2b0c51"
+    },
+    "noah/chain/tests/test_history_check.py": {
+      "mode": "100644",
+      "sha256": "03ed1b0e29342a247b12d3f93eea76ca21b1204448acfe4499229cf046c7be39"
+    },
+    "noah/chain/tests/test_history_store.py": {
+      "mode": "100644",
+      "sha256": "8fec11aaf08d0410f3ebb02091936edc87bae53fb4aead5c2d98bc106286a780"
+    },
+    "noah/chain/tests/test_live.py": {
+      "mode": "100644",
+      "sha256": "66db1221703e98f3438016df9501dbebd4cf72d2c2e2fc1749bb79603781a899"
+    },
+    "noah/chain/tests/test_live_collateral.py": {
+      "mode": "100644",
+      "sha256": "123ae612c6ed2f8ebdd2340127e0df617e16cdac27d71e2d297d0305b593fe40"
+    },
+    "noah/chain/tests/test_live_epoch_reads.py": {
+      "mode": "100644",
+      "sha256": "77f93c7bebc65303cf47db281ae493c3ab84602ea341c1a51225dda8d49a0835"
+    },
+    "noah/chain/tests/test_live_events_shape.py": {
+      "mode": "100644",
+      "sha256": "c95289cb4be6044230133c98a26088b1318d828414f616e20708bd3baee1a9f4"
+    },
+    "noah/chain/tests/test_live_hash_dedup.py": {
+      "mode": "100644",
+      "sha256": "e68c68d3fd43404734d6d494526f6916455c24138c979cb4cfea17aedc5c663e"
+    },
+    "noah/chain/tests/test_live_holdings.py": {
+      "mode": "100644",
+      "sha256": "bbbfa21a09c2b85102161532fdf7bc8864352771eb1b2a8c6708e121b0e743d7"
+    },
+    "noah/chain/tests/test_live_null_guard.py": {
+      "mode": "100644",
+      "sha256": "f4b009559738d54557648881b598764e06deda7a88fc136a68a49cc50a9eb6b4"
+    },
+    "noah/chain/tests/test_live_rate_limit.py": {
+      "mode": "100644",
+      "sha256": "bcc85b0e6d354df28b56fa09e0acf849414697d51ed3976a2d263de296ba1eaa"
+    },
+    "noah/chain/tests/test_nofault.py": {
+      "mode": "100644",
+      "sha256": "91a995b8a15739ebb2499336b9007a701e225013f14d59b63c9b555d751013a8"
+    },
+    "noah/chain/tests/test_pay.py": {
+      "mode": "100644",
+      "sha256": "a5b322fd8ed71e7367177f33ff85eed36e4e7c44e5a1cf3a4a237f3318b7d2ce"
+    },
+    "noah/chain/tests/test_pay_store.py": {
+      "mode": "100644",
+      "sha256": "d91caa6df0ea50d289c7a667ed9f52586b4b6ce607b53a9cbfa1ea7d2a4162e4"
+    },
+    "noah/chain/tests/test_public_batch_receipts.py": {
+      "mode": "100644",
+      "sha256": "77a748cf0de7fc989e2bebb286805cb2367defc7a13ef2e7a7c5808151c5c73e"
+    },
+    "noah/chain/tests/test_report_clock.py": {
+      "mode": "100644",
+      "sha256": "d3f751024ff8560ad5a2e1e7f3e5e4f12d7762ac311cc9c042ecc35678e68a64"
+    },
+    "noah/chain/tests/test_rule_b_unnamed_deposits.py": {
+      "mode": "100644",
+      "sha256": "686f276137128ac3685cd5d6b77f453c62da06168f6cf9dafb9bca03dd9c02e9"
+    },
+    "noah/chain/tests/test_runner.py": {
+      "mode": "100644",
+      "sha256": "817db6bd32f96d2110dfd0b0d1e38c195491daf9114148fa98a90b801bf5ee63"
+    },
+    "noah/chain/tests/test_runner_parent_hash_reuse.py": {
+      "mode": "100644",
+      "sha256": "612f87158d9e7d94de3a2a195cd070ef3d71a5bcffaed224dce1883abb4973a2"
+    },
+    "noah/chain/tests/test_runner_pay.py": {
+      "mode": "100644",
+      "sha256": "ca0252c72914f4b096857b7f71b563b91ea4d140e9ae8916394b31c939b0e94d"
+    },
+    "noah/chain/tests/test_runtime493_burn.py": {
+      "mode": "100644",
+      "sha256": "5f9eeedbc077803b065930065037b63fbb33f526f7dade4e9db5ab69e5786f1d"
+    },
+    "noah/chain/tests/test_seats.py": {
+      "mode": "100644",
+      "sha256": "815badc86ebba0cff21561070d2af6458f0884689b1a9c671839b1abe7f44e96"
+    },
+    "noah/chain/tests/test_secretscrub.py": {
+      "mode": "100644",
+      "sha256": "9012407944489601ebe6859009bb2ca42c55f70cdc117c2dc2de7be60d7395a3"
+    },
+    "noah/chain/tests/test_secretscrub_hardening.py": {
+      "mode": "100644",
+      "sha256": "bc36a1d6f553ff7c2e69ec6cd9051906e7f827564f3bcb521db50c8fbd50ac8f"
+    },
+    "noah/chain/tests/test_ss58.py": {
+      "mode": "100644",
+      "sha256": "75102a9521445b55743ef5c6ab98889fd2bcccc66e6d29073bda3466e4f0c340"
+    },
+    "noah/chain/token_context.py": {
+      "mode": "100644",
+      "sha256": "4486d809ee4da887412c8c12b667a04cee679aa01419a582c10715d99c1b39db"
+    },
+    "noah/chain/valuation.py": {
+      "mode": "100644",
+      "sha256": "bf9c4a7f97da46cf57edda9d74e4eb37664d73b7bc44b7370c329d3e4bd67e65"
+    },
+    "noah/config/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/config/profile.py": {
+      "mode": "100644",
+      "sha256": "fc2ecffbd5f198980c90c9b0d2685ce961cd15c888970f928c0e142fe88cdd44"
+    },
+    "noah/config/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/config/tests/test_profile.py": {
+      "mode": "100644",
+      "sha256": "86ed46f6eed1ba46eebe397653df4f2002e4083e7b85f4a41e061f1bcb2915dd"
+    },
+    "noah/core/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/core/burn_allocation.py": {
+      "mode": "100644",
+      "sha256": "eed079155e5bb1cd4d660dda3136467f05da078656f11618ad634e526bb93e84"
+    },
+    "noah/core/burn_publication.py": {
+      "mode": "100644",
+      "sha256": "0d01ba7a3b1cd64279df1b8c1b8b9a4285b25c8558b5da8dd47c4e4cc3096bdc"
+    },
+    "noah/core/calculation_record.py": {
+      "mode": "100644",
+      "sha256": "7a9b7f75822ff674399695c77fbb14cc96f97aa9cc3a9cadad7b9876e83e5e61"
+    },
+    "noah/core/chain.py": {
+      "mode": "100644",
+      "sha256": "3681c807755d6a077c5c5057d674c8784ccbfaa5039fb055c47e7a97fe0e7257"
+    },
+    "noah/core/chain_adapter.py": {
+      "mode": "100644",
+      "sha256": "eb1fc6e538aac0a4fe2a6ddb10035e8b41a1707f85d7b482f906f908f6838a60"
+    },
+    "noah/core/commit_ledger.py": {
+      "mode": "100644",
+      "sha256": "9b81d963e28470b5f5f790fa9c55ee19488b8db3c5292d231a2b76d9e2d87705"
+    },
+    "noah/core/commits.py": {
+      "mode": "100644",
+      "sha256": "74acf1bae6ab0062cd655d36ee004f680d0a01822a2d59fccb6bfb4c195f9149"
+    },
+    "noah/core/direct.py": {
+      "mode": "100644",
+      "sha256": "c603109b1d56fe64ba3a94b806916cfba7a75dd2ea9cbd4684349da60a846d39"
+    },
+    "noah/core/epoch_work.py": {
+      "mode": "100644",
+      "sha256": "27f96a2561d3efd7e62b6825cc6458016b57a856228324950d0233a9fee9d48b"
+    },
+    "noah/core/keeper.py": {
+      "mode": "100644",
+      "sha256": "2163723427a07861e4d40055e06ff5f6bf1aa84f6f3f017b122dea8244286041"
+    },
+    "noah/core/landed.py": {
+      "mode": "100644",
+      "sha256": "3d91fc54ce1cd21b9f9c457fa02d6dacf2a80b66c834e103cb3b85fc188d461c"
+    },
+    "noah/core/loop.py": {
+      "mode": "100644",
+      "sha256": "fc5b15bec9af4b5a48f27c1fbbc881ed9d37aa05fffa057741f18718b5040cb6"
+    },
+    "noah/core/mainnet.py": {
+      "mode": "100644",
+      "sha256": "80a28f8f16bc0cb4e885313481fb01513d906951b4dc3f49a9deca30ea718e09"
+    },
+    "noah/core/period.py": {
+      "mode": "100644",
+      "sha256": "a05edb7e4e26a86c0c558c81e353ea10b7a80afb87a01bedc7414716c77d0bae"
+    },
+    "noah/core/pinning.py": {
+      "mode": "100644",
+      "sha256": "a796ac98f4763f21c9b115732638de6cb6183d5da1d9f4f1a0231cc256e28ce4"
+    },
+    "noah/core/prepared_transaction.py": {
+      "mode": "100644",
+      "sha256": "40b8db6c110cde9db2d52a369da58fcee9e762a56cf1d5d375add39fd5f51770"
+    },
+    "noah/core/proxy_route.py": {
+      "mode": "100644",
+      "sha256": "1108d517db74bf3e9d73d7f5732408c65881389cb62244613e150aab4f30d424"
+    },
+    "noah/core/publication_diagnostics.py": {
+      "mode": "100644",
+      "sha256": "9d251feab1df06ebfe83feb0a7fbdbc39ac9185e44cd203e0d43a416bb027f2c"
+    },
+    "noah/core/publication_lock.py": {
+      "mode": "100644",
+      "sha256": "0e3d91c83d51e9032e6fdb5c8acffea9ad09d33c5ee7f13c8e44f42cbfa63f18"
+    },
+    "noah/core/publish.py": {
+      "mode": "100644",
+      "sha256": "051f4b03540e1d6edb5355156b2c8122a095e24c3d660b473d1383dcc7511e09"
+    },
+    "noah/core/publish_hold.py": {
+      "mode": "100644",
+      "sha256": "36da0415c8b32bb7c9c06baf6d6d613fbbe73481d3b8a133c7270267381bab3d"
+    },
+    "noah/core/publish_intent.py": {
+      "mode": "100644",
+      "sha256": "4e46fc9e830ad46181cab4d1b982c33a7976267b67d6dcbfbc87bc8157c4a24c"
+    },
+    "noah/core/reader.py": {
+      "mode": "100644",
+      "sha256": "44af12ac184516ec83276b5a02ce6b12c762e221ceab418f5bd52254cf24f8c3"
+    },
+    "noah/core/report_handoff_prepare.py": {
+      "mode": "100644",
+      "sha256": "fb2b7e1ca537b9835c92667a0e455b953c600b33812fb00706798d549a691ba0"
+    },
+    "noah/core/report_publication.py": {
+      "mode": "100644",
+      "sha256": "eb0ae1551a7592ff0d3652399057ff49f51ad348f624d51f0d7b469159168afa"
+    },
+    "noah/core/report_reward_transition.py": {
+      "mode": "100644",
+      "sha256": "281187498fe397f9cda353e56d87430ccec45a362e6d0e09b7cf54ae819a0c9e"
+    },
+    "noah/core/report_runtime.py": {
+      "mode": "100644",
+      "sha256": "4d86c76d6983b589d9ce943b09c961a2338d2b26f4dd6d2270f674319b9a7c78"
+    },
+    "noah/core/report_source_handoff.py": {
+      "mode": "100644",
+      "sha256": "9c14c6a2e21a3275bafcafa2888f09365a49d5adcea0ccae17c45eb393adc84d"
+    },
+    "noah/core/rescale.py": {
+      "mode": "100644",
+      "sha256": "af05d0c37bd4271f91082edcc0fdc0fdeb22a14390cac9c29d41d904ca0d7233"
+    },
+    "noah/core/settings.py": {
+      "mode": "100644",
+      "sha256": "de374b3707b8c60245eb21a8bf91b82c7ccd0466559b324be0776ad4ea593614"
+    },
+    "noah/core/startup.py": {
+      "mode": "100644",
+      "sha256": "a6d9569d3c1aabdf89b332f47ca352984d9dfe5d554b7a978868e7fbdefb79bd"
+    },
+    "noah/core/submitted_record.py": {
+      "mode": "100644",
+      "sha256": "7247650679310c15359fe9ec7770383cff982819fa663ece244f4f37bf128d1a"
+    },
+    "noah/core/submitter.py": {
+      "mode": "100644",
+      "sha256": "f9d55760f0eeb7f41bf8579b99a3bb2ff576dd4ecfa1556a3b874578813e1de0"
+    },
+    "noah/core/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/core/tests/_adapter_helpers.py": {
+      "mode": "100644",
+      "sha256": "8031a0d6859b06224fc2761c3ccdc1a366d0a46e7b8d40dd6b7355baf551edc9"
+    },
+    "noah/core/tests/_composed_call.py": {
+      "mode": "100644",
+      "sha256": "cc0301edf00a64e261658105ef022c85e10f8db2277a24a318453fd295d72bf9"
+    },
+    "noah/core/tests/_kill_harness.py": {
+      "mode": "100644",
+      "sha256": "516a6d21a148a4a273744d49eded5da8d54501077c6ef262e63dd9e5c5b7fa69"
+    },
+    "noah/core/tests/_mainnet_helpers.py": {
+      "mode": "100644",
+      "sha256": "3016e0a999ffb38f8840d227a37e09b43e9fbaa34253fc4d2c1a96f03af5ad37"
+    },
+    "noah/core/tests/_prepared_transport_fake.py": {
+      "mode": "100644",
+      "sha256": "c90abdc78531de9fa6880dd48dfbbd1269d0cf630662eacf5eceab6a68376ab7"
+    },
+    "noah/core/tests/conftest.py": {
+      "mode": "100644",
+      "sha256": "4e1a988e6f685a150e71aeb6b06aa5fdb0b6b289baca5f38aa2fd811a9554285"
+    },
+    "noah/core/tests/fixtures/issue291_day15_weights.json": {
+      "mode": "100644",
+      "sha256": "e9760bb83cdafced6bf7280b9a55848cd79e07ba2f474ceb3f04ca61e66e54be"
+    },
+    "noah/core/tests/test_automatic_null_day_close.py": {
+      "mode": "100644",
+      "sha256": "7fe5e19751b9a6aa19651bceed264f0ab3ce70a29985a2cf690cbc226aef3ef2"
+    },
+    "noah/core/tests/test_burn_allocation.py": {
+      "mode": "100644",
+      "sha256": "75ec6235221b3acb5b9581c42bfbe60cc6b197a17730b78b61f8ec18dc5a259c"
+    },
+    "noah/core/tests/test_burn_storage_presence.py": {
+      "mode": "100644",
+      "sha256": "f886436545df17401582198a04854c120b0bffa30cb17c4f4d1bcc1d6ab8ac41"
+    },
+    "noah/core/tests/test_calculation_record.py": {
+      "mode": "100644",
+      "sha256": "8157f369437956ba2eaf1bfc0ff0242647c275695430dcb51afba7cba76871ef"
+    },
+    "noah/core/tests/test_chain.py": {
+      "mode": "100644",
+      "sha256": "5131bd0ea750ce99b310caa58492106acbbdef266a19e733a09b8699a7bad3da"
+    },
+    "noah/core/tests/test_chain_adapter_endpoint_scrub.py": {
+      "mode": "100644",
+      "sha256": "5b05b07bd773a58cc248bc5f66756824846b251dacbc36afd9e15cdf49f6bcee"
+    },
+    "noah/core/tests/test_commits.py": {
+      "mode": "100644",
+      "sha256": "f960178886c4106858711c056d5f6da0f8c3268475fb26f76aba7b12bf82af73"
+    },
+    "noah/core/tests/test_connection_sharing_investigation.py": {
+      "mode": "100644",
+      "sha256": "8cbe61f748c81fa3e4b41fc04c746902d03708689ac82fc8eb89e495e127c254"
+    },
+    "noah/core/tests/test_daily_calculation_retry.py": {
+      "mode": "100644",
+      "sha256": "5d7a384180f7b2f957a1488360cfd6f01cde6d9fff183e9c692c61a4da205312"
+    },
+    "noah/core/tests/test_day_readiness.py": {
+      "mode": "100644",
+      "sha256": "29c622a0f6c30bed9da17c581126a6e57f06228da1c8b317c84dd516aeba49f6"
+    },
+    "noah/core/tests/test_diagnostics.py": {
+      "mode": "100644",
+      "sha256": "858bd903a05e09882d8af9f900d470a1f5651db79b2eedc1bf2eb1ed11337f9a"
+    },
+    "noah/core/tests/test_direct_runtime475.py": {
+      "mode": "100644",
+      "sha256": "6fd5e204911d396638733d5dd09ec1064d6895ef8136fd6482a04d76816cdeb5"
+    },
+    "noah/core/tests/test_effective_burn_publication.py": {
+      "mode": "100644",
+      "sha256": "adbc09aaca96a85030421dc2b15d1a49a52e764df61d6a6db7f716098ca9fe2a"
+    },
+    "noah/core/tests/test_endpoint_cause_chain.py": {
+      "mode": "100644",
+      "sha256": "30bf8a3f9eccca17d4c055ba4a59bacbe457d1c441892290bedee328649d99cd"
+    },
+    "noah/core/tests/test_endpoint_file.py": {
+      "mode": "100644",
+      "sha256": "5749576d0fc5cb76d501e4947931db57640999d5a68a7e6faee7c1b28f098831"
+    },
+    "noah/core/tests/test_endpoint_file_never_leaks.py": {
+      "mode": "100644",
+      "sha256": "8c610a63843401f50ed211668210dedfe48c0411adc1c23a3cf2d50d115d3d97"
+    },
+    "noah/core/tests/test_endpoint_identity_stays_full_url.py": {
+      "mode": "100644",
+      "sha256": "5642c320a2438a71d4f245af2568a09978511ae9e32f68712c8da87aef2a6469"
+    },
+    "noah/core/tests/test_endpoint_redaction_edges.py": {
+      "mode": "100644",
+      "sha256": "8a6e43d32c8cb2f72ec71429e88201acd19a5cf5000e4955f7e7b78f502ece16"
+    },
+    "noah/core/tests/test_epoch_work.py": {
+      "mode": "100644",
+      "sha256": "bf22e266850137a789685516959ee53d3c9402bf12c71cb3ea39cded5954d706"
+    },
+    "noah/core/tests/test_foreign_price_retry.py": {
+      "mode": "100644",
+      "sha256": "eb7c60620bb96b251b3a360e4467514f4b2bd4882750794cd2ba4d9d2cc30f2d"
+    },
+    "noah/core/tests/test_genesis_times_agree.py": {
+      "mode": "100644",
+      "sha256": "a760b045fecc6a8d81c95a0a8592c048605b6737bb75b4efd093d6a400d0b170"
+    },
+    "noah/core/tests/test_integration.py": {
+      "mode": "100644",
+      "sha256": "eb4744c5fe7baa50f782d5d4482e9ef2f166fb53ac366fb5214bbbbae299f47f"
+    },
+    "noah/core/tests/test_issue217_sealed_already_published.py": {
+      "mode": "100644",
+      "sha256": "4103b0d865679f04a5eff845a93f7d38b7b156110dce18dc420cad38b5efdf7f"
+    },
+    "noah/core/tests/test_issue291_publish_intent.py": {
+      "mode": "100644",
+      "sha256": "7d48791996f2accb2d53be9cec7e062aedd442d3c390f607c6862756c9a797a9"
+    },
+    "noah/core/tests/test_issue291_registration_day_weight.py": {
+      "mode": "100644",
+      "sha256": "86371eb6ea7812bec38b155f306c709a8d81dc30d0c2c38a61723ddaa3ff92fa"
+    },
+    "noah/core/tests/test_issue334_commit_ledger.py": {
+      "mode": "100644",
+      "sha256": "d63525fd388475b9b1656878f30716f403d1893829bbf9d36024f032e62803d9"
+    },
+    "noah/core/tests/test_keeper.py": {
+      "mode": "100644",
+      "sha256": "df272294c33e457fdf9b7e93ef654c515b006b68e4815c408f44d7b8cd81c861"
+    },
+    "noah/core/tests/test_landed.py": {
+      "mode": "100644",
+      "sha256": "5f3447d73b8122bc98980451b46b135f3b99056e5efecd1dd61655d7f1387334"
+    },
+    "noah/core/tests/test_loop.py": {
+      "mode": "100644",
+      "sha256": "824619141203b075a22a2c341a61ba1fc43099d8fb9073682313104807ee08c9"
+    },
+    "noah/core/tests/test_loop_restart_kill.py": {
+      "mode": "100644",
+      "sha256": "e8c794b7b912b4a916392b2b02b73847f012657ef8e674d8017a608eb644c6e6"
+    },
+    "noah/core/tests/test_mainnet_endpoint_redaction.py": {
+      "mode": "100644",
+      "sha256": "8215af612b824ad3f113acb626a3f87ecffb198d6df004543a585a64c42a334b"
+    },
+    "noah/core/tests/test_no_value_echo.py": {
+      "mode": "100644",
+      "sha256": "266a74dace20b809969482bdfb1941733a21b52cd00cb0461ea436c22fe23349"
+    },
+    "noah/core/tests/test_path_interpolations.py": {
+      "mode": "100644",
+      "sha256": "cd36a9a0a3107058caac24c14b3a2a53b134115fce3b77c0864691dbb1af83dd"
+    },
+    "noah/core/tests/test_period.py": {
+      "mode": "100644",
+      "sha256": "764b17645501209cc5d6d96cfa6e4e2faa8792430a5b1ca6c5ada396c6d3eb55"
+    },
+    "noah/core/tests/test_pinning.py": {
+      "mode": "100644",
+      "sha256": "c96913fdd079165f16bea2949f6c6cb71cffc11cf2d11f3be129ec06f0574650"
+    },
+    "noah/core/tests/test_preparation_reader_refresh.py": {
+      "mode": "100644",
+      "sha256": "6de7656af3b2ea97c1f8b06a3ae0a1e4f029e48a7dd2a5e68ba8dd6c85332b3c"
+    },
+    "noah/core/tests/test_prepared_transaction.py": {
+      "mode": "100644",
+      "sha256": "11929b96564d895f183e932d09c7ff88548458287954a981c1e7a7854dc74284"
+    },
+    "noah/core/tests/test_proxy_route.py": {
+      "mode": "100644",
+      "sha256": "ee402265e761c0060d9b87718dbd723569e943e50c3dcdcbe46403ed205d8e43"
+    },
+    "noah/core/tests/test_publication_diagnostics.py": {
+      "mode": "100644",
+      "sha256": "4e9d6a12e473323324600f32c5953605bed7d1cf3324405a208c2ac9b30fce7f"
+    },
+    "noah/core/tests/test_publish.py": {
+      "mode": "100644",
+      "sha256": "4f2db39edd02c5084e93c0ee46365171ff439d852222790980702d4f74594915"
+    },
+    "noah/core/tests/test_read_connection.py": {
+      "mode": "100644",
+      "sha256": "26aeb45821e7023c5447f51a70232daf8ebb45191357c0fe1bf7bd6fe80cc705"
+    },
+    "noah/core/tests/test_reader.py": {
+      "mode": "100644",
+      "sha256": "073e92c210aa20733f78acfbc17847cf5b76574b271c4e858035b2fb7a44bfea"
+    },
+    "noah/core/tests/test_report_confirmed_refresh.py": {
+      "mode": "100644",
+      "sha256": "4c4495d1dcd0ad02d2470d718e5ccdacf65e38b5809e8ab23e7a1788cd45a253"
+    },
+    "noah/core/tests/test_report_gate_settings.py": {
+      "mode": "100644",
+      "sha256": "c23bb387d3cf9612cfd40f1776a9021c09f5a0ea9b87fd6d6af9b4400c0bcb6c"
+    },
+    "noah/core/tests/test_report_handoff_prepare.py": {
+      "mode": "100644",
+      "sha256": "838690550ea38e55c925e123c68483e1dde27d034f3c0d6f24bf6b56d779e538"
+    },
+    "noah/core/tests/test_report_publication.py": {
+      "mode": "100644",
+      "sha256": "55e7c92bfbcad4795528198db23b6fbbaf19dda6067339ed7d0ea55c3fd128fc"
+    },
+    "noah/core/tests/test_report_reward_transition.py": {
+      "mode": "100644",
+      "sha256": "5e6660ea83fc5dda0afdd40650970caff2bd815fa8f81e62672b6461f4c75601"
+    },
+    "noah/core/tests/test_report_schedule_binding.py": {
+      "mode": "100644",
+      "sha256": "8d53bd0b849928f7d9458d871b74ef0cd466863013b880ca7d8c39a911029e56"
+    },
+    "noah/core/tests/test_report_send_paths.py": {
+      "mode": "100644",
+      "sha256": "c9dfc3bd8c7ceaeb207c66e36bf3f80910845eb53158d1ff16dce47289aa7d1f"
+    },
+    "noah/core/tests/test_report_source_handoff.py": {
+      "mode": "100644",
+      "sha256": "fe584e2262fe8dd1a8179e567cd4972e2eaebf02ccd424d50b935fe20c466609"
+    },
+    "noah/core/tests/test_report_startup.py": {
+      "mode": "100644",
+      "sha256": "e82d87cd1618bc77ef9ba3dddad176449144fee8d57a41e5adf449e835808ace"
+    },
+    "noah/core/tests/test_report_toggle_recovery.py": {
+      "mode": "100644",
+      "sha256": "ecf2b5df629fb6c98efb7f6416a60222bb610f38676c6d6eff2cc890cffb73e2"
+    },
+    "noah/core/tests/test_report_worker_deadline.py": {
+      "mode": "100644",
+      "sha256": "6cae25b7924b92d7179d1d8ef49c12c6c5ff9f27a82e1fa522d96e3e04381273"
+    },
+    "noah/core/tests/test_reporting_bonus_both.py": {
+      "mode": "100644",
+      "sha256": "a08ae605d58284fd3c025b82c5843b60a3abe96400064727c21d3bec57a8eaab"
+    },
+    "noah/core/tests/test_rescale.py": {
+      "mode": "100644",
+      "sha256": "0e455c68ea3b2d7effe2bc69786e4df658313b618f21467198bc63816c5a44e3"
+    },
+    "noah/core/tests/test_runtime_events.py": {
+      "mode": "100644",
+      "sha256": "08b4255e6892631f6d3344a1059d77a092f90edd48110195008923f8c9f539db"
+    },
+    "noah/core/tests/test_secretscrub_entrypoints.py": {
+      "mode": "100644",
+      "sha256": "b8a800c29edc81501079636b9962911a36eace87ea4aefbb681cc778a7d2f4ee"
+    },
+    "noah/core/tests/test_settings.py": {
+      "mode": "100644",
+      "sha256": "1447dd275d5316ee5b0f1c4307d1030236bbab63e686bc0dce99342db763d3cd"
+    },
+    "noah/core/tests/test_startup.py": {
+      "mode": "100644",
+      "sha256": "0404abdcb8c18d6b2c057c6b5fdf0788d6bc615bfd3d906aeb7830eaae58607b"
+    },
+    "noah/core/tests/test_submitter.py": {
+      "mode": "100644",
+      "sha256": "e0c9e723b5bd6398efe300a3c55de6cf0742ca54bc7addfbc79030e17b7aef92"
+    },
+    "noah/core/tests/test_twin.py": {
+      "mode": "100644",
+      "sha256": "bd15f73d5f8395879602904a0661d6bf0c20ccb92bd836c3782c0a73846eb074"
+    },
+    "noah/core/tests/test_vector.py": {
+      "mode": "100644",
+      "sha256": "571fc0c8ce6c4280f4f1ced059f74480d4b49418e5151392c9ad2b8dd46f34a3"
+    },
+    "noah/core/tests/test_version.py": {
+      "mode": "100644",
+      "sha256": "f4ca5081bc208fd335bb9fb424e3c654de067b73e75fd255d0726fbba3d8e772"
+    },
+    "noah/core/tests/test_wallet.py": {
+      "mode": "100644",
+      "sha256": "59f51135e3460fc202ebb1ab8874b1bb8ff2a6a016d8aa1b052ffad85f8e6948"
+    },
+    "noah/core/tests/test_weekly_report_retry_resume.py": {
+      "mode": "100644",
+      "sha256": "2af0e06bb946334ce3a090c778874e6f14154767e1d100f9ef71c363bf5b881d"
+    },
+    "noah/core/tests/test_weekly_runtime.py": {
+      "mode": "100644",
+      "sha256": "292852cbce3366c0b91a718bb07be00012190c1eda9463a4c23c2cd32412ca3e"
+    },
+    "noah/core/tests/test_weekly_selection.py": {
+      "mode": "100644",
+      "sha256": "dd21c44047e706d890154703594746f01b9209671f9784629734d9f0cb575314"
+    },
+    "noah/core/tests/test_writer_lock.py": {
+      "mode": "100644",
+      "sha256": "56328a4357cdf38dbe7b5f27e6b3078f32584892cf89a6677ef0438a7c134681"
+    },
+    "noah/core/tests/test_wrong_interpreter_guard.py": {
+      "mode": "100644",
+      "sha256": "95af09c1dc17863002cc521c17bc02d5d697b5ea6bb43b0dfc46c59267420ad2"
+    },
+    "noah/core/ts_engine.py": {
+      "mode": "100644",
+      "sha256": "b55c32e86c0685ca193f9ae899a5fcf6e467d5d41135406776dba2b46369e2b0"
+    },
+    "noah/core/twin.py": {
+      "mode": "100644",
+      "sha256": "868bcaa49d3f32a3099c05ae08da2d174fc42c2c480183ac4dc2e9ef96cc2de2"
+    },
+    "noah/core/vector.py": {
+      "mode": "100644",
+      "sha256": "c4579a523cd2e01c5b35176c585c506e07f265445e7b14db38bc3f03eeb9cb77"
+    },
+    "noah/core/version.py": {
+      "mode": "100644",
+      "sha256": "6639b0b039b44a0f2954401c955dcbc5dda042756c893d7d05b2da4e6cdecade"
+    },
+    "noah/core/wallet.py": {
+      "mode": "100644",
+      "sha256": "04f84c4cc27b373b96c484c8b46cd4d07164dc852a7fc9ef4d2dfbfa535fdea2"
+    },
+    "noah/core/weekly_runtime.py": {
+      "mode": "100644",
+      "sha256": "3e6b44e9a8d01adec47baecad6ad42bed64a8653c9206e588451c0f583cf6bec"
+    },
+    "noah/core/writer_lock.py": {
+      "mode": "100644",
+      "sha256": "0771e6a6e125ddcb546745b9a26376c8b669100f7b13ad20a3214302744911fe"
+    },
+    "noah/deposits/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/deposits/assistant/USAGE.md": {
+      "mode": "100644",
+      "sha256": "264d9ba1b17bc072f059588a11f306563af7b0d5268ac15a3b6845b4c77e45cb"
+    },
+    "noah/deposits/assistant/__init__.py": {
+      "mode": "100644",
+      "sha256": "e7e15da222b07874d7a6f75b4166d66cfff7cbd03e9f09ea6bf43888e8d6b461"
+    },
+    "noah/deposits/assistant/__main__.py": {
+      "mode": "100644",
+      "sha256": "bbb202e9c9d33c1576725e213094badb3aba7210a1e6e763f64038c5d963aeac"
+    },
+    "noah/deposits/assistant/amounts.py": {
+      "mode": "100644",
+      "sha256": "0859f92fee94e828ce99592462948b997d1cd87242197c08b446b3ed753aa753"
+    },
+    "noah/deposits/assistant/assistant_tx.py": {
+      "mode": "100644",
+      "sha256": "594a9160873919aa871773cd173541ee5bfbcab7fc33fbfef0edc147aa61ecf3"
+    },
+    "noah/deposits/assistant/cli.py": {
+      "mode": "100644",
+      "sha256": "abc74a8fd01b1368db22861dbd730d7383f63eea3966d3e73dcf032379c6d2c0"
+    },
+    "noah/deposits/assistant/config.py": {
+      "mode": "100644",
+      "sha256": "c58a13da34c47b2cbe60e5a522204da1717ebc0e3300c00505cbab609cd17347"
+    },
+    "noah/deposits/assistant/config_edit.py": {
+      "mode": "100644",
+      "sha256": "958a774b9b7e3cf7564cf89baa7bb284d73bd61e0576fc6124927b2b17635f1d"
+    },
+    "noah/deposits/assistant/conversion_config.py": {
+      "mode": "100644",
+      "sha256": "57f8b33e37379724f6e4b4ad9127a2692ab2b1d03a5b2e5b7b60d95e0aa9d9b8"
+    },
+    "noah/deposits/assistant/evidence.py": {
+      "mode": "100644",
+      "sha256": "39eaf431ac6e11f471fe201b485647a4c6669eefc607975653eae1840b143f52"
+    },
+    "noah/deposits/assistant/ledger.py": {
+      "mode": "100644",
+      "sha256": "2217cdc6c7ccc161a64c2281ea30971e0849ab376793f239a317f1921ed0faf6"
+    },
+    "noah/deposits/assistant/miner_cli.py": {
+      "mode": "100644",
+      "sha256": "c313f2ec29b4cfb04d922527c01da839f0760733401a98de2b52e01c3d1c7451"
+    },
+    "noah/deposits/assistant/mixed.py": {
+      "mode": "100644",
+      "sha256": "f054b501b669195e1a3165678afe12121b2d328e3581888f04d996d9710e0b52"
+    },
+    "noah/deposits/assistant/mixed_runtime.py": {
+      "mode": "100644",
+      "sha256": "ee258443a476818e275013a21df6031a9d345fe35a2ad569ad74f5518c70ac05"
+    },
+    "noah/deposits/assistant/mixed_workflow.py": {
+      "mode": "100644",
+      "sha256": "4cf362fa9e1682e87b3cd0bff7a740b527a6dbe4177d63bf4e26c871e95074ed"
+    },
+    "noah/deposits/assistant/preview.py": {
+      "mode": "100644",
+      "sha256": "80e8f1e279212c8856a676c38cd2a46aa2ec8a442622fda651c9cee4cee792d3"
+    },
+    "noah/deposits/assistant/proxy_signing.py": {
+      "mode": "100644",
+      "sha256": "edce3825df3b28c2828eb8d637df353517e73b936e1f70a6298a9b7dd9723fe1"
+    },
+    "noah/deposits/assistant/purchase.py": {
+      "mode": "100644",
+      "sha256": "b92a2ea0bcd88c6e2698db7825578891adf8b7a942d7d65b1ef2a98c4f3f163d"
+    },
+    "noah/deposits/assistant/purchase_cancellation.py": {
+      "mode": "100644",
+      "sha256": "859dc0874e7de13b06388353959eb156725967a295009543022dd8c4f4918087"
+    },
+    "noah/deposits/assistant/purchase_root.py": {
+      "mode": "100644",
+      "sha256": "e0d92f3cd7f08ca436b348af9d359492faefaa5e52d9e67d46417fd24b7776cd"
+    },
+    "noah/deposits/assistant/purchase_runtime.py": {
+      "mode": "100644",
+      "sha256": "5015654f2596318e846ddec2f0d12530336d29a75c16d5ccec99f992a9c792ff"
+    },
+    "noah/deposits/assistant/purchase_signer.py": {
+      "mode": "100644",
+      "sha256": "5a09ee0b73b889a388390021144a45ee97262163ab000bf5f64a6912484a82b7"
+    },
+    "noah/deposits/assistant/purchase_workflow.py": {
+      "mode": "100644",
+      "sha256": "aadb7da50e6e5cc606567f936adfd3616d3d26d9f037d5a2a0ef7e6328217e46"
+    },
+    "noah/deposits/assistant/reconcile.py": {
+      "mode": "100644",
+      "sha256": "6c53993b5c03d45c7c8d8108c61eeeaa67a751b77d505034970aaaf4e13e0b22"
+    },
+    "noah/deposits/assistant/session.py": {
+      "mode": "100644",
+      "sha256": "8d33fdb446eae5b9eaebba76f111e5de4486fbb448f847cc44f044dde5bc0e03"
+    },
+    "noah/deposits/assistant/signer.py": {
+      "mode": "100644",
+      "sha256": "282b7e8aff05143157cbdd817bda5fe05d52eaaa8e585b281b72113ce4beafe7"
+    },
+    "noah/deposits/assistant/strict_json.py": {
+      "mode": "100644",
+      "sha256": "035ead6b9d606171c89921c8e1e47b8b6031144b3f37ea80a625a18053cbc235"
+    },
+    "noah/deposits/assistant/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/deposits/assistant/tests/fakes.py": {
+      "mode": "100644",
+      "sha256": "299ac05f90701d822baba384ef5a12fcd386f9cc7a46b727da476dd9b9c89db5"
+    },
+    "noah/deposits/assistant/tests/test_amounts.py": {
+      "mode": "100644",
+      "sha256": "4804f63261974580f42fc7e3f9cee37c744ac1a8634f9a050af5a491c3193fac"
+    },
+    "noah/deposits/assistant/tests/test_assignment_trust_config.py": {
+      "mode": "100644",
+      "sha256": "7b0d7f67db98a2671f73535fe27cf9f2e02ab54bbcf87183c884f8ef28ba2974"
+    },
+    "noah/deposits/assistant/tests/test_assistant_tx.py": {
+      "mode": "100644",
+      "sha256": "5d7e79e284eb4429c71d34f76bb4162bd4f987c23753a79da7a3c1192d8b5be3"
+    },
+    "noah/deposits/assistant/tests/test_chain_flags_precheck.py": {
+      "mode": "100644",
+      "sha256": "5aaefa3e4419cd6e5d09ec66ad70b2f62799eff2dd0f93f524b8ba0e201271a9"
+    },
+    "noah/deposits/assistant/tests/test_cli.py": {
+      "mode": "100644",
+      "sha256": "d3ff0541a4479c5717e0770f8e151997ad5937bfb9016903a7ed21e8ad9dd60b"
+    },
+    "noah/deposits/assistant/tests/test_cli_endpoint_scrub.py": {
+      "mode": "100644",
+      "sha256": "3a1c7c82318882fadfc308e4a3e0a60e9144364e4fa10a1e1cdaf0e072a7d5dd"
+    },
+    "noah/deposits/assistant/tests/test_config_edit.py": {
+      "mode": "100644",
+      "sha256": "d50bf070c9c435251c4daa27854d67cc2e77bd4c6e1e7a0dc49d01428b47a8e2"
+    },
+    "noah/deposits/assistant/tests/test_helper_fixes.py": {
+      "mode": "100644",
+      "sha256": "b58abc393f6f833b9c8b420668ada785c9d7e285f6e90bca4d0976950fb7c300"
+    },
+    "noah/deposits/assistant/tests/test_ledger_config_preview.py": {
+      "mode": "100644",
+      "sha256": "d1e18dd4587f788f76b98368f365882c19f6b768d57419a06e6995b870e9051c"
+    },
+    "noah/deposits/assistant/tests/test_lock_file_permissions.py": {
+      "mode": "100644",
+      "sha256": "00e3e7d12e00ddcbdf01024bbd41f99bdbfc83f312fdbe246329302938611fb3"
+    },
+    "noah/deposits/assistant/tests/test_miner_cli.py": {
+      "mode": "100644",
+      "sha256": "002adc6fbee661554513d9ae36653d215d1734be401a15d38cac0bc69227a80d"
+    },
+    "noah/deposits/assistant/tests/test_mixed.py": {
+      "mode": "100644",
+      "sha256": "df581fd63eaa12ccdd794439a4284d6ea7d56b5818974852ba04b8d69f27b146"
+    },
+    "noah/deposits/assistant/tests/test_mixed_runtime.py": {
+      "mode": "100644",
+      "sha256": "9002741dfdf54aba05354e7daf4d266d77ee5ff4e0d7e0709813b3f97990b3c7"
+    },
+    "noah/deposits/assistant/tests/test_mixed_workflow.py": {
+      "mode": "100644",
+      "sha256": "2c6f0e0e1123b4f62798f5c8730f7d63878a5d70d0d93e055029f8160b5bb126"
+    },
+    "noah/deposits/assistant/tests/test_onboarding_text.py": {
+      "mode": "100644",
+      "sha256": "c642d9fb3dc80ac1f083c907dcda0895a11b7bb84eb5cb4dfbf97bdf1693e329"
+    },
+    "noah/deposits/assistant/tests/test_participant_signer.py": {
+      "mode": "100644",
+      "sha256": "c1d543ebdb6b2537db04b93c66bdeb01bbe6b488c569a75440d6f871d755092e"
+    },
+    "noah/deposits/assistant/tests/test_purchase.py": {
+      "mode": "100644",
+      "sha256": "9ce79cd8d90c6044fcbacf2873289c4f517ab0463d62a225783b61f09cb1a8df"
+    },
+    "noah/deposits/assistant/tests/test_purchase_cancellation.py": {
+      "mode": "100644",
+      "sha256": "0ce2a5dd1a477e41998abb65ac842419fa1d73df4b5a5b878f9506389072f906"
+    },
+    "noah/deposits/assistant/tests/test_purchase_pre_submit_recovery.py": {
+      "mode": "100644",
+      "sha256": "996a7e06de2a5c752a86012d95eb4c4b93cf26d735ece0984b32d65404da1500"
+    },
+    "noah/deposits/assistant/tests/test_purchase_preflight_cost.py": {
+      "mode": "100644",
+      "sha256": "ca7b371015681d6bfdd8dd8ac2dc61fd796fca9eb54655408963f2e785004ec3"
+    },
+    "noah/deposits/assistant/tests/test_purchase_proxy.py": {
+      "mode": "100644",
+      "sha256": "303b0625b4b5378c942415f6b3aa0e3c0941c3e569d75df5c5292042b252df88"
+    },
+    "noah/deposits/assistant/tests/test_purchase_quote_refresh.py": {
+      "mode": "100644",
+      "sha256": "ce0a68e0335dec175e21386ac0e55e9229dde719780d0e8f6487f24f54591d0a"
+    },
+    "noah/deposits/assistant/tests/test_purchase_root.py": {
+      "mode": "100644",
+      "sha256": "95d9d4db66b035f04bf6c2657d079cdc6fb79bd645debeb7cbeee13f9746a17c"
+    },
+    "noah/deposits/assistant/tests/test_purchase_root_adapter.py": {
+      "mode": "100644",
+      "sha256": "e32cd3231aacfa788c0c30b8694a8c5ccda2617002e5a9a7ef92b3c9cbc1ca47"
+    },
+    "noah/deposits/assistant/tests/test_receipt_boundaries.py": {
+      "mode": "100644",
+      "sha256": "a05d0c327bf6d6afa88f74be612d1db249b9f1b51b9254226bfea0b59a30ad3c"
+    },
+    "noah/deposits/assistant/tests/test_resolve_and_limits.py": {
+      "mode": "100644",
+      "sha256": "ffb58c41bc996fa50cc6cec6e69190af3a98dbfb0799bc956377d9a1d52d2f2e"
+    },
+    "noah/deposits/assistant/tests/test_session.py": {
+      "mode": "100644",
+      "sha256": "e79b617de0754fa8935ec7a55ec6d615484c5eb4d28397ad90ec9bf454e290b0"
+    },
+    "noah/deposits/assistant/tests/test_signer_lifecycle.py": {
+      "mode": "100644",
+      "sha256": "be1284100ec890ffb64795f91d1d1d52534dff2a03712e2497d2723f6948a4fe"
+    },
+    "noah/deposits/assistant/tests/test_validator_shape_unregistered.py": {
+      "mode": "100644",
+      "sha256": "9ed4d1736b052967206311638904806e7e3c66f734afb22b0ffedf4a34a9d058"
+    },
+    "noah/deposits/assistant/tests/test_verifier_defects.py": {
+      "mode": "100644",
+      "sha256": "1485a656cb3e5a34ca04ba62cc9ba90520961567f0860aa38dbf32f6a12f5a28"
+    },
+    "noah/deposits/availability.py": {
+      "mode": "100644",
+      "sha256": "40fa3df0ed39faf0953b0366290662532908d26475346b28ffe65eb25f2f4400"
+    },
+    "noah/deposits/build.py": {
+      "mode": "100644",
+      "sha256": "b1a8c71c957d24ae5eced22545b5151e1354bf8dcfd36b2604586b6dacffc220"
+    },
+    "noah/deposits/census.py": {
+      "mode": "100644",
+      "sha256": "2864011b4f0f8915474a10c3ccda69bf7b82b4f114cab11de8e5ebe54b56fd23"
+    },
+    "noah/deposits/chain.py": {
+      "mode": "100644",
+      "sha256": "6367147cccce7929c92c98bc9371cf366ddb64fca16be4ee4ef1892577baafeb"
+    },
+    "noah/deposits/collateral.py": {
+      "mode": "100644",
+      "sha256": "30df61a226f6441c37513af701661479f5e18ff6af34347207c40dfa98276b74"
+    },
+    "noah/deposits/deposit_submission.py": {
+      "mode": "100644",
+      "sha256": "49a61da3329d325c744436ec9e4ac99967a07b56fb7014dccb1962a274c00b00"
+    },
+    "noah/deposits/disclosures.py": {
+      "mode": "100644",
+      "sha256": "f48e0743747054bcc3f25133a5974954fb57145881e7d3e3bedcd23db065b9bf"
+    },
+    "noah/deposits/entry.py": {
+      "mode": "100644",
+      "sha256": "1a139b3ce01ba8b4540c50b308d78cdff94410f2b04a2c3112f3db4926bf92ed"
+    },
+    "noah/deposits/entry_gate.py": {
+      "mode": "100644",
+      "sha256": "e4c07823c32e8cc8a24f7b015e564d1e0dca47145584c0ae4a5f042b67ec80cf"
+    },
+    "noah/deposits/live_chain_source.py": {
+      "mode": "100644",
+      "sha256": "6def2f59218d5c62cdb7c0c7e98920107a7feca6ea3f79a5010bba8819a01560"
+    },
+    "noah/deposits/owner_entitlement.py": {
+      "mode": "100644",
+      "sha256": "79432810479f118b936793eb311b5e65ef88691c9ff7386301ac3788eb625a84"
+    },
+    "noah/deposits/reads.py": {
+      "mode": "100644",
+      "sha256": "f667bf5c16af8af4742befcfc931345d3971d80ad78f7122d98f50334f360aff"
+    },
+    "noah/deposits/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/deposits/tests/conftest.py": {
+      "mode": "100644",
+      "sha256": "91ad4da99a5e15bbbd0589c5d329b37712ccf9c604e720ce07945c0015f02e29"
+    },
+    "noah/deposits/tests/test_chain.py": {
+      "mode": "100644",
+      "sha256": "a00bfac3d8777be21eb28e6c01486d7f8e2519a4fa9cf60b165a1eb13cca44e3"
+    },
+    "noah/deposits/tests/test_deposit_submission.py": {
+      "mode": "100644",
+      "sha256": "78e0c1c559690009b60d7ab88c1bc7db9950005e83fba8fa836c89609995e9d8"
+    },
+    "noah/deposits/tests/test_entry_gate.py": {
+      "mode": "100644",
+      "sha256": "53b8156b947e1b855dbf3b8c71425c3cfb0fb41e4f1f6d73910ea87417616ae7"
+    },
+    "noah/deposits/tests/test_live_chain_source.py": {
+      "mode": "100644",
+      "sha256": "66767d89ba55cac285624823823799b4c2f084028b3a0a53c63ff4dabd34946d"
+    },
+    "noah/deposits/tests/test_owner_entitlement.py": {
+      "mode": "100644",
+      "sha256": "0b2f3537083cfed6810ba153feff7e10495dce61c3dc16db5b7982b9ae668cd1"
+    },
+    "noah/deposits/tests/test_sources.py": {
+      "mode": "100644",
+      "sha256": "a9cf7cabb7d8c44950d17c607ebd652e40356457571ed167d4613d7f6254e8ae"
+    },
+    "noah/diagnostics.py": {
+      "mode": "100644",
+      "sha256": "291df128e323d4246920f41aaf2eebd3bd433d721d8e33f8d7c177e391460e28"
+    },
+    "noah/pathtext.py": {
+      "mode": "100644",
+      "sha256": "ce844c5d0fa7f1d440a0ef877257aaa1bd7f3d2baeeb718c1e9b99b95a4016d7"
+    },
+    "noah/points/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/points/amendment.py": {
+      "mode": "100644",
+      "sha256": "243ded2df67c02d9b8aca6a9a19ad492b047c5ebbb30cb5ea3175b8000fe08c6"
+    },
+    "noah/points/catchup.py": {
+      "mode": "100644",
+      "sha256": "294fb450765fa355a5b4e49952cabd6a7aae25a687da1a37ff41c68522673563"
+    },
+    "noah/points/collector.py": {
+      "mode": "100644",
+      "sha256": "f18c6f0f4e702f008aae74efabe645a32a7a976f1113ee425d6883214c1791ef"
+    },
+    "noah/points/daily_recovery.py": {
+      "mode": "100644",
+      "sha256": "5e89ac8aa527b062e8e2de82be92136773472f7849d1a798d0a934d39465a470"
+    },
+    "noah/points/deposit.py": {
+      "mode": "100644",
+      "sha256": "097c75f4de087861777f2dfecf1abeae9e99d2bea89e733e1905c09ae59f84cf"
+    },
+    "noah/points/eligibility.py": {
+      "mode": "100644",
+      "sha256": "45656698afda549cb58c01fbec1791c3e6bb194aab295d5d998fe0cf0256049d"
+    },
+    "noah/points/ema_policy.py": {
+      "mode": "100644",
+      "sha256": "d7c9bc63f2b0a0dee5ff10d7880285d78af27a714688c6f7e735e3075a476d9f"
+    },
+    "noah/points/ema_reference.py": {
+      "mode": "100644",
+      "sha256": "c9528c501f3c9955c5908c4f5ba450bc35e1dc20ca8c79944f8aeed90036d79b"
+    },
+    "noah/points/engine.py": {
+      "mode": "100644",
+      "sha256": "377b627d963ec4343a1421408ba845eb4d47d3bc2572ec8942b6f8876d48b0ed"
+    },
+    "noah/points/journal.py": {
+      "mode": "100644",
+      "sha256": "403a2a29c2b8fef47f6bbd6e78d4aa91c8ea5e43db69816687b8d59a9a85b1ba"
+    },
+    "noah/points/ledger.py": {
+      "mode": "100644",
+      "sha256": "16bc3077d9c12b38b5a55de17597e6fea47c9c3862855161e4472a5c60ea69b3"
+    },
+    "noah/points/lineage_receipt.py": {
+      "mode": "100644",
+      "sha256": "d5ba7cd472db2b753b62dd346bea8ea5f4a49035b7e209e2890d5c222c469b3f"
+    },
+    "noah/points/lineages.py": {
+      "mode": "100644",
+      "sha256": "657c5055b8f39bb61434feb88fe23bbd425aaff77f7ac31b9235830650e8ac4c"
+    },
+    "noah/points/migration.py": {
+      "mode": "100644",
+      "sha256": "be2fe7e71818f2a1df27a187fa954b4663206cccbf27d9702856d42f4a8893da"
+    },
+    "noah/points/mode.py": {
+      "mode": "100644",
+      "sha256": "d654083b6d0903bd85ca6e757adfa96ddc367c4ea26d09c412d1e00ff88f791f"
+    },
+    "noah/points/onboarding.py": {
+      "mode": "100644",
+      "sha256": "7e817cbc9889f0404635b2d58e87533ab3a7cca5028ecf3b0aa13ef3b665b68d"
+    },
+    "noah/points/outage.py": {
+      "mode": "100644",
+      "sha256": "b32d529f92d0b3893aef1b366232ecd0e277bf68cae85419b3a4823b40758066"
+    },
+    "noah/points/preflight.py": {
+      "mode": "100644",
+      "sha256": "df74648e413bddcaf478a7739f658875a8d41f6eb1f2c40cadcdd04a24972985"
+    },
+    "noah/points/prepare.py": {
+      "mode": "100644",
+      "sha256": "60bff9336cd0b9ee6f14b1bf80addbf611b188be8db66c7477dc11da6415ef75"
+    },
+    "noah/points/pricing.py": {
+      "mode": "100644",
+      "sha256": "c25ec93b637eab5a1a1f4aa0313daca1e996da00c1f9acfbb93cd2f2742dbd7a"
+    },
+    "noah/points/publication.py": {
+      "mode": "100644",
+      "sha256": "fc4f1b343df6c5d62b9f5a2a06ccc9826127772ee583a395c2b4b1f893b0a966"
+    },
+    "noah/points/receipts.py": {
+      "mode": "100644",
+      "sha256": "3b579d900f4bc6ba166f888ab670d5f5de042cdf69a7a3ebe4e58768974f2692"
+    },
+    "noah/points/run.py": {
+      "mode": "100644",
+      "sha256": "89e2d4f87c02eb5a1ac2e511c03500322dd1e48d03b2c100255a34d8f39184a7"
+    },
+    "noah/points/runtime.py": {
+      "mode": "100644",
+      "sha256": "b003093906ed7ca68522c0a1e5e67e756dc53a4b2f60b95fc2feb600ff02c7cd"
+    },
+    "noah/points/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/points/tests/_lineage_capture.py": {
+      "mode": "100644",
+      "sha256": "f855c88712747f833f9288bec905749fd6f150ec3bc0c8f3f69f10e92842f201"
+    },
+    "noah/points/tests/test_amendment_adapter_roster.py": {
+      "mode": "100644",
+      "sha256": "931d2b66b9912c6390d2974b7e235b4a9b7484143ec6d0ae3e8396795e9e4e67"
+    },
+    "noah/points/tests/test_amendment_eligibility.py": {
+      "mode": "100644",
+      "sha256": "17b7ff63aadbbfd9663d1a15ab14572e7d753abe4f8f37012f9347a5b8294227"
+    },
+    "noah/points/tests/test_amendment_transition.py": {
+      "mode": "100644",
+      "sha256": "969adb06b42d712a85056ac41ae8ab6b3fe66229b1deca90836ed5fd341d04e1"
+    },
+    "noah/points/tests/test_catchup_recovery.py": {
+      "mode": "100644",
+      "sha256": "23bc377f067ebbc8604a445396f4312c88f55f9b75f11bdf6812c753e162cd6f"
+    },
+    "noah/points/tests/test_collector.py": {
+      "mode": "100644",
+      "sha256": "b936a28f976fd8463cdc933fbdc68166f964615a7c647e58a1af21c4224557a9"
+    },
+    "noah/points/tests/test_completion.py": {
+      "mode": "100644",
+      "sha256": "c3664e4ea03f58d0fd9b9bb864c96104d4e4a8bd80152d56d9c6883143b743f0"
+    },
+    "noah/points/tests/test_ema_adapter.py": {
+      "mode": "100644",
+      "sha256": "db6a65a875fe84e7bb17e0bc800373ea0688942e478fcadc28ea8f976a67ebc4"
+    },
+    "noah/points/tests/test_ema_context.py": {
+      "mode": "100644",
+      "sha256": "0bb83dd56d167d7c6f584aa21ad57714f2997c7976848a7a64c1b28141025bdc"
+    },
+    "noah/points/tests/test_ema_policy.py": {
+      "mode": "100644",
+      "sha256": "7a4e9dc238bb578c0f00dc38e8e31ca751ffa41953a6d966f788db38d208a4a9"
+    },
+    "noah/points/tests/test_ema_pricing.py": {
+      "mode": "100644",
+      "sha256": "dd8053cb1e20559e00a16db2ff238be1135f6948dd7b08a6c8b7beb24923b272"
+    },
+    "noah/points/tests/test_ema_reference.py": {
+      "mode": "100644",
+      "sha256": "f30df432d81903476b54c81b94ec77d56d1a64cb8c83c7539dfc609b0021982e"
+    },
+    "noah/points/tests/test_engine.py": {
+      "mode": "100644",
+      "sha256": "6702d2e95cf715ac30fd3405117db2c31092358424367bb2074c27e68790bf0b"
+    },
+    "noah/points/tests/test_integration.py": {
+      "mode": "100644",
+      "sha256": "46344461782ad8d68d563635bf724c33d3eb2d9c4adfa13c4b833518094dc795"
+    },
+    "noah/points/tests/test_journal.py": {
+      "mode": "100644",
+      "sha256": "89cc1d5d2c19145607f49abb178d76a8d8b14fbf04fef6bf637a3320ff017bfe"
+    },
+    "noah/points/tests/test_ledger.py": {
+      "mode": "100644",
+      "sha256": "2d019d68e1a12130603ff41b0430090a56d784c33f15d920fbb9af95f99777c3"
+    },
+    "noah/points/tests/test_lineage_receipt.py": {
+      "mode": "100644",
+      "sha256": "8194cefd11106f9fc45c93bc50b410f4552c3bb19bb7d294a8bbf3ad50bb3ee9"
+    },
+    "noah/points/tests/test_lineages.py": {
+      "mode": "100644",
+      "sha256": "04846f54ab030cf99f05791ccc0b7a625d4c4e7254bc708e80e59f0ff6cd8262"
+    },
+    "noah/points/tests/test_migration_resume.py": {
+      "mode": "100644",
+      "sha256": "9b88794d2a6893083906b43efd3546eed33fa48c77c11a87ce0b0c499ca0a1a7"
+    },
+    "noah/points/tests/test_mode.py": {
+      "mode": "100644",
+      "sha256": "bdbb6365c0e93e3401a067efef3c2e423526d67486744c6ce2927dedc2829873"
+    },
+    "noah/points/tests/test_no_pool.py": {
+      "mode": "100644",
+      "sha256": "5e2b6bf0cc9bc90ecbe15a52a46d0223b605839e561886e05038c6192b3cb2d0"
+    },
+    "noah/points/tests/test_outage.py": {
+      "mode": "100644",
+      "sha256": "baa8d87aad41005e9c804b8a92612344cfce8794f75247e67f675ecfe3c93a14"
+    },
+    "noah/points/tests/test_precollection.py": {
+      "mode": "100644",
+      "sha256": "3b642748235bc11d065f33227aeef98d17f6ef48e5e9c1566ee049ae8d299a66"
+    },
+    "noah/points/tests/test_pricing.py": {
+      "mode": "100644",
+      "sha256": "628721c1755e15afbebc943a2eb3dec2af47f41aea63a4c5986809078b55dded"
+    },
+    "noah/points/tests/test_review_guards.py": {
+      "mode": "100644",
+      "sha256": "2a84d9753bfe9b0f9da8fdfd912dcbcfb110f2e83bafd3135e123de8aa65e1f1"
+    },
+    "noah/points/tests/test_runtime490_context.py": {
+      "mode": "100644",
+      "sha256": "0ede376441123f45d1563e391c9032b136bd206bfbf15ddc2dfe2ac9c27a8a2f"
+    },
+    "noah/points/tests/test_runtime491_context.py": {
+      "mode": "100644",
+      "sha256": "5eb63f8f700384871e22d4951e82019a6464475c1398cbfa21b40970436b5f10"
+    },
+    "noah/points/tests/test_runtime_ema_twins.py": {
+      "mode": "100644",
+      "sha256": "4b1643addade2e0663ac216c706a035dca2e48a2a0d930a09d961735d65bd71b"
+    },
+    "noah/points/tests/test_token_context.py": {
+      "mode": "100644",
+      "sha256": "0f1b341070bc5c2d5d74f01ac450e736693109f50ff6eabcbcea6617282d355d"
+    },
+    "noah/points/transition.py": {
+      "mode": "100644",
+      "sha256": "f2b73256db6215bdc0207b7c7f7a9e0054424c794974a43f19487a1b457f63ed"
+    },
+    "noah/points/valuation.py": {
+      "mode": "100644",
+      "sha256": "8d2ecc086037986a9f9998f69a378387b8b7456e4286a73e037ebf50c7c0dc35"
+    },
+    "noah/reports/__init__.py": {
+      "mode": "100644",
+      "sha256": "23293be7cee24eab5383f3318be3f27872e9c3338387018900919307b1f441f3"
+    },
+    "noah/reports/adjudication.py": {
+      "mode": "100644",
+      "sha256": "51544fe3548aa77215846988a2594bfa91aea2cf32efbc925cbc0daa6d4198aa"
+    },
+    "noah/reports/adjudication_contract.py": {
+      "mode": "100644",
+      "sha256": "a14ab47ee37261a43acedddb84988af9783d2a98a5ed3e651145e830e94f19e4"
+    },
+    "noah/reports/artifacts.py": {
+      "mode": "100644",
+      "sha256": "50c5552e1917929172df44bbb99e1f4ffebba069b129843577d0e22c57a63c39"
+    },
+    "noah/reports/assignment_worker.py": {
+      "mode": "100644",
+      "sha256": "2e1e6e0785152938f8eacce7f7adb6f045e0d59085cc98b50393eb487ce4f671"
+    },
+    "noah/reports/assignments.py": {
+      "mode": "100644",
+      "sha256": "f61158bb5dbb8972f3b52e5ec81903021e65fbe3e104d17378e1ae2f81dbb6af"
+    },
+    "noah/reports/backing/__init__.py": {
+      "mode": "100644",
+      "sha256": "4796b492c1438c79175c0a0ccd5c00b719009e8b5865c36b50c1df5336198194"
+    },
+    "noah/reports/backing/bootstrap.py": {
+      "mode": "100644",
+      "sha256": "e9166c8d9bb2a96a2ac78cb2ebddf50ccaa1d816679c9edd5ae9e376d966e63d"
+    },
+    "noah/reports/backing/chain_session.py": {
+      "mode": "100644",
+      "sha256": "43904c683a43636034dc86ff2596ff575c064f260a9c64a24887c326f3164c27"
+    },
+    "noah/reports/backing/collector.py": {
+      "mode": "100644",
+      "sha256": "14a4f57f17f4500900d0a18d6c503bc755837d9f1887ef935a532b0251229a02"
+    },
+    "noah/reports/backing/commitment_quota.py": {
+      "mode": "100644",
+      "sha256": "8a50ba93a70156dd548b3c14e5c48a8966fbb56b03f07bb287ae2a794402803a"
+    },
+    "noah/reports/backing/constants.py": {
+      "mode": "100644",
+      "sha256": "d5e9d0ab4b97e986749aad7dd094919992c9ff2501db098520c04068c5be963b"
+    },
+    "noah/reports/backing/deposit_index.py": {
+      "mode": "100644",
+      "sha256": "39c3f908fdddc8de40a8948b2ba664ee2312fca1885f2be2239476af0ba16693"
+    },
+    "noah/reports/backing/engine.py": {
+      "mode": "100644",
+      "sha256": "0a44c0a896bc1572fa3c8833c1dabd4b5129b9e436e1ffc2cf47d2cd14007035"
+    },
+    "noah/reports/backing/finality.py": {
+      "mode": "100644",
+      "sha256": "fb2f2ca9a7d6bf7050b4cb2dc2df9d16638e97c9af77452182a062a99bec7d75"
+    },
+    "noah/reports/backing/history.py": {
+      "mode": "100644",
+      "sha256": "569890a1a5f7d1f60a663d57bd2ce441ffdbd470fcaa6f937d2f09dde64382b6"
+    },
+    "noah/reports/backing/keys.py": {
+      "mode": "100644",
+      "sha256": "ffc921010abffeabc1206b9801f25c942fba319b5969586c6b058e966b1f2e72"
+    },
+    "noah/reports/backing/offline.py": {
+      "mode": "100644",
+      "sha256": "35740a44cea515a14d2310044fb6adcf403a03f271c098b8da27592aa4853e16"
+    },
+    "noah/reports/backing/prepare.py": {
+      "mode": "100644",
+      "sha256": "d793f352918f4cc6084c81c6ce0541cd03958fc9bb4c361d622508dc6d91aa88"
+    },
+    "noah/reports/backing/protocol/__init__.py": {
+      "mode": "100644",
+      "sha256": "d26611f816bcea419e87030ac442da1808aceaacf538be2a5d32bb090c154532"
+    },
+    "noah/reports/backing/protocol/context_commitment.py": {
+      "mode": "100644",
+      "sha256": "fe6b5255b41f51477c2f2cc53e1c26f5713e06bab041d9c2990e44db3709f7bb"
+    },
+    "noah/reports/backing/protocol/policy.py": {
+      "mode": "100644",
+      "sha256": "fc4695777c1e29dc99459196d98492062c502352391fbfbcc205f60a4106dc92"
+    },
+    "noah/reports/backing/protocol/preimage.py": {
+      "mode": "100644",
+      "sha256": "3838b1d9af878046e48f90864c7f79d82e050888ee448f229623f2e9d7a1aaac"
+    },
+    "noah/reports/backing/protocol/timing.py": {
+      "mode": "100644",
+      "sha256": "33bd22788957c87e4d43326c09cb20c9e6aa21ef264dd69b0e8d3ecc04dcab09"
+    },
+    "noah/reports/backing/reads.py": {
+      "mode": "100644",
+      "sha256": "5346cec02f4fe1ea6b625fc8d7c3e8fe23d7bd582bf8f422ed38ad9deeb8c9a7"
+    },
+    "noah/reports/backing/result.py": {
+      "mode": "100644",
+      "sha256": "3ded5d27ff308734bd40017ef6d8d785acce8105bbb75f5d80ae368543286271"
+    },
+    "noah/reports/backing/round_config.py": {
+      "mode": "100644",
+      "sha256": "acda797c91606f5e3d1b42a7d105282391daa2c4680c74e90a5e7b4c54c32b24"
+    },
+    "noah/reports/backing/rpc.py": {
+      "mode": "100644",
+      "sha256": "866fdf5e8707725c02c8d72907c889539e8cbb9276ecbb74e7ca9a6115a76f41"
+    },
+    "noah/reports/backing/rpc_cache.py": {
+      "mode": "100644",
+      "sha256": "2d4c646b5f49adf1e4eacd2e0a396906990c5939acf8fc8c41a5244210122025"
+    },
+    "noah/reports/backing/scale.py": {
+      "mode": "100644",
+      "sha256": "a7e21ba52a84432a52a2d2566d8c96e91c83c5884074df19dd85023a1894f4c5"
+    },
+    "noah/reports/backing/sdk_client.py": {
+      "mode": "100644",
+      "sha256": "3d82bbd307c8b904ec90e8712ab1b3d0bc329d50a727b2ed5734a8626875b1fe"
+    },
+    "noah/reports/backing/search.py": {
+      "mode": "100644",
+      "sha256": "e71382fdc7be80a63c4c0b32314a56b916341b9d6e829b4abed7078ad8bd0749"
+    },
+    "noah/reports/backing/select.py": {
+      "mode": "100644",
+      "sha256": "912c116e7b1c8e417ec639744ba8a5f99045cab83e04f8b17d57a5ff9bd9eeef"
+    },
+    "noah/reports/backing/source.py": {
+      "mode": "100644",
+      "sha256": "533461c6706b81916ae6acc954a4941163e8922410ab478a3d9dcc4ed07f6144"
+    },
+    "noah/reports/backing/submit.py": {
+      "mode": "100644",
+      "sha256": "a717047b14224c6b3a8ee5a63d12f8933dde4531c86b6ccd316ca2f7f784c320"
+    },
+    "noah/reports/backing/u64f64.py": {
+      "mode": "100644",
+      "sha256": "5b7e631ac1267e4b4eca0ae803dca5f179dcf8dbe11183282218ad6421e0c6cb"
+    },
+    "noah/reports/budget.py": {
+      "mode": "100644",
+      "sha256": "c137c287ff89c9b1b8ef306e22f11d983fde5578b5b6e5c3760efa35163b59cf"
+    },
+    "noah/reports/cli.py": {
+      "mode": "100644",
+      "sha256": "5a056377b353b490ab454b7111180ea1912e0098467ba13aad149abed7354b2a"
+    },
+    "noah/reports/common.py": {
+      "mode": "100644",
+      "sha256": "f07ea6f30fa25b256b794ecedd037e37d8d869f491b1de722d79d171a8c5b7b8"
+    },
+    "noah/reports/dispatch.py": {
+      "mode": "100644",
+      "sha256": "02f0d53d0a535f4f32e79634038ceb3fc10bd98f347a4b5ac5a61348eca51905"
+    },
+    "noah/reports/evaluation.py": {
+      "mode": "100644",
+      "sha256": "2085775a4ac85c7644cf236f3de902a10e224a8e3f301b05785eb5ccfaaaee69"
+    },
+    "noah/reports/gate.py": {
+      "mode": "100644",
+      "sha256": "31b3a3450e072af2cd2fff100200b7f03cb30bf3c185ced8c62546115f37fa95"
+    },
+    "noah/reports/identity_shapes.py": {
+      "mode": "100644",
+      "sha256": "4fa859157bd81e497b00a92615c670ef317642074d3102c39a1a3657bd860bdd"
+    },
+    "noah/reports/inputs.py": {
+      "mode": "100644",
+      "sha256": "221c529c81e4d1a8a2fb89814aea79b193578fbe11f170adf00d73b48d141bc8"
+    },
+    "noah/reports/miner.py": {
+      "mode": "100644",
+      "sha256": "b3f7b33601985935e00e095c454f4c372e7be3c8248bf9856df288f3769b69a8"
+    },
+    "noah/reports/package_inventory.py": {
+      "mode": "100644",
+      "sha256": "977320c0f76b26353e240e0073872f6962ff49cbfbbdce02fb089c6f64c18e63"
+    },
+    "noah/reports/package_snapshot.py": {
+      "mode": "100644",
+      "sha256": "4bbf2e2555a2da586685a5aa47f374bde87505585ea80b85d7d6435ca841523d"
+    },
+    "noah/reports/public_export.py": {
+      "mode": "100644",
+      "sha256": "ab0c5289f24879eb58b64be8799aa3e8e8d43fa40073ea75825f4d77b245cad2"
+    },
+    "noah/reports/public_export_cli.py": {
+      "mode": "100644",
+      "sha256": "5d1271824252d9cb6f41a6e7f92656c288ea52bd0a42f1249aa94173276e3b3c"
+    },
+    "noah/reports/roster.py": {
+      "mode": "100644",
+      "sha256": "301f67324f65970f50e034c4a1bb577c398f80b8f2e750fcd987a33404cc30e2"
+    },
+    "noah/reports/schedule.py": {
+      "mode": "100644",
+      "sha256": "e8619773080bf7bb479b1881fc73ff15a0d97b57f7280f7f87bd79dd6efdb911"
+    },
+    "noah/reports/schedule_runner.py": {
+      "mode": "100644",
+      "sha256": "8cb8c759195df3861c6baba2a584da54576530a994c6660e67213bb929c7c4c9"
+    },
+    "noah/reports/shared_engine.py": {
+      "mode": "100644",
+      "sha256": "4225ad64544e101d6a7b9e2980ed88568c8fe18c84a404222dfa7f9f56aa7f92"
+    },
+    "noah/reports/shared_streams.py": {
+      "mode": "100644",
+      "sha256": "0e3e3b7ef6122f8e7de6d96bd42be6b04bcbe5440921231b59867a969dc24ad4"
+    },
+    "noah/reports/shared_window.py": {
+      "mode": "100644",
+      "sha256": "343488449ec1a278c059c4e21d430deed1e9972ad4201095aa345359264e046c"
+    },
+    "noah/reports/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "noah/reports/tests/fakes.py": {
+      "mode": "100644",
+      "sha256": "7776094952ce44a206881bcceb219e1c2af0ceab221a3dd73d646d8831f7b5f1"
+    },
+    "noah/reports/tests/fixtures/oracle-vectors.json": {
+      "mode": "100644",
+      "sha256": "4a2261fbefe0ce5610f259d9cd030e6a80a2c3e3d9d25304f7eca5df3b442260"
+    },
+    "noah/reports/tests/fixtures/schedule-boundary-v1.json": {
+      "mode": "100644",
+      "sha256": "11d22d308f0dc3e4d262d40ca1a3dcf5cc1abff7e5903b7eae38601990c52d96"
+    },
+    "noah/reports/tests/fixtures/synthetic/RAW_EXPORT.md": {
+      "mode": "100644",
+      "sha256": "b5f5b8c27f3e527331b9c3007efc6816651012bb065de12070eb4fc198886c0a"
+    },
+    "noah/reports/tests/fixtures/synthetic/all-zero.json": {
+      "mode": "100644",
+      "sha256": "bf0eb54053fac406c6e6aca3c6e23a6e3d504477e3d679e98113066484135b43"
+    },
+    "noah/reports/tests/fixtures/synthetic/partial-fill.json": {
+      "mode": "100644",
+      "sha256": "78b4158bc0abfe6eafb6212a2ec31af0d8c536ed5653583d861296b2fb63ab92"
+    },
+    "noah/reports/tests/fixtures/synthetic/runtime490-metadata.hex.gz": {
+      "mode": "100644",
+      "sha256": "2fbef3d4b114bfafdef825802a81527c180c6a442b8f367486ff380098d73cd4"
+    },
+    "noah/reports/tests/fixtures/synthetic/tao-exceeds-reserve.json": {
+      "mode": "100644",
+      "sha256": "1c73fa0f01b7dbed00db15215655c1bf2ad34cb8681c2809c45e98a59d4a7a48"
+    },
+    "noah/reports/tests/raw_export_fixture.py": {
+      "mode": "100644",
+      "sha256": "e81c719604a3a58fc76f8346406f4b4632798456255c6e1c34290d76fa37e83a"
+    },
+    "noah/reports/tests/sample.py": {
+      "mode": "100644",
+      "sha256": "8ccff5393d4e796b9a063432a7c446b469b058ae9ce137518b970d3c7cbddd20"
+    },
+    "noah/reports/tests/test_adjudication.py": {
+      "mode": "100644",
+      "sha256": "04dd82d0f01586b5ea6416858cd5a5cabd661035be58e0b42c80fdb6a8ca8f54"
+    },
+    "noah/reports/tests/test_adjudication_contract.py": {
+      "mode": "100644",
+      "sha256": "8d48b0045c9e9ed6896978328ad350efec0c5f312c7160e051c18ebc96f81513"
+    },
+    "noah/reports/tests/test_artifacts.py": {
+      "mode": "100644",
+      "sha256": "26bdfadef0cfd6af80fa6dec4419f98af332b74b584237d63e2548ad6c2e89ac"
+    },
+    "noah/reports/tests/test_assignment_execution.py": {
+      "mode": "100644",
+      "sha256": "4c16fa46d008d2f9637e761c06a6f543041359109991ba4cbbb3000ce1722784"
+    },
+    "noah/reports/tests/test_assignment_hosted.py": {
+      "mode": "100644",
+      "sha256": "f958820df75f96d3fedf51174d38251fcb6f102009b7548b0348ec180c3cd27f"
+    },
+    "noah/reports/tests/test_assignment_v2.py": {
+      "mode": "100644",
+      "sha256": "e633a49b6a1492d94fc41f5187394c3cb3efa99bdc5fe0b7282382c86035e738"
+    },
+    "noah/reports/tests/test_assignments.py": {
+      "mode": "100644",
+      "sha256": "76b82f93170c0dca6f90e3cf2f2328732ad51e03f8f5a2f1b6f651c8ef1a8bd8"
+    },
+    "noah/reports/tests/test_bootstrap.py": {
+      "mode": "100644",
+      "sha256": "4c86fd6b50ab2dfa115f88e797ff629214029c2f4c3a5523b825ba40e4c4cdfe"
+    },
+    "noah/reports/tests/test_checkpoint3_select.py": {
+      "mode": "100644",
+      "sha256": "faff981db071e9077af6dbf6b024fd24594387601e5a713586bc305b73510a5c"
+    },
+    "noah/reports/tests/test_cli_boundary.py": {
+      "mode": "100644",
+      "sha256": "7e0143611ff272232abec82acf997cc8b945050e7f0e25057d5198b433ec371b"
+    },
+    "noah/reports/tests/test_collection_evaluation.py": {
+      "mode": "100644",
+      "sha256": "4fe4d471fbb15d69b1938a5164e2672c3299d1c2c46c090dc59d06757480edff"
+    },
+    "noah/reports/tests/test_commitment_quota.py": {
+      "mode": "100644",
+      "sha256": "07521cbcdc987f35747e49ccdc5077aceb9ddfa3a9be99e1176c2d4ca7615860"
+    },
+    "noah/reports/tests/test_context_commitment.py": {
+      "mode": "100644",
+      "sha256": "c763428ebaa51c4f85abb5a0d56378e58163ed0a7f18dd1074ece9cc7e65ff66"
+    },
+    "noah/reports/tests/test_coverage_evidence.py": {
+      "mode": "100644",
+      "sha256": "c6c2e81c36150299a1053a9d9164c5d06bafbc31392de8e1ba0a4940bd2c34e7"
+    },
+    "noah/reports/tests/test_engine_arithmetic.py": {
+      "mode": "100644",
+      "sha256": "79d5e68fa82b2271bdcda8786d4560a41f2e22ae9fce04af8829102aee503fc5"
+    },
+    "noah/reports/tests/test_evaluation.py": {
+      "mode": "100644",
+      "sha256": "1562099f5fc846c3e68257c7bf692bf4644cabf4cacf1788d6792e1163d149e5"
+    },
+    "noah/reports/tests/test_failures.py": {
+      "mode": "100644",
+      "sha256": "c7d2dbd5162bc97bac601af15966ba149219dd4e5ba7b551bbb8c647aaf82da0"
+    },
+    "noah/reports/tests/test_finality.py": {
+      "mode": "100644",
+      "sha256": "48b93ebedb81f8eed19f52725336484a25ef252948c34d1e7d8d299c2410d631"
+    },
+    "noah/reports/tests/test_gate.py": {
+      "mode": "100644",
+      "sha256": "62fc6e447871fb5bb4fe66631f6a63476f9760c8494ce0e0310a3c1072cf39f7"
+    },
+    "noah/reports/tests/test_history.py": {
+      "mode": "100644",
+      "sha256": "7a3b4c47dc32e683f0a80b94f36984c0bd52419460c82b91b14c5897e0dd702a"
+    },
+    "noah/reports/tests/test_http_transport.py": {
+      "mode": "100644",
+      "sha256": "28d055902ee368d22171fee8fe71216f9dbc6732ce1a32a563bf60747ddb480a"
+    },
+    "noah/reports/tests/test_late_report_collection.py": {
+      "mode": "100644",
+      "sha256": "e9ef9d240f6b24498c1f385c0e56709a18380631d75d604cc549dae2ff26e538"
+    },
+    "noah/reports/tests/test_locks.py": {
+      "mode": "100644",
+      "sha256": "95c0cffb721f8c6ecc3f9fa79855246f95ffcaafa59e72887cab1c172467b6bc"
+    },
+    "noah/reports/tests/test_miner_commands.py": {
+      "mode": "100644",
+      "sha256": "d5afc1920a61a0afb7fe1f66d52fe373fe9e66d9da4651380c814e2de647e014"
+    },
+    "noah/reports/tests/test_package_inventory.py": {
+      "mode": "100644",
+      "sha256": "68c66066e69a3f58d764c97e8f92600aac80d61e53b5fa4596d9338f71224721"
+    },
+    "noah/reports/tests/test_package_snapshot.py": {
+      "mode": "100644",
+      "sha256": "973264312f6ebd774dc6effa4a70d07a6955500f76350881ce9dd3747d6d58ab"
+    },
+    "noah/reports/tests/test_prepare.py": {
+      "mode": "100644",
+      "sha256": "da936b95db55231c34ae85fa5d0f82b9caba6e99360f9f9a3f01a199e86ab456"
+    },
+    "noah/reports/tests/test_provider_budget.py": {
+      "mode": "100644",
+      "sha256": "2d751f73d9c1c9b1980b8a64a0c68b8c31c1d21c72184ad1f2842d0ba31fbf55"
+    },
+    "noah/reports/tests/test_public_export.py": {
+      "mode": "100644",
+      "sha256": "e88c854f3e2924d7ff35807c907092bd2818585fa50a151ce3c41a44fc173c1f"
+    },
+    "noah/reports/tests/test_public_export_cli.py": {
+      "mode": "100644",
+      "sha256": "bc4645c19fe987313390cef6d7e576c214f7d4a0efe0041ad8e31ea22edec1ef"
+    },
+    "noah/reports/tests/test_raw_export_integration.py": {
+      "mode": "100644",
+      "sha256": "e6bb86a62eaf31841260f02cc245efe491e9344310beaa7ad2c68faec04edce8"
+    },
+    "noah/reports/tests/test_readonly.py": {
+      "mode": "100644",
+      "sha256": "9b8612e2794c2bddd29b3e0c8fef49755d9541020b16a2d3c918ff3b82a734f2"
+    },
+    "noah/reports/tests/test_receipt_integrity.py": {
+      "mode": "100644",
+      "sha256": "495839f3f4a5b7b189191950ba5bebd80068421d02cfdb408675a205c56e9fec"
+    },
+    "noah/reports/tests/test_report_only.py": {
+      "mode": "100644",
+      "sha256": "7b603a9cdd7f21d7e94f7429b0019c782f922723573be242ce2fccfe9996c0a6"
+    },
+    "noah/reports/tests/test_report_package_identity_labels.py": {
+      "mode": "100644",
+      "sha256": "d6cdc8017d216cde67ffcce5ed567d833be563642454c63e5e72d39fd58b183d"
+    },
+    "noah/reports/tests/test_roster.py": {
+      "mode": "100644",
+      "sha256": "280a4a4220be37fb7f7f279bc099d04ceaf2beb64960ea75b19dedd2ec3a5781"
+    },
+    "noah/reports/tests/test_rpc_cache.py": {
+      "mode": "100644",
+      "sha256": "a5afd6cbcae2e97cf7538a96df986cf5f4d18b2827c6ada33ab7841fe19d496e"
+    },
+    "noah/reports/tests/test_runtime483.py": {
+      "mode": "100644",
+      "sha256": "e652a5da671e94b8ded472195bd692f06a6ccae555ee0715d81d3b1130f05c70"
+    },
+    "noah/reports/tests/test_runtime491_reports.py": {
+      "mode": "100644",
+      "sha256": "e62ae3d81c9c44d1594008552306d0de26714fe20e4ccc73848c0881ef46d40c"
+    },
+    "noah/reports/tests/test_scale_keys.py": {
+      "mode": "100644",
+      "sha256": "5a075c8fb4d0b29370d98ad917437b0afeb0ad7ee392d72a56ecfe2cd53ceec0"
+    },
+    "noah/reports/tests/test_schedule.py": {
+      "mode": "100644",
+      "sha256": "194ac67aa83b60f9b85bc188912282837d7b957dbf6a2d26255da6177f15c2db"
+    },
+    "noah/reports/tests/test_schedule_recent.py": {
+      "mode": "100644",
+      "sha256": "4b00968cfbdc6de562a6193dc658aa732155f2c336e82a4fa3d1bb2c22551978"
+    },
+    "noah/reports/tests/test_schedule_runner.py": {
+      "mode": "100644",
+      "sha256": "429564b6b69c1a9e722fc6eca441061cddfd67a255df4d2552e194dd255ab0e2"
+    },
+    "noah/reports/tests/test_sdk_timeout.py": {
+      "mode": "100644",
+      "sha256": "bec0cf452d11437b322283ceec62382b261520a5dacf6d7d1fde927cc24c48f5"
+    },
+    "noah/reports/tests/test_shared_engine.py": {
+      "mode": "100644",
+      "sha256": "e5d37cfc7d80ff87c72dcc7c9ca3dd53fb83d660472a64ff33a75d7e944c946c"
+    },
+    "noah/reports/tests/test_shared_window.py": {
+      "mode": "100644",
+      "sha256": "633b7bbd0e99c0ee0118bbc093e554bc8509fdf31ed62df1a6198adc908a8258"
+    },
+    "noah/reports/tests/test_shared_window_identity.py": {
+      "mode": "100644",
+      "sha256": "367256082d04f2c55800ae256301c37a2e7eb4dbf3a0efdba869517ec4d35134"
+    },
+    "noah/reports/tests/test_signing_runtime_guard.py": {
+      "mode": "100644",
+      "sha256": "96b3dd90966191dbdecf8f431851d3e9b6d187405429df2c819c93bc937d9f43"
+    },
+    "noah/reports/tests/test_submit.py": {
+      "mode": "100644",
+      "sha256": "79f9dd64cddfbb1bf55b6f0c60c5a85c847013b34a00f52649601fd5a866fdcb"
+    },
+    "noah/reports/tests/test_threshold_minimality.py": {
+      "mode": "100644",
+      "sha256": "27a5c673793374658e90a654b23f6b523f85b366ec6efbff787577a18a580266"
+    },
+    "noah/reports/tests/test_u64f64.py": {
+      "mode": "100644",
+      "sha256": "d771541e820e372e12780de08bd7eb09b3db5a33dcc0915b2b43429a331a665e"
+    },
+    "noah/reports/tests/test_verification.py": {
+      "mode": "100644",
+      "sha256": "c4d7e925b5eec5d9e885afc83c2a5d3d3e1a0f22fdd472fa67494b1739aea8c1"
+    },
+    "noah/reports/tests/test_weekly_identity_labels.py": {
+      "mode": "100644",
+      "sha256": "1731e3dcee8d81365862f4fe4f1db0479dc4737fcf347fbfa952c60aa7e28881"
+    },
+    "noah/reports/tests/test_weekly_local_chain.py": {
+      "mode": "100644",
+      "sha256": "43d5e109c44cac82e2e4802b175835cc83ebbcd29e21901ab4c5e1f8e22f314f"
+    },
+    "noah/reports/validator.py": {
+      "mode": "100644",
+      "sha256": "fd77dafc2735feffe2f79198a58e6854dc326a33aedbfd559fa0a7e30924781c"
+    },
+    "noah/reports/verification.py": {
+      "mode": "100644",
+      "sha256": "c671d9e3380eccd51805946906beb60274bf7dc54e63dddde778732e2c42483b"
+    },
+    "noah/research/__init__.py": {
+      "mode": "100644",
+      "sha256": "11b28dd265527125a8c9c65ff6f586e0d74aea2eb51aa94013a07b185b47acef"
+    },
+    "noah/research/entry_migration.py": {
+      "mode": "100644",
+      "sha256": "41ec300fc59caf66bcd06c6b7cc39de0a182a7e3137c6303599e46aec242a705"
+    },
+    "noah/research/starter_epoch.py": {
+      "mode": "100644",
+      "sha256": "3f124dd72e621b57754ba9fc7bf25a02b653619038adc3d374e8dbe5ee72196b"
+    },
+    "noah/research/starter_guard.py": {
+      "mode": "100644",
+      "sha256": "57e7527719379232b6de1ceabe412f66f7484bd8efe4beeac87913d75c0692bf"
+    },
+    "noah/research/tests/test_entry_migration.py": {
+      "mode": "100644",
+      "sha256": "774b3bb2c4ecc6288a3b139cdd4762adbaeb5dff81637e1217066f1a6e9cc1ee"
+    },
+    "noah/research/tests/test_starter_epoch.py": {
+      "mode": "100644",
+      "sha256": "9446acf2777b8343f5c0274b7397c42a37938461f213987a27bfede4620ca926"
+    },
+    "noah/runtime_event_files.py": {
+      "mode": "100644",
+      "sha256": "d753d1f52a2e2a9e6d47fc634ef07abdfb1b0f97dd22031f1e6396a01e3899de"
+    },
+    "noah/runtime_events.py": {
+      "mode": "100644",
+      "sha256": "bc0ff82203af24e2acce62f7118527c9126523716728f8b3788f308e62ed4ff1"
+    },
+    "noah/scoring/__init__.py": {
+      "mode": "100644",
+      "sha256": "95069344af8770dcd67ac6f811947253f5ae32fd8fceab3155297e4a9de68342"
+    },
+    "noah/scoring/audit_published.py": {
+      "mode": "100644",
+      "sha256": "7ecd7acbca14485cd16718d27928aae05f4eb9e4d9e76d53ac8de870647fcbad"
+    },
+    "noah/scoring/constants.py": {
+      "mode": "100644",
+      "sha256": "75bb5a700cc8f646a19ed71446767c5939faf644294b56039310ce097ec8206c"
+    },
+    "noah/scoring/decay.py": {
+      "mode": "100644",
+      "sha256": "6ebf02af12b225cc5bb77e8f6bb215c7807f3cd945254e49d6c2064f997ef0ae"
+    },
+    "noah/scoring/decay_table.py": {
+      "mode": "100644",
+      "sha256": "850c66556e1995483f02781922a580b13a542adf9287579689b7e0199fb82f9e"
+    },
+    "noah/scoring/engine.py": {
+      "mode": "100644",
+      "sha256": "c682a492897f60b7fb27f4093acd7b71bf3f2dcbbbf221d0276e8ce7592bcc7a"
+    },
+    "noah/scoring/fixture_io.py": {
+      "mode": "100644",
+      "sha256": "3565955499bdcac1db789e91d8b4a36118c3e5b7982f74b381d95cd5811e41f7"
+    },
+    "noah/scoring/parameters.py": {
+      "mode": "100644",
+      "sha256": "6834d272dae5d27818d3cf28b5b27e59f4ec3aa5732db372aee7dc08348204e4"
+    },
+    "noah/scoring/pay.py": {
+      "mode": "100644",
+      "sha256": "401050765f4cba3a955d3e941a01e153f49be0f25ff69ef5e8b27c841e1eeaae"
+    },
+    "noah/scoring/reporting_bonus.py": {
+      "mode": "100644",
+      "sha256": "f94c2b648e796586902f421c843095597cbb76b21322ee641cc598920116375b"
+    },
+    "noah/scoring/reserve.py": {
+      "mode": "100644",
+      "sha256": "22292abb0f86f998c19e37a135c4adf7f8b7d1baf96904e5bd4e275138a36c1d"
+    },
+    "noah/scoring/run_fixture.py": {
+      "mode": "100644",
+      "sha256": "c1d44477526e5e06e51ff3e63ebb4cc594f4e6e7977f9f2f4f5008dfa254e217"
+    },
+    "noah/scoring/score.py": {
+      "mode": "100644",
+      "sha256": "c883c9bf60daf787f3ac292eff32ac0311eb5eea32d685e41a553574da8afdb5"
+    },
+    "noah/scoring/streak.py": {
+      "mode": "100644",
+      "sha256": "c0a0658aca09a84878391f6079a6d4db1bd554b7d1e21b383bbbd2b32b13e37b"
+    },
+    "noah/scoring/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/scoring/tests/test_audit_published.py": {
+      "mode": "100644",
+      "sha256": "e02d4bcce43b0a0d4994799e44de257f94572b0b58403978ccb1ae16c9079691"
+    },
+    "noah/scoring/tests/test_engine.py": {
+      "mode": "100644",
+      "sha256": "201d6adb3b42f9ee3f84de99ff2c08d535887c0f314986bd65723fc58cf3ea84"
+    },
+    "noah/scoring/tests/test_reporting_bonus.py": {
+      "mode": "100644",
+      "sha256": "5e9d8353a6b4f7133ddf6e94204851765b46116443c2bb4e21186f3677a0f11f"
+    },
+    "noah/scoring/tests/test_reserve.py": {
+      "mode": "100644",
+      "sha256": "bac6f8907dabb0a3b86995486d1c9cec7e897df40ae8f87910fb6c305d70358f"
+    },
+    "noah/scoring/tests/test_score.py": {
+      "mode": "100644",
+      "sha256": "986a8fdcde0682726161fd823a980c58e483a95f04952b3ff38f1a1edd5f3dc9"
+    },
+    "noah/scoring/tests/test_surplus_bonus.py": {
+      "mode": "100644",
+      "sha256": "f1bbc917ac48d3148c12299c01650a5b3145a997ac68334a99abc4207bd91b0b"
+    },
+    "noah/secret_scan/ACCEPTANCE.md": {
+      "mode": "100644",
+      "sha256": "af28428e4abccc4a99e4496a77c00e8395e632baefb9c2c67a78ce68490d8c85"
+    },
+    "noah/secret_scan/README.md": {
+      "mode": "100644",
+      "sha256": "cafb84b5b58e962eaf4f9b96eb5583eda8a0848dc91553acdaa10f7af384d568"
+    },
+    "noah/secret_scan/__init__.py": {
+      "mode": "100644",
+      "sha256": "a6a45ae988d7acb0ae4c733c45842df4b1cb989cc3c15498b8a3090e58fad104"
+    },
+    "noah/secret_scan/__main__.py": {
+      "mode": "100644",
+      "sha256": "44be7d9df067f739e98f0c03faff5507373012f80f35bc844db969623e28aeb4"
+    },
+    "noah/secret_scan/_bip39.py": {
+      "mode": "100644",
+      "sha256": "6f47750bde39b8f87868739d8139c4e0dfd8e8734c15aaba6ed9c0965119812c"
+    },
+    "noah/secret_scan/acceptance_cases.json": {
+      "mode": "100644",
+      "sha256": "29c091813fe215d68c7efb07b8f7cf37bd948ab69e372415bcc76a63693320b4"
+    },
+    "noah/secret_scan/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/secret_scan/tests/battery.py": {
+      "mode": "100644",
+      "sha256": "919008dfe82ca3f3a6c4024ea0281e0c82ba9164100ad9eb3e5579b18c345ad3"
+    },
+    "noah/secret_scan/tests/test_points_cache_labels.py": {
+      "mode": "100644",
+      "sha256": "b647c6aea5b7e0b686640bdc051c04514ee836d6a0d77821039b93d2d7417949"
+    },
+    "noah/secret_scan/tests/test_report_identity_labels.py": {
+      "mode": "100644",
+      "sha256": "f9fe8f3e65856ee462d1f48d3533d65fa2a3204bee4e9c6aff541be95e928ab1"
+    },
+    "noah/secret_scan/tests/test_secret_scan.py": {
+      "mode": "100644",
+      "sha256": "25e408e6eeb9c9937d09f46c95cd84f64e0b9b5fd4448db3fbfe5fe466ceb976"
+    },
+    "noah/secretscrub.py": {
+      "mode": "100644",
+      "sha256": "1ffad77866358f40b9d046396eed894cc66b49a75ac892ba1681d9c9a0533dd3"
+    },
+    "noah/standard/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/standard/multiplier.py": {
+      "mode": "100644",
+      "sha256": "9cc9d6b3870b7c301c2cfb7d802f3ccc3750e27aad5c8fa3fcd263a283c1756e"
+    },
+    "noah/standard/tests/__init__.py": {
+      "mode": "100644",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noah/standard/tests/test_dial_response.py": {
+      "mode": "100644",
+      "sha256": "1d8789b6572b7775c294d1c1fca3b3d627200d4bb24fc898b361f8cc09d06a24"
+    },
+    "noah/standard/tests/test_multiplier.py": {
+      "mode": "100644",
+      "sha256": "73db716a5debfc0ca44130fd2dbdf49d54b24d294894ad4710fd13c74f82f0fa"
+    },
+    "noah/standard/tests/vectors/multiplier_vectors.json": {
+      "mode": "100644",
+      "sha256": "5503171e3de9844a1916555f2db6fd60ab92216170e244a3dd70bf78cc09b5e2"
+    },
+    "noah/starter/__init__.py": {
+      "mode": "100644",
+      "sha256": "a11cab24ff8c50bb6d146b4f84d516e6709da656c734b30094c98c812abc7872"
+    },
+    "noah/starter/allocation.py": {
+      "mode": "100644",
+      "sha256": "3ffd44a9ab959d96792535d5cc071d3a87e42689159766ce36c4db17aff8227e"
+    },
+    "noah/starter/entry.py": {
+      "mode": "100644",
+      "sha256": "07ce9c788048afd07a4ae9f3d8d3d512104f69076fb436c3911b4afc91e638c0"
+    },
+    "noah/starter/guard.py": {
+      "mode": "100644",
+      "sha256": "86ad842b7a57067f94992094bd41cd578170f37cb5ad9209e3bcd10d690d2f45"
+    },
+    "noah/starter/health.py": {
+      "mode": "100644",
+      "sha256": "9ca148c4ca58f863bfcab2fdb4e63a0c446ba3e2342c590afdb633a5bd1e005b"
+    },
+    "noah/starter/locking.py": {
+      "mode": "100644",
+      "sha256": "c3dc7c7c8f328b1e18d019914a967ce825cc423dc8b95d10661fd430d56628ff"
+    },
+    "noah/starter/migrate.py": {
+      "mode": "100644",
+      "sha256": "2998f7510bc092c9f6d02ff79fc7b5ecb5dc6b30e7416b7b8abe00d2da985dd9"
+    },
+    "noah/starter/migration.py": {
+      "mode": "100644",
+      "sha256": "7087065ff9d00f4d789c58f60e0d94c57ac480a5abb5defd5ea08929828260b4"
+    },
+    "noah/starter/preflight.py": {
+      "mode": "100644",
+      "sha256": "b4e04244fdcced73c94d5eb171498e47f87efe272451478622c3949b288a901c"
+    },
+    "noah/starter/publication.py": {
+      "mode": "100644",
+      "sha256": "54a66c8d0627092cbbe6de6cacd982d54788c19b74ad997586e1596063e131a2"
+    },
+    "noah/starter/reader.py": {
+      "mode": "100644",
+      "sha256": "2b41842467323dcc044af4b340e70e20da090a81bd8b5934324afe83c7c2a2e8"
+    },
+    "noah/starter/runtime.py": {
+      "mode": "100644",
+      "sha256": "60c23e9f9d63161e6933a4c4ed5d4300fa90b373d0eb756ae27a82cccd1dabd7"
+    },
+    "noah/starter/second_opinion.py": {
+      "mode": "100644",
+      "sha256": "9f48eb7cf6ac6853c3f4bb9e6fb81b8c864142594cd1823b2bde3bd56d01b52c"
+    },
+    "noah/starter/tests/test_activation.py": {
+      "mode": "100644",
+      "sha256": "2020894a4413a9c55f165ac89314ea21c60660aaf9714b2d7f8fb5f55757f46b"
+    },
+    "noah/starter/tests/test_entry_policy.py": {
+      "mode": "100644",
+      "sha256": "849b77d967b4aeb9acfdc59cee425b2b4f3172a40fda694127d8eb38f4c73203"
+    },
+    "noah/starter/tests/test_epoch_clock.py": {
+      "mode": "100644",
+      "sha256": "1fbbfc68f52be0e788b4ccaa6e7d06eaed1ce74163fa2e7fa0e8afe93a576075"
+    },
+    "noah/starter/tests/test_guard_diagnostics.py": {
+      "mode": "100644",
+      "sha256": "15b01ec17818ce4e1c7b9d4c4f45ea890213ba882ffea488048f3bdb3cc036cc"
+    },
+    "noah/starter/tests/test_onboarding.py": {
+      "mode": "100644",
+      "sha256": "adf93ff548d767fe7a4a1d0d05ddc3e8152a6c6abd81a175191c5567144c4e98"
+    },
+    "noah/starter/tests/test_preflight.py": {
+      "mode": "100644",
+      "sha256": "ee43395e95230774b850afb99054d17b09229f8d40e57ec087190b242d0dc528"
+    },
+    "noah/starter/tests/test_publication.py": {
+      "mode": "100644",
+      "sha256": "232172b469364d1b427555639141799527b24ccc8e0fb10a6d58f8994a1bde80"
+    },
+    "noah/starter/tests/test_reader.py": {
+      "mode": "100644",
+      "sha256": "aa7e3748846c6cfe97b28350332bee34c8d0c63cc8bfd1ef148991e16db60028"
+    },
+    "noah/starter/tests/test_report_exclusions.py": {
+      "mode": "100644",
+      "sha256": "3ca08b324b75fd49d384a4ce99043dd045bec7eb5aeff8febd4a85b46c50fad0"
+    },
+    "noah/starter/tests/test_review_regressions.py": {
+      "mode": "100644",
+      "sha256": "75320b6042511059f7cd57cc32e94959207247b4267d5e0a3cb4f61816c638c9"
+    },
+    "noah/starter/tests/test_runtime.py": {
+      "mode": "100644",
+      "sha256": "13a1c25b1a06f2e7c01726c735f6374df4ff73b4e7882ae7c5d6e7dcc5a5cfc8"
+    },
+    "noah/starter/tests/test_second_opinion.py": {
+      "mode": "100644",
+      "sha256": "7dcc93583e85c805c0463defcad1ea0767393d4a7ede5ecf7192692fbbe51d59"
+    },
+    "noah/starter/verify-allocation.mjs": {
+      "mode": "100644",
+      "sha256": "ad03e891f103d20f0e8163937196487699ce657e8b4f90ed60ca448f8f06bf49"
+    },
+    "pyproject.toml": {
+      "mode": "100644",
+      "sha256": "e267263a03cc6cfe7d04fcd506ba6a113a3a82687fb140943c1cfed82ca9cdca"
+    },
+    "report-requirements-lock.txt": {
+      "mode": "100644",
+      "sha256": "b33df917c4a936b82fc4a646c35105ae4df416e5401d1190fd49ef736d9788bf"
+    },
+    "report-wallet-constraints.txt": {
+      "mode": "100644",
+      "sha256": "b64c04d9c70112067b341bea8cdbbb374a3ecd3cb48f9ed6fcb7edf10328a558"
+    },
+    "scripts/build_verification_bundle.py": {
+      "mode": "100644",
+      "sha256": "e900fe0e17de7bf4104fbb87b5ce92a27420244c1de1daaaea141da405dd5a04"
+    },
+    "scripts/check_examples.py": {
+      "mode": "100644",
+      "sha256": "d25eef4dab93e57676a7c8e6c0376cd8d7df6b860c9f627c6e1bdc87c105bf0e"
+    },
+    "scripts/check_history_contiguity.py": {
+      "mode": "100644",
+      "sha256": "48bbbd2ff3798d2b1f727e98de565196b15a9c3f81b88dfd376282d0ef03a41b"
+    },
+    "scripts/check_test_suites.py": {
+      "mode": "100644",
+      "sha256": "3382fc3ab7603cecbf247b3fae5e969fae29923fa28d9366a9ed3bdfa1b7ba08"
+    },
+    "scripts/confirm_published.py": {
+      "mode": "100644",
+      "sha256": "c59f3b4e7ced598a4378937093e4dd67b57e5ae7202c339233cb84910866c5b7"
+    },
+    "scripts/day_close_pipeline.py": {
+      "mode": "100644",
+      "sha256": "536d4f146cc0eeb659e05f8c04a8a6c4c3f87b7f861e82800ba9aee5eaada12f"
+    },
+    "scripts/fixture_record.py": {
+      "mode": "100644",
+      "sha256": "3c69873666d8be7d4eb1ed6a8474a2914e7d88965fb4a5691aee12ed1c6a7d23"
+    },
+    "scripts/install-reports.sh": {
+      "mode": "100755",
+      "sha256": "d37bbadba2a494fa8a233fc07b4c15e7a2ace096f683ffc20bfcda6bb2fd94a5"
+    },
+    "scripts/install.sh": {
+      "mode": "100755",
+      "sha256": "def6ba8d789f3708fbd9ff00414fd8c0818196acc63922a75e5601535f749370"
+    },
+    "scripts/mainnet_dials_from_profile.py": {
+      "mode": "100644",
+      "sha256": "06fa5b85e61d3f26f070c21a38823c3561427e338e430c1458f9565a74a3bba5"
+    },
+    "scripts/persist_score_evidence.py": {
+      "mode": "100644",
+      "sha256": "1d6f6e80870c97bb0ce8086127ecae86a23d3a6009ad79fd6758106994eed765"
+    },
+    "scripts/publication_backoff.py": {
+      "mode": "100755",
+      "sha256": "d338be8acab434691634076a79b3801b4691263512d5f625df23603e91f9ac9c"
+    },
+    "scripts/publication_hold.py": {
+      "mode": "100644",
+      "sha256": "074ef182b527affc2f649dc5bc664f17356d4250d791570bb573e4fa034c2bf7"
+    },
+    "scripts/rescan_foreign_receipts.py": {
+      "mode": "100644",
+      "sha256": "29e704044100d37c1bf41cba50a64fdf2f0c5ce6049b5d968a24349e0d9ae5d3"
+    },
+    "scripts/run-report-tests.sh": {
+      "mode": "100755",
+      "sha256": "73947675482a207398da490d16a9859ee87224d08493396346e5e1c16f74e0c9"
+    },
+    "scripts/run-tests-python.sh": {
+      "mode": "100755",
+      "sha256": "fba4becaf5f7da471d2f8ab4ea89774e0a1c0e4d774234a4e798a2ea5b5f8cea"
+    },
+    "scripts/run-tests.sh": {
+      "mode": "100755",
+      "sha256": "0266cbaa9b04b64b8f72e354e1213a8402fd50ea742718320e4707576127508c"
+    },
+    "scripts/secret_scan.py": {
+      "mode": "100644",
+      "sha256": "b2d92a579062154c05a7d8703c5d3504fb512d42d83bee0e9f4f9b4daec8601a"
+    },
+    "scripts/settings_record.py": {
+      "mode": "100644",
+      "sha256": "b4598cc02b6832c7fd4b5a8debdd396191ddf1e904f32f4469cdb624eb0c2e1c"
+    },
+    "scripts/tests/test_day_close_starter_refusal.py": {
+      "mode": "100644",
+      "sha256": "30c9bf0235d45182281d6ad0d56f679051da8aa28c0eecc492ca13c718ee147f"
+    },
+    "scripts/tests/test_install_preserves_environment.py": {
+      "mode": "100644",
+      "sha256": "252c9c27097e3cccf9662ee9f6090f56010a67c3151c4006a9217b5df90ab48f"
+    },
+    "scripts/tests/test_migration_readonly.py": {
+      "mode": "100644",
+      "sha256": "e1d15d583cce4cf93d4fe03807e155895c889c4a07a6fbc9afc25977e57d577f"
+    },
+    "scripts/tests/test_python_summary.py": {
+      "mode": "100644",
+      "sha256": "cbd62b1781d9bf8980ad7ec63a2b2df7ffcb1f714ec40b27bf38cafd64263d79"
+    },
+    "scripts/tests/test_release_security.py": {
+      "mode": "100644",
+      "sha256": "2d1dd1f4af8ce67961f3bc2faef4675541ff12c58b24877af1a475bc74da430f"
+    },
+    "scripts/tests/test_saved_examples.py": {
+      "mode": "100644",
+      "sha256": "7c7312c2c1399430102cd2a7dc3a3f23e573b8946e98596c24e31fa28b8e1932"
+    },
+    "scripts/tests/test_static_error_gate.py": {
+      "mode": "100644",
+      "sha256": "4accfe6a4c3a054818b0b892e55090084f46ecbf74e93653ce94613ce8aefa6b"
+    },
+    "scripts/tests/test_test_suite_inventory.py": {
+      "mode": "100644",
+      "sha256": "3698c491990ab39bc832031d000543bcf0f83338da8cf70fe1d9b79c4e7a7cb8"
+    },
+    "scripts/tests/test_verify_bundle_boundary.py": {
+      "mode": "100644",
+      "sha256": "7785661ab2265980111a652e42ce0dd6c6b1e3be75a38f50416fe05036f426d1"
+    },
+    "scripts/twin-proof.sh": {
+      "mode": "100755",
+      "sha256": "1fef117c8c83a739beb64f3b2a4464f6cc58ae4e17d79370d8c22d52e3e3abf6"
+    },
+    "scripts/verify_bundle.py": {
+      "mode": "100644",
+      "sha256": "909dcfdb2439ea0e9d9559e764d48848489559dfbd586cfcb5f748c157ab08a9"
+    },
+    "scripts/verify_proxy_publication.py": {
+      "mode": "100644",
+      "sha256": "a1716a39000693e17e9e2ebbc929edded08537c229dbc19c78590de36e648475"
+    },
+    "verification/hand/compare_incentive.py": {
+      "mode": "100644",
+      "sha256": "2358a77ae2d2550ae1b26890757360facdd6f079ad9890653c6faf8d1118d190"
+    },
+    "verification/hand/compare_score.py": {
+      "mode": "100644",
+      "sha256": "e55e5bd1c9bc09be6a52a8a99f060333394b9a43fd46c0a506810f03cd279de1"
+    },
+    "verification/hand/reconcile_incentive_live.py": {
+      "mode": "100644",
+      "sha256": "ab40cf5ce8f881d5f7da98032ebf3b6e3e69e4dccabd1f1568a3d91a9bdc0c5a"
+    },
+    "verification/hand/score_by_hand.py": {
+      "mode": "100644",
+      "sha256": "54a1f375626ad34c57d82f42f4f7f8f8df416264334c688b12591ebcaa6c14b2"
+    },
+    "verification/hand/test_reconcile_incentive_live.py": {
+      "mode": "100644",
+      "sha256": "31a20ed976d98f412f24a1093aa858ce5461d7634a410f730e7ed7e55be07f62"
+    },
+    "verification/noah-ts/.gitignore": {
+      "mode": "100644",
+      "sha256": "a706186f6dbb1ef5946e64ba899509d6e662409a19fb81d4db904275b2d3931a"
+    },
+    "verification/noah-ts/LICENSE": {
+      "mode": "100644",
+      "sha256": "8c66167be77c13d640caadb15a3c86c8992bafca7fb1286e32733abb85a42fc9"
+    },
+    "verification/noah-ts/README.md": {
+      "mode": "100644",
+      "sha256": "b369fabb2633334c0ca6e7154e751c98e7a2fc18a017849c8a6b0cb933ad8702"
+    },
+    "verification/noah-ts/fixtures/local/out-ts/smoke-edges.score.json": {
+      "mode": "100644",
+      "sha256": "e8cf660aee48e86bc2fe39a87b582ea9745062875573a8f61cbe3c3048be8443"
+    },
+    "verification/noah-ts/fixtures/local/out-ts/smoke-steady.score.json": {
+      "mode": "100644",
+      "sha256": "710d9cdeb6cbd2fb62683b1e15ee1d71047fdf4242046ba7c71c4f3a7fb8a0fb"
+    },
+    "verification/noah-ts/fixtures/local/smoke-edges.json": {
+      "mode": "100644",
+      "sha256": "b1372c8f4d6067eaee2278657c297c036a3899145b1cd761eb721b118a487c69"
+    },
+    "verification/noah-ts/fixtures/local/smoke-steady.json": {
+      "mode": "100644",
+      "sha256": "559db7184d475b713bf14eca1e56f5cdb33ea3e87947217404f70fbaa65c3797"
+    },
+    "verification/noah-ts/fixtures/multiplier_vectors.json": {
+      "mode": "100644",
+      "sha256": "5503171e3de9844a1916555f2db6fd60ab92216170e244a3dd70bf78cc09b5e2"
+    },
+    "verification/noah-ts/package-lock.json": {
+      "mode": "100644",
+      "sha256": "25868e345351c9551f5dc5ef0a5a5d8cf0cfa86470203addbd81f7f9969d22ce"
+    },
+    "verification/noah-ts/package.json": {
+      "mode": "100644",
+      "sha256": "3424d8a37ba414455c119dec37a26bc6cb04429d2e77c43af189ef2d5be484c5"
+    },
+    "verification/noah-ts/src/canonical.ts": {
+      "mode": "100644",
+      "sha256": "4f546cd189f59092fcb94d55af7551ddcdc73be778d2d4c898570fe4978c2a5f"
+    },
+    "verification/noah-ts/src/cli.ts": {
+      "mode": "100644",
+      "sha256": "99f8b1616e18c9176aa3eb245e1df92be05888bcf5bc652d09fd3a411c10c743"
+    },
+    "verification/noah-ts/src/decay.ts": {
+      "mode": "100644",
+      "sha256": "0e47d68f45da18e86e0cc7443ed135846c84a47805955e50f7e1641be720ba64"
+    },
+    "verification/noah-ts/src/ema_pricing.ts": {
+      "mode": "100644",
+      "sha256": "d42248b26faacea85ba43d1ce14b1d5ee247c14ae4eb06e3575d1aa8eeec6d9c"
+    },
+    "verification/noah-ts/src/ema_proof.ts": {
+      "mode": "100644",
+      "sha256": "5c26b6f24323f0481c9360a0089bdfc24224b11cb1cf5e22ea1922a379676bf8"
+    },
+    "verification/noah-ts/src/fixture.ts": {
+      "mode": "100644",
+      "sha256": "24afee4c024eb0d2015a6e4227804bc215bbea5f6cb196462903fe7a08071858"
+    },
+    "verification/noah-ts/src/pay.ts": {
+      "mode": "100644",
+      "sha256": "729aab35338e6a2809d186891fb1ac0fef2730e8461438f141ea4f6af1d73b65"
+    },
+    "verification/noah-ts/src/points.ts": {
+      "mode": "100644",
+      "sha256": "3b80666704297db42b0ba848d919e1c8d9c0b3cadd1eda48b553f5021391b0f4"
+    },
+    "verification/noah-ts/src/score.ts": {
+      "mode": "100644",
+      "sha256": "45a5f5440aae86a5c1e6d2576358e3f9184138226d41375f836bb5643629e38d"
+    },
+    "verification/noah-ts/src/standard_multiplier.ts": {
+      "mode": "100644",
+      "sha256": "7e4d3023dbcc942c163e0a2ed3a6363a18b9f462fb2a66338bbd85f1017c4bdd"
+    },
+    "verification/noah-ts/test/canonical.test.ts": {
+      "mode": "100644",
+      "sha256": "90f6bfec40a899decb5c1f41b640fcbefd7a58d12226f1c53c35658d0a2d989e"
+    },
+    "verification/noah-ts/test/cli.test.ts": {
+      "mode": "100644",
+      "sha256": "85f44944c704e4a29c88790484927c281b16c09496538ab9d3ef9bcf53d6f9b2"
+    },
+    "verification/noah-ts/test/decay.test.ts": {
+      "mode": "100644",
+      "sha256": "cb833eae2066438653ff8de2e1c12af85b107be413f8f2845e8cab03ab11eeb4"
+    },
+    "verification/noah-ts/test/ema_pricing.test.ts": {
+      "mode": "100644",
+      "sha256": "0d038e4faefcb2e1d45a871ab533ced0d200127e191449438973e37864150f10"
+    },
+    "verification/noah-ts/test/ema_proof.test.ts": {
+      "mode": "100644",
+      "sha256": "dc8cf07754f1a6083eb020db4f337b6f0932ccb119242cfe7138be918d799b29"
+    },
+    "verification/noah-ts/test/fixture.test.ts": {
+      "mode": "100644",
+      "sha256": "c5b80c5907040036eb8d11da2db3e1fb7e228656a6f6d5ab7e6611f384a6fd87"
+    },
+    "verification/noah-ts/test/pay.test.ts": {
+      "mode": "100644",
+      "sha256": "5a7431268ce809429a443bd311f25abe1842cd0dbbc36a53d011a19d99933d3a"
+    },
+    "verification/noah-ts/test/score.test.ts": {
+      "mode": "100644",
+      "sha256": "03c0911274b8cc355892c4cb2b4510701f267c81e75ec7d2f15ec62227a3b932"
+    },
+    "verification/noah-ts/test/standard_multiplier.test.ts": {
+      "mode": "100644",
+      "sha256": "7df893e51a787fa77a74d22aa8e09d2ac59f474e39f9391d69ef66b779bdc7db"
+    },
+    "verification/noah-ts/tsconfig.json": {
+      "mode": "100644",
+      "sha256": "0bac66fdb392cfe3356aab73c900971955f17f8a30b44dc359cc971651202e36"
+    }
+  },
+  "justification": "vulnerable_code_not_in_execute_path",
+  "locks": {
+    "constraints.txt": "829dacaa5df77d3bfd8f186131a59a613fa5251d4919d4109ede4b3e8edf1652",
+    "report-requirements-lock.txt": "b33df917c4a936b82fc4a646c35105ae4df416e5401d1190fd49ef736d9788bf",
+    "report-wallet-constraints.txt": "b64c04d9c70112067b341bea8cdbbb374a3ecd3cb48f9ed6fcb7edf10328a558"
+  },
+  "packages": {
+    "public": {
+      "aiosqlite": "0.22.1",
+      "annotated-doc": "0.0.5",
+      "annotated-types": "0.8.0",
+      "async-substrate-interface": "2.2.1",
+      "bitarray": "3.12.2",
+      "bittensor": "11.3.0",
+      "bittensor-core": "0.1.5",
+      "certifi": "2026.10.19",
+      "cfgv": "3.5.0",
+      "charset-normalizer": "3.5.2",
+      "ckzg": "2.1.8",
+      "cyscale": "0.8.0",
+      "cytoolz": "1.2.0",
+      "distlib": "0.4.4",
+      "eth-abi": "6.0.0",
+      "eth-account": "0.13.7",
+      "eth-hash": "0.8.0",
+      "eth-keyfile": "0.8.1",
+      "eth-keys": "0.8.0",
+      "eth-rlp": "3.0.0",
+      "eth-typing": "6.0.0",
+      "eth-utils": "6.0.0",
+      "filelock": "4.2.1",
+      "hexbytes": "2.0.0",
+      "identify": "2.6.20",
+      "idna": "3.20",
+      "iniconfig": "2.3.1",
+      "markdown-it-py": "4.2.0",
+      "mdurl": "0.1.2",
+      "nodeenv": "1.11.0",
+      "packaging": "26.3",
+      "parsimonious": "0.10.0",
+      "platformdirs": "4.12.4",
+      "pluggy": "1.7.0",
+      "pre-commit": "4.6.2",
+      "py-sr25519-bindings": "0.2.4",
+      "pycryptodome": "3.24.1",
+      "pydantic": "2.14.1",
+      "pydantic-core": "2.50.1",
+      "pygments": "2.21.0",
+      "pytest": "9.1.1",
+      "python-discovery": "1.6.3",
+      "pyyaml": "6.0.3",
+      "qrcode": "8.2",
+      "regex": "2026.9.29",
+      "requests": "2.34.2",
+      "rich": "15.0.0",
+      "rlp": "5.0.0",
+      "ruff": "0.17.1",
+      "setuptools": "84.1.0",
+      "shellingham": "1.5.4",
+      "tomli": "2.5.0",
+      "toolz": "1.2.0",
+      "typer": "0.27.3",
+      "typing-extensions": "4.16.0",
+      "typing-inspection": "0.4.4",
+      "urllib3": "2.8.0",
+      "virtualenv": "21.14.13",
+      "websockets": "16.1.1",
+      "xxhash": "4.0.1"
+    },
+    "reports": {
+      "annotated-types": "0.8.0",
+      "base58": "2.1.1",
+      "bittensor-wallet": "4.1.1",
+      "certifi": "2026.10.23",
+      "cffi": "2.1.1",
+      "charset-normalizer": "3.5.2",
+      "cytoolz": "1.2.0",
+      "ecdsa": "0.19.2",
+      "eth-hash": "0.8.0",
+      "eth-keys": "0.8.0",
+      "eth-typing": "6.0.0",
+      "eth-utils": "5.3.1",
+      "idna": "3.20",
+      "iniconfig": "2.3.1",
+      "more-itertools": "11.2.1",
+      "packaging": "26.3",
+      "pip": "26.2",
+      "pluggy": "1.7.0",
+      "py-bip39-bindings": "0.3.0",
+      "py-ed25519-zebra-bindings": "1.3.0",
+      "py-sr25519-bindings": "0.2.4",
+      "pycparser": "3.12",
+      "pycryptodome": "3.24.1",
+      "pydantic": "2.14.3",
+      "pydantic-core": "2.50.4",
+      "pygments": "2.21.0",
+      "pynacl": "1.6.2",
+      "pytest": "9.1.1",
+      "requests": "2.34.2",
+      "scalecodec": "1.2.12",
+      "setuptools": "84.1.0",
+      "six": "1.17.0",
+      "substrate-interface": "1.7.11",
+      "toolz": "1.2.0",
+      "typing-extensions": "4.16.0",
+      "typing-inspection": "0.4.5",
+      "urllib3": "2.8.0",
+      "websocket-client": "1.9.2",
+      "websockets": "15.0.1",
+      "xxhash": "3.8.2"
+    }
+  },
+  "review": {
+    "date": "2026-11-21",
+    "evidence_sha256": "09588d7af621e268e9cca545becc7bc3083875e105bdfcec3fb12bec91087c87",
+    "owner": "Codex independent coverage and confirmed-refresh execute-path delta reviewer",
+    "status": "reviewed"
+  },
+  "schema": "noah.application-vex/1",
+  "status": "not_affected",
+  "subject": {
+    "inventory_exclusion": ".github/security/ecdsa-application-vex.json",
+    "platform": "linux-x86_64-cpython-3.11",
+    "scope": "supported-public-noah-entrypoints"
+  },
+  "wheels": {
+    "bittensor_wallet-4.1.1-cp311-cp311-manylinux_2_28_x86_64.whl": "1d8194c71d4d210d4acd6bfe15c9e742eeeb8dc709d6138cbb97c55ad89aac32",
+    "ecdsa-0.19.2-py2.py3-none-any.whl": "840f5dc5e375c68f36c1a7a5b9caad28f95daa65185c9253c0c08dd952bb7399",
+    "substrate_interface-1.7.11-py3-none-any.whl": "ce19bc97481769238ed23c752db985a3058637918693f2db6aeed2fab3756075"
+  }
+}

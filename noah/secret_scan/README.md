@@ -52,3 +52,23 @@ root; a symlink supplied as the selected root itself is still refused.
 
 It is pattern matching: it reduces leaks, it does not prove their absence. The first real
 bundle is always read by a human before it leaves.
+
+## Report public identities
+
+For maintained canonical report JSON, the scanner validates the complete known
+shape before neutralizing only the credential-like labels of public AccountIds.
+Supported shapes include requests, policies, rounds, schedules, adjudication
+manifests/results, snapshot/required rosters, final verdicts, successful backing
+engine results (including unavailable outputs), gated unavailable/unsupported results,
+and paired-reader report-only collector envelopes. Unavailable collector calculations
+must match the producer's exact fallback shape; null projections do not become
+invented numeric results. The collectors'
+sorted single-line JSON with default spacing is supported alongside compact and
+indented canonical JSON. Duplicate keys and arbitrary whitespace are refused by
+this projection.
+
+The projection preserves every value, byte offset and line. Unknown fields,
+malformed identities and unsupported schemas retain ordinary scanning. Intrinsic
+credentials and secrets in other fields still scan against the original text.
+This recognizes public identity structure; it does not authenticate chain data,
+approve publication, change backup limits or enable scoring/report enforcement.

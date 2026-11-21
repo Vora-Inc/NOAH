@@ -462,7 +462,7 @@ def run_day(
 
 
 def _prove_staking_hotkeys_complete(
-    store, chain, coldkey, block, listed, designated, registered_hotkeys=()
+    store, chain, coldkey, block, listed, designated, registered_hotkeys=(), *, through_day=None
 ):
     """Refuse if a known hotkey the wallet holds a position on is not in ``listed``.
 
@@ -475,7 +475,7 @@ def _prove_staking_hotkeys_complete(
     """
     from .holdings import Share
 
-    known = set(store.known_hotkeys_of(coldkey)) | set(registered_hotkeys)
+    known = set(store.known_hotkeys_of(coldkey, through_day=through_day)) | set(registered_hotkeys)
     if designated:
         known.add(designated)
     for hotkey in sorted(known - set(listed)):
@@ -543,7 +543,10 @@ def _sample_holdings(
             f"samples are not written."
         )
 
-    wallets = store.wallets_seen()
+    # A later open-day collection must not expand this historical cohort.
+    # Keep the full requested day's receipts: normal sampling already occurs
+    # after that day's event pass, so a per-block bound would change its grid.
+    wallets = store.wallets_seen(through_day=day)
     if not wallets and not sample_registered:
         # Nobody earned and nobody contributed. Sampling nothing is the honest
         # answer, and marking the day sampled says the question was asked.
@@ -594,7 +597,8 @@ def _sample_holdings(
                     positions = []
                     listed = chain.staking_hotkeys(coldkey, block)
                     _prove_staking_hotkeys_complete(
-                        store, chain, coldkey, block, listed, designated_validator_hotkey, known
+                        store, chain, coldkey, block, listed, designated_validator_hotkey, known,
+                        through_day=day,
                     )
                     for hotkey in listed:
                         share = chain.alpha_share(hotkey, coldkey, block)

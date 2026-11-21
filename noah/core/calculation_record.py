@@ -199,3 +199,17 @@ def verify(directory, reference):
     for ref in manifest["artifacts"].values():
         read(ref)
     return manifest
+
+
+def artifact(directory, manifest, name):
+    """Read an artifact from a manifest already authenticated by verify()."""
+    return json.loads((Path(directory) / manifest["artifacts"][name]["path"]).read_text())
+
+
+def historical_overlay(directory, reference):
+    """Only old records invoke the archived pool-proof verifier."""
+    manifest = verify(directory, reference)
+    if "starter_overlay" not in artifact(directory, manifest, "context"):
+        return None
+    from ..starter.publication import verify_overlay
+    return verify_overlay(directory, reference)

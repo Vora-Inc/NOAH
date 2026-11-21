@@ -8,6 +8,7 @@ read, logged or reused.
 import configparser
 import math
 import os
+import re
 from dataclasses import dataclass
 
 from ...chain.ss58 import NotAnAddress, public_key_of
@@ -102,6 +103,11 @@ reserve_noah = 1
 # A JSON file of finalized earnings and credited contributions.
 file = ./evidence.json
 
+[report]
+# Optional weekly reporting. Obtain this public key independently from the operator.
+# assignments_url = https://HOST/assignments/
+# assignment_signer_public_key = LOWERCASE_64_HEX_PUBLIC_KEY
+
 [state]
 dir = ./noah-deposit-state
 """
@@ -130,6 +136,8 @@ class AssistantConfig:
     genesis_hash: str = None
     wallet_path: str = None
     signing: dict = None
+    assignments_url: str = None
+    assignment_signer_public_key: str = None
 
 
 def _address(value, what):
@@ -186,8 +194,8 @@ def load_config(path, environ=None):
         raise DepositRefused(f"Settings file {plain_path_text(path)} could not be read.", "config")
     for section in parser.sections():
         for key in parser[section]:
-            # These two fields identify a backend/region, never secret contents.
-            # validate_signing below restricts their values to supported metadata.
+            # This field identifies a backend, never secret contents.
+            # validate_signing below restricts it to supported metadata.
             public_signer_metadata = section == 'signing' and key in ('secret_type',)
             if not public_signer_metadata and any(word in key.lower() for word in _SECRETISH):
                 raise DepositRefused(
@@ -255,6 +263,11 @@ def load_config(path, environ=None):
             raise DepositRefused('proxy delegate must differ from real coldkey', 'config')
     if signing['mode'] == 'proxy' and position != 'miner':
         raise DepositRefused('proxy requires stake_position=miner for attribution', 'config')
+    assignment_key = get("report", "assignment_signer_public_key") or None
+    if assignment_key is not None and not re.fullmatch("[0-9a-f]{64}", assignment_key):
+        raise DepositRefused("assignment_signer_public_key must be 64 lowercase hex characters.", "config")
+    if get("report", "assignments_url") and assignment_key is None:
+        raise DepositRefused("Weekly reporting requires an independently configured assignment_signer_public_key.", "config")
     return AssistantConfig(
         signing=signing,
         network=get("miner", "network", "unspecified"),
@@ -277,6 +290,8 @@ def load_config(path, environ=None):
         stake_position=position,
         genesis_hash=(get("miner", "genesis_hash") or None),
         wallet_path=(get("miner", "wallet_path") or None),
+        assignments_url=(get("report", "assignments_url") or None),
+        assignment_signer_public_key=assignment_key,
     )
 
 

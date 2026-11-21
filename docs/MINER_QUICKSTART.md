@@ -1,6 +1,8 @@
 # Miner quickstart: Finney mainnet
 
-> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+
+> **Review candidate:** `points-204040-v5` uses ordinary onboarding with no starter pool or entry payment. Verify activation before relying on these candidate economics. See [ordinary scoring](ORDINARY_SCORING.md).
 
 This is the participant setup for Noah on Bittensor **Finney mainnet, netuid
 82**. It uses a public chain RPC and your own local wallet. There is no Noah
@@ -112,32 +114,22 @@ btcli --network finney --wallet "$NOAH_WALLET_NAME" --wallet-hotkey "$NOAH_HOTKE
 At the confirmation prompt, `y` authorizes a **real** registration charge;
 `n` cancels. If a submission times out or reports an uncertain result, read
 the UID and coldkey balance before considering another attempt. A successful
-registration assigns a UID; it does not itself guarantee starter eligibility or a payout.
+registration assigns a UID; it does not itself guarantee immediate scoring or a payout.
 
-## 4. Wait for starter eligibility and verify the result
+## 4. Enter ordinary scoring
 
-You do not need to buy NOAH or send an entry deposit. Keep the registered hotkey
-under your control and wait for its inclusion in the next completed UTC-day
-roster, followed by a finalized epoch allocation. An intraday registration does
-not receive a share from an older saved daily calculation.
-
-The [starter policy](STARTER_ENTRY.md) describes the shared pool, lifetime
-coldkey/hotkey allowance, exclusions and exhaustion rules. Registration is not
-a guarantee of positive weight or a particular payout. Missing history or
-unsettled chain evidence can delay allocation.
-
-Check the published daily inputs, your identity and eligibility, the submitted
-weight, finalized transaction and actual epoch payment. A local preview or a
-transaction receipt alone does not prove all of these. Use the
-[score verification guide](VERIFYING_SCORES.md).
+An eligible new miner begins with 0.2 points after the first completed-day
+calculation with verified identity/history, successful publication and chain
+application. No upfront deposit is required. There is no shared pool or allowance.
+Actual earnings on UTC day D create a 50% obligation during D+1, assessed at its
+close. Read [the complete examples](ORDINARY_SCORING.md).
 
 ## 5. Make ongoing contributions when appropriate
 
-Starter earnings count toward the same **50% contribution target for eligible
-spendable earnings** as other qualifying earnings. Early contributions are
-retained; they do not buy another starter allowance or stack starter and ordinary
-weight. After the allowance is exhausted, ordinary scoring determines rewards;
-without qualifying contribution credit there is no ordinary score.
+Contribute 50% of eligible earnings or equivalent qualifying foreign/root value.
+Prepaid credit can cover the obligation; a daily consistency bonus additionally
+requires a real payment that meets that day's obligation. Uncovered debt halves
+the last compliant score on the first day and sets it to zero on the second.
 
 Read the [contribution rules](CONTRIBUTIONS.md) and
 [deposit notices](DEPOSIT_NOTICES.md). To make a contribution, follow the
@@ -153,13 +145,13 @@ do not send again merely because scoring credit is pending.
 
 Optional advanced paths: [proxy signing](MINER_PROXY.md) and
 [mixed deposit test workflow](MINER_MIXED.md). These are contribution tools,
-not steps required to register or become starter-eligible. Experimental purchase
+not steps required to register or enter ordinary scoring. Experimental purchase
 and conversion flows retain their documented network restrictions.
 
 ## Optional Mainnet contribution configuration
 
 Use this only when you choose to make an ongoing contribution. It is not needed
-to register or receive starter eligibility. `init-config` writes a **generic test
+to register or enter ordinary scoring. `init-config` writes a **generic test
 network** example; do not send using its defaults. Create your local file:
 
 ```sh

@@ -25,6 +25,7 @@ dependencies = []
 
 [project.scripts]
 noah-miner = "noah.deposits.assistant.miner_cli:entry"
+noah-validator = "noah.reports.dispatch:validator_entry"
 
 [project.optional-dependencies]
 # DEV ONLY, DELIBERATELY, AND NEVER IN `dependencies` ABOVE.
@@ -45,6 +46,8 @@ validator = [
     "bittensor-core>=0.1.3",
     # The chain adapter imports this library directly; startup checks its version.
     "async-substrate-interface>=2.2.1",
+    # Strict domain-bound assignment signatures; no report decoder SDK in this environment.
+    "py-sr25519-bindings==0.2.4",
     # Operator maintenance scripts that share the validator environment use
     # requests for public price reads. Keep the version pin for deployments
     # that use those scripts; the noah package does not import it.
@@ -52,11 +55,11 @@ validator = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["noah*"]
+include = ["noah*", "neurons*"]
 # Tests stay in the repository and run against the repository, where the
 # fixtures and vector files they compare against also live. Shipping them in
 # the installed package without that data would only be confusing.
-exclude = ["noah.tests", "noah.*.tests", "noah.*.tests.*"]
+exclude = ["noah.tests", "noah.*.tests", "noah.*.tests.*", "neurons.tests", "neurons.tests.*"]
 namespaces = false
 
 [tool.setuptools.package-data]
@@ -72,6 +75,7 @@ testpaths = [
     "noah/chain/tests",
     "noah/core/tests",
     "noah/starter/tests",
+    "noah/points/tests",
     "noah/research/tests",
     "noah/config/tests",
     "noah/secret_scan/tests",
@@ -85,7 +89,7 @@ python_files = ["test_*.py"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = [".venv", ".venv-validator", "verification/noah-ts/node_modules"]
+extend-exclude = [".venv", ".venv-validator", ".venv-reports", "verification/noah-ts/node_modules"]
 
 [tool.ruff.format]
 # decay_table.py is a published constant table, generated offline and laid out
