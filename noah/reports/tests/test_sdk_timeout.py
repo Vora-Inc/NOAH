@@ -50,6 +50,28 @@ def pair():
             assert not thread.is_alive()
 
 
+def request_client(monkeypatch, url, *, auto_discover=False):
+    # Constructor registry loading is setup, not the socket request under test.
+    # Keep constructor-failure tests on their original one-second deadline.
+    if auto_discover:
+        return live_sdk(url, auto_discover=True, timeout_seconds=1.0)
+    from noah.reports.backing import sdk_client
+    deadline_type = sdk_client._Deadline
+    deadlines = []
+    def capture(seconds):
+        value = deadline_type(seconds)
+        deadlines.append(value)
+        return value
+    with monkeypatch.context() as setup:
+        setup.setattr(sdk_client, '_Deadline', capture)
+        sdk = live_sdk(url, auto_discover=False, timeout_seconds=10.0)
+    assert len(deadlines) == 1 and deadlines[0].end is None
+    # This is the real deadline shared by the SDK and its real socket wrappers.
+    # Do not mock its clock, scope, I/O or expiry behavior.
+    deadlines[0].seconds = 1.0
+    return sdk
+
+
 def ws_client(monkeypatch, pair, *, auto_discover=False):
     from websocket import WebSocket
     raw, feed = pair
@@ -58,9 +80,7 @@ def ws_client(monkeypatch, pair, *, auto_discover=False):
         ws.connected = True
         ws.sock.settimeout(ws.gettimeout())
     monkeypatch.setattr(WebSocket, 'connect', connect)
-    # Full-suite SCALE registry loading can exceed 80 ms before network I/O.
-    # One second leaves constructor CPU headroom; drip tests run beyond it.
-    return live_sdk('ws://synthetic.invalid', auto_discover=auto_discover, timeout_seconds=1.0)
+    return request_client(monkeypatch, 'ws://synthetic.invalid', auto_discover=auto_discover)
 
 
 def frame(body):
@@ -108,7 +128,24 @@ def http_client(monkeypatch, pair, *, auto_discover=False):
     from urllib3.connection import HTTPConnection
     monkeypatch.setenv('NO_PROXY','*')
     monkeypatch.setattr(HTTPConnection, '_new_conn', lambda _: pair[0])
-    return live_sdk('http://127.0.0.1:1', auto_discover=auto_discover, timeout_seconds=1.0)
+    return request_client(monkeypatch, 'http://127.0.0.1:1', auto_discover=auto_discover)
+
+
+@pytest.mark.parametrize('factory', [ws_client, http_client])
+def test_slow_constructor_keeps_real_request_deadline(monkeypatch, pair, factory):
+    from substrateinterface import SubstrateInterface
+    original = SubstrateInterface.__init__
+    def delayed(self, *args, **kwargs):
+        # Reproduce hosted-runner setup taking longer than the request budget.
+        time.sleep(1.1)
+        return original(self, *args, **kwargs)
+    monkeypatch.setattr(SubstrateInterface, '__init__', delayed)
+    sdk = factory(monkeypatch, pair)
+    started = time.monotonic()
+    with watchdog(), pytest.raises(ReportRpcTimeout):
+        sdk.rpc_request('chain_getFinalizedHead', [])
+    assert time.monotonic() - started < 1.2
+    assert pair[0].fileno() == -1
 
 
 @pytest.mark.parametrize('mode', ['silent', 'drip_headers', 'drip_body'])

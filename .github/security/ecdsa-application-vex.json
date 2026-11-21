@@ -2244,7 +2244,7 @@
     },
     "noah/reports/tests/test_sdk_timeout.py": {
       "mode": "100644",
-      "sha256": "af4cdf231e94b2ebfbf3fca6810d231ceb781d7d2efa964c2d41e1ef701ca257"
+      "sha256": "bec0cf452d11437b322283ceec62382b261520a5dacf6d7d1fde927cc24c48f5"
     },
     "noah/reports/tests/test_shared_engine.py": {
       "mode": "100644",
@@ -2977,8 +2977,8 @@
   },
   "review": {
     "date": "2026-11-21",
-    "evidence_sha256": "b7341dfbb813ce8cd2e3e5c9c3b4ecdbe8ecfaf3a4adef1933bd843a75d7598f",
-    "owner": "Codex independent canonical preparation CLI delta reviewer",
+    "evidence_sha256": "aae8226acf7c544e91a4832cc5c123834712f9a532c7eaeab4fe29a5f7870dd0",
+    "owner": "Codex independent SDK timeout test fixture delta reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",
