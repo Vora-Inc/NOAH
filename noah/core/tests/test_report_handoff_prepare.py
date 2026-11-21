@@ -1,7 +1,11 @@
 """Preparation writes a draft only after both archived twins and graph agree."""
 import copy
+import io
 import json
+import os
 from pathlib import Path
+import tarfile
+from types import SimpleNamespace
 
 import pytest
 from noah.core import report_handoff_prepare as prepare, report_source_handoff as h
@@ -101,13 +105,13 @@ def test_authenticated_archive_and_installed_payload_agree(tmp_path,monkeypatch)
     root=tmp_path/('a'*12+'-'+h.digest(raw)[:16]);payload=root/'payload';payload.mkdir(parents=True)
     body['manifest.json']=raw
     for name,data in body.items():
-        target=payload/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);target.chmod(0o500)
+        target=payload/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);target.chmod(0o644 if name=='manifest.json' else 0o500)
     for target,name in [('venv/bin/python','python/bin/python3.11'),('venv/lib/libpython3.11.so.1.0','python/lib/libpython3.11.so.1.0')]:
         path=root/target;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(body[name]);path.chmod(0o500)
     archive=tmp_path/'release.tar.gz'
     with tarfile.open(archive,'w:gz') as tar:
         for name,data in body.items():
-            info=tarfile.TarInfo(name);info.size=len(data);info.mode=0o500;tar.addfile(info,io.BytesIO(data))
+            info=tarfile.TarInfo(name);info.size=len(data);info.mode=0o644 if name=='manifest.json' else 0o500;tar.addfile(info,io.BytesIO(data))
     spec={'root':str(root),'archive':str(archive),'archive_sha256':prepare.file_hash(archive),'manifest_sha256':h.digest(raw)}
     # Synthetic local payload models root ownership; real protected_tree is
     # tested separately and never relaxed by the preparation CLI.
@@ -157,3 +161,78 @@ def test_source_root_is_declared_by_authenticated_manifest(prefix):
     files[prefix+'noah/core/tests/test_example.py']={'sha256':'f'*64}
     assert prepare.source_prefix({'files':files})==prefix
     assert prepare.source_files({'files':files})==members
+
+
+# Real tar/manifest fixtures for legitimate zero-byte payload members.
+
+@pytest.fixture
+def empty_release_archive(tmp_path,monkeypatch):
+ body={'python/bin/python3.11':b'python','python/lib/libpython3.11.so.1.0':b'library','source/noah/__init__.py':b''}
+ def make(change=None, *, archive_manifest_mode=0o644, installed_manifest_mode=0o644):
+  manifest={'commit':'a'*40,'files':{n:{'size':len(b),'mode':0o500,'sha256':h.digest(b)}for n,b in body.items()}}
+  if change=='wrong-sha':manifest['files']['source/noah/__init__.py']['sha256']='1'*64
+  if change=='wrong-size':manifest['files']['source/noah/__init__.py']['size']=1
+  if change=='boolean-size':manifest['files']['source/noah/__init__.py']['size']=False
+  if change=='undeclared':del manifest['files']['source/noah/__init__.py']
+  raw=json.dumps(manifest,sort_keys=True,separators=(',',':')).encode();root=tmp_path/('a'*12+'-'+h.digest(raw)[:16]);payload=root/'payload';payload.mkdir(parents=True)
+  members={**body,'manifest.json':raw}
+  for name,data in members.items():
+   target=payload/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);target.chmod(installed_manifest_mode if name=='manifest.json' else 0o500)
+  for rel,name in(('venv/bin/python','python/bin/python3.11'),('venv/lib/libpython3.11.so.1.0','python/lib/libpython3.11.so.1.0')):
+   target=root/rel;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body[name]);target.chmod(0o500)
+  tarpath=tmp_path/'release.tar.gz'
+  with tarfile.open(tarpath,'w:gz')as bundle:
+   for name,data in members.items():
+    info=tarfile.TarInfo(name);info.size=len(data);info.mode=archive_manifest_mode if name=='manifest.json' else 0o500;bundle.addfile(info,io.BytesIO(data))
+   if change=='duplicate':
+    info=tarfile.TarInfo('source/noah/__init__.py');info.size=0;info.mode=0o500;bundle.addfile(info,io.BytesIO(b''))
+  return {'root':str(root),'archive':str(tarpath),'archive_sha256':h.digest(tarpath.read_bytes()),'manifest_sha256':h.digest(raw)},root
+ # Simulate only root ownership/protected ancestors for a local real-file fixture.
+ monkeypatch.setattr(prepare,'protected_tree',lambda _:None)
+ old=Path.lstat
+ def owned(path):
+  s=old(path);return SimpleNamespace(**{n:(0 if n=='st_uid'else getattr(s,n))for n in dir(s)if n.startswith('st_')})
+ monkeypatch.setattr(Path,'lstat',owned)
+ return make
+
+def test_legitimate_empty_member_declared_in_archive_and_manifest(empty_release_archive):
+ spec,root=empty_release_archive();assert prepare.release(spec)[0]==root
+
+@pytest.mark.parametrize('kind',['wrong-sha','wrong-size','boolean-size','undeclared','duplicate'])
+def test_empty_must_be_declared_identically_in_both_authenticated_inputs(empty_release_archive,kind):
+ spec,_=empty_release_archive(kind)
+ with pytest.raises(ReportPublicationRefused):prepare.release(spec)
+
+@pytest.mark.parametrize('kind',['hardlink','symlink','content','mode','empty-python','empty-library'])
+def test_installed_empty_and_nonempty_custody_guards_remain(empty_release_archive,kind):
+ spec,root=empty_release_archive();target=root/'payload/source/noah/__init__.py'
+ if kind=='hardlink':os.link(target,root/'alias')
+ elif kind=='symlink':target.unlink();target.symlink_to(root/'absent')
+ elif kind=='content':target.chmod(0o700);target.write_bytes(b'changed');target.chmod(0o500)
+ elif kind=='mode':target.chmod(0o700)
+ else:
+  target=root/('venv/bin/python'if kind=='empty-python'else'venv/lib/libpython3.11.so.1.0');target.chmod(0o700);target.write_bytes(b'');target.chmod(0o500)
+ with pytest.raises((ReportPublicationRefused,OSError)):prepare.release(spec)
+
+def test_default_empty_archive_executable_or_input_hash_stays_refused(tmp_path):
+ empty=tmp_path/'empty';empty.touch()
+ with pytest.raises(ReportPublicationRefused):prepare.file_hash(empty)
+ assert prepare.file_hash(empty,allow_empty=True)==h.digest(b'')
+ fifo=tmp_path/'fifo';os.mkfifo(fifo)
+ with pytest.raises(ReportPublicationRefused):prepare.file_hash(fifo)
+
+
+@pytest.mark.parametrize('archive_mode',[0o600,0o644])
+def test_maintained_manifest_mode_normalization(empty_release_archive,archive_mode):
+ spec,root=empty_release_archive(archive_manifest_mode=archive_mode)
+ assert prepare.release(spec)[0]==root
+
+@pytest.mark.parametrize('archive_mode,installed_mode',[(0o640,0o644),(0o666,0o644),(0o755,0o644),(0o4600,0o644),(0o600,0o600),(0o644,0o600),(0o600,0o664),(0o644,0o755)])
+def test_manifest_mode_exception_remains_narrow(empty_release_archive,archive_mode,installed_mode):
+ spec,_=empty_release_archive(archive_manifest_mode=archive_mode,installed_manifest_mode=installed_mode)
+ with pytest.raises(ReportPublicationRefused):prepare.release(spec)
+
+def test_manifest_normalization_does_not_apply_to_payload(empty_release_archive):
+ spec,root=empty_release_archive(archive_manifest_mode=0o600)
+ (root/'payload/source/noah/__init__.py').chmod(0o644)
+ with pytest.raises(ReportPublicationRefused):prepare.release(spec)

@@ -884,7 +884,7 @@
     },
     "noah/core/report_handoff_prepare.py": {
       "mode": "100644",
-      "sha256": "cffece275024e71196913425597d10c54a20aa992bb5c946b4674b411cc66b2e"
+      "sha256": "fb2b7e1ca537b9835c92667a0e455b953c600b33812fb00706798d549a691ba0"
     },
     "noah/core/report_publication.py": {
       "mode": "100644",
@@ -1128,7 +1128,7 @@
     },
     "noah/core/tests/test_report_handoff_prepare.py": {
       "mode": "100644",
-      "sha256": "fdd64d15c965d4775afe35188be2c86f9b7353e6a7364e5f6fc6e4d76878c849"
+      "sha256": "838690550ea38e55c925e123c68483e1dde27d034f3c0d6f24bf6b56d779e538"
     },
     "noah/core/tests/test_report_publication.py": {
       "mode": "100644",
@@ -2977,8 +2977,8 @@
   },
   "review": {
     "date": "2026-11-21",
-    "evidence_sha256": "d33887d4835e26a5f0b2a25a7add93f92bf78148fef9fb0eb46e7e76b219e49c",
-    "owner": "Codex independent combined successor public source reviewer",
+    "evidence_sha256": "b7341dfbb813ce8cd2e3e5c9c3b4ecdbe8ecfaf3a4adef1933bd843a75d7598f",
+    "owner": "Codex independent canonical preparation CLI delta reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

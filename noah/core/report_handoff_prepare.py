@@ -19,12 +19,12 @@ from .report_publication import require, semantic_digest
 from . import report_source_handoff as h
 
 
-def file_hash(path, limit=1024*1024*1024):
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+def file_hash(path, limit=1024*1024*1024, *, allow_empty=False):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     try:
         before = os.fstat(fd)
         require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1
-                and 0 < before.st_size <= limit, 'handoff artifact file refused')
+                and (0 if allow_empty else 1) <= before.st_size <= limit, 'handoff artifact file refused')
         result = hashlib.sha256()
         with os.fdopen(fd, 'rb', closefd=False) as stream:
             for chunk in iter(lambda: stream.read(1024*1024), b''):
@@ -71,12 +71,26 @@ def release(spec):
             sha = hashlib.sha256()
             for chunk in iter(lambda: data.read(1024*1024), b''):
                 sha.update(chunk)
+            # The archive and manifest are already SHA-pinned above. Empty installed
+            # members are admitted only when BOTH declare this exact zero-byte member.
+            declared = manifest['files'].get(name, {})
+            empty_member = (name != 'manifest.json' and member.size == 0
+                            and type(declared.get('size')) is int and declared['size'] == 0
+                            and declared.get('mode') == member.mode
+                            and declared.get('sha256') == hashlib.sha256(b'').hexdigest()
+                            and sha.hexdigest() == declared['sha256'])
+            # bundle.extract normalizes the non-executable envelope manifest to0644.
+            # Payload member modes still match their manifest/archive declarations exactly.
+            installed_mode = member.mode
+            if name == 'manifest.json':
+                require(member.mode in (0o600, 0o644), 'handoff archive manifest mode differs')
+                installed_mode = 0o644
             target = root / 'payload' / name
             protected_tree(target.parent)
             info = target.lstat()
             require(info.st_uid == 0 and not info.st_mode & 0o022
-                    and info.st_size == member.size and stat.S_IMODE(info.st_mode) == member.mode
-                    and file_hash(target) == sha.hexdigest(), 'handoff installed artifact differs')
+                    and info.st_size == member.size and stat.S_IMODE(info.st_mode) == installed_mode
+                    and file_hash(target, allow_empty=empty_member) == sha.hexdigest(), 'handoff installed artifact differs')
             if name == 'manifest.json':
                 require(sha.hexdigest() == spec['manifest_sha256'], 'handoff archive manifest differs')
             else:
