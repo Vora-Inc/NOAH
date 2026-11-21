@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import tempfile
 
@@ -24,6 +25,7 @@ RESULT_SCHEMA = "noah.report-adjudication-result/1"
 MAX_WORKER_OUTPUT = 2 * 1024 * 1024
 MAX_ADJUDICATION_OUTPUT = 64 * 1024 * 1024
 WORKER_TIMEOUT_SECONDS = 900
+SHARED_WORKER_TIMEOUT_SECONDS = 3900
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -82,10 +84,64 @@ def check_worker_ready():
                 "report worker isolation, dependencies or selected source differ")
 
 
+def _worker_document(path, limit):
+    """Read only a bounded stable regular input when choosing a resource profile."""
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        before = os.fstat(descriptor)
+        require(stat.S_ISREG(before.st_mode) and before.st_nlink == 1
+                and 0 < before.st_size <= limit, "worker timeout input shape refused")
+        with os.fdopen(descriptor, 'rb', closefd=False) as handle:
+            raw = handle.read(limit + 1)
+        signature = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        require(len(raw) == before.st_size and signature(before) == signature(os.fstat(descriptor))
+                == signature(Path(path).lstat()), "worker timeout input changed")
+    finally:
+        os.close(descriptor)
+    return raw
+
+
+def worker_timeout(action, arguments):
+    """Only validated package3 shape selects the longer fixed weekly bound.
+
+    This selects time, not proof authority. The isolated worker still performs
+    all normal request, package, raw replay and economic verification.
+    """
+    if action == "assignment-week":
+        return 120
+    if action not in ("adjudicate", "adjudicate-verify"):
+        return WORKER_TIMEOUT_SECONDS
+    values = list(map(str, arguments))
+    def one(flag):
+        require(values.count(flag) == 1 and values.index(flag) + 1 < len(values),
+                "worker timeout arguments differ")
+        return values[values.index(flag) + 1]
+    try:
+        from ..reports.adjudication_contract import (strict_json, strict_manifest_json,
+            validate_invocation, validate_request, MAX_REQUEST_BYTES, MAX_MANIFEST_BYTES)
+        from ..reports.shared_window import eligible, ENGINE_SCHEMA
+        if action == "adjudicate":
+            invocation = strict_json(_worker_document(one('--invocation'), MAX_REQUEST_BYTES))
+            validate_invocation(invocation)
+            return SHARED_WORKER_TIMEOUT_SECONDS if eligible(invocation['request']) else WORKER_TIMEOUT_SECONDS
+        request = strict_json(_worker_document(one('--request'), MAX_REQUEST_BYTES))
+        validate_request(request)
+        raw = _worker_document(Path(one('--package')) / 'manifest.json', MAX_MANIFEST_BYTES)
+        pin = one('--manifest-sha256')
+        require(SHA.fullmatch(pin) and digest(raw) == pin, "worker timeout manifest pin differs")
+        manifest = strict_manifest_json(raw)
+        require(manifest.get('request') == request, "worker timeout manifest request differs")
+        return (SHARED_WORKER_TIMEOUT_SECONDS if manifest['schema'] == ENGINE_SCHEMA
+                and eligible(request) else WORKER_TIMEOUT_SECONDS)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        raise ReportPublicationRefused("worker timeout input validation refused") from exc
+
+
 def run_worker(action, *arguments):
     """Fixed CLI, isolated imports, bounded response; never echo provider secrets."""
     require(action in ("adjudicate", "adjudicate-verify", "resolve-day", "assignment-week"), "unsupported report worker action")
     limit = MAX_ADJUDICATION_OUTPUT if action in ("adjudicate", "adjudicate-verify") else MAX_WORKER_OUTPUT
+    timeout = worker_timeout(action, arguments)
     env = dict(os.environ)
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
@@ -96,7 +152,7 @@ def run_worker(action, *arguments):
             result = subprocess.run(
                 [worker_python(), "-I", "-m", "noah.reports.cli", "validator", action,
                  *map(str, arguments)], env=env, stdout=out, stderr=errors,
-                timeout=120 if action == "assignment-week" else WORKER_TIMEOUT_SECONDS, check=False,
+                timeout=timeout, check=False,
             )
         except (OSError, subprocess.SubprocessError) as exc:
             raise ReportPublicationRefused("report worker could not complete") from exc
@@ -274,7 +330,7 @@ def validate_source_request(source, context, request):
                 "report request Ark identity differs from financial source")
 
 
-def retain_report(directory, source_reference, request, package, submission, *, replay=None, selection=None, reward="gate", reward_transition=None):
+def retain_report(directory, source_reference, request, package, submission, *, replay=None, selection=None, reward="gate", reward_transition=None, source_handoff=None):
     source = verify(directory, source_reference)
     context = artifact(directory, source, "context")
     require("report_gate" not in context and "report_no_bonus" not in context and "starter_overlay" not in context,
@@ -290,6 +346,10 @@ def retain_report(directory, source_reference, request, package, submission, *, 
     proof = {"schema": SCHEMA, "source": source_reference, "request": request,
              "package": package, "result_sha256": semantic_digest(result),
              "submission": submission}
+    if source_handoff is not None:
+        proof["source_handoff"] = source_handoff
+        from .report_source_handoff import verify_proof
+        verify_proof(directory, proof)
     if reward != "gate":
         proof["reward"] = reward
     if reward_transition is not None:
@@ -330,7 +390,8 @@ def verify_report(directory, reference, *, replay=None):
         "schema", "source", "request", "package", "result_sha256", "submission"}
             | ({"selection"} if "selection" in proof else set())
             | ({"reward"} if "reward" in proof else set())
-            | ({"reward_transition"} if "reward_transition" in proof else set()))
+            | ({"reward_transition"} if "reward_transition" in proof else set())
+            | ({"source_handoff"} if "source_handoff" in proof else set()))
             and proof["schema"] == SCHEMA, "invalid report publication proof")
     source = verify(directory, proof["source"])
     source_context = artifact(directory, source, "context")
@@ -339,6 +400,8 @@ def verify_report(directory, reference, *, replay=None):
     require({k: v for k, v in context.items() if k != "report_gate"} == source_context,
             "report calculation context differs from raw source")
     request = proof["request"]
+    from .report_source_handoff import verify_proof
+    verify_proof(directory, proof)
     from .report_reward_transition import verify_proof_reference
     verify_proof_reference(directory, proof)
     validate_source_request(source, source_context, request)

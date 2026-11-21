@@ -133,6 +133,11 @@ def configure(adapter, settings):
     adapter.report_reward = getattr(settings, "report_reward", "gate")
     require(adapter.report_reward in ("gate", "bonus-20"), "unsupported report reward")
     adapter.report_gate_policy_path = settings.report_gate_policy
+    adapter.report_source_handoff = getattr(settings, "report_source_handoff", None)
+    adapter.report_source_handoff_sha256 = getattr(settings, "report_source_handoff_sha256", None)
+    if adapter.report_source_handoff is not None:
+        from .report_source_handoff import configured
+        configured(adapter)
     bind_activation(adapter, policy, persist=False)
     adapter.report_gate_enabled = True
     adapter.weekly_assignments = weekly
@@ -422,12 +427,13 @@ def request_for(adapter, reference, policy, assignments=None):
     return request
 
 
-def resume_raw_source(adapter, current, frozen):
+def resume_raw_source(adapter, current, frozen, *, request_raw=None):
     """Resume a frozen pre-send request without changing its financial evidence.
 
     A later loop pin changes only the attempt height in an otherwise identical
     raw calculation. Keep that new attempt's audit record, but use the original
-    R0 for its existing request/marker. Any other difference still refuses.
+    R0 for its existing request/marker. A changed producer needs an explicit
+    request-bound operator handoff; every financial difference still refuses.
     """
     root = adapter._submitted_record_dir
     latest = verify(root, current)
@@ -447,9 +453,14 @@ def resume_raw_source(adapter, current, frozen):
                 "frozen report retry requires authentic raw calculation references")
     require(type(original["height"]) is int and type(latest["height"]) is int
             and original["height"] <= latest["height"], "frozen report retry moves backwards")
-    require({k: v for k, v in contexts[0].items() if k != "height"}
-            == {k: v for k, v in contexts[1].items() if k != "height"},
-            "frozen report retry calculation context differs")
+    same_context = ({k: v for k, v in contexts[0].items() if k != "height"}
+                    == {k: v for k, v in contexts[1].items() if k != "height"})
+    adapter._report_source_handoff_reference = None
+    if not same_context and request_raw is not None:
+        from .report_source_handoff import authorize
+        adapter._report_source_handoff_reference = authorize(adapter, current, frozen, request_raw)
+    else:
+        require(same_context, "frozen report retry calculation context differs")
     expected = {**latest, "height": original["height"],
                 "artifacts": {**latest["artifacts"], "context": original["artifacts"]["context"]}}
     require(original == expected, "frozen report retry financial evidence or vector differs")
@@ -473,6 +484,7 @@ def prepare_daily(adapter, vector):
     configuration = configuration_for_day(adapter, configuration, manifest["day"])
     endpoints = list(adapter.runner_chain.endpoints.values())
     assignments = None
+    adapter._report_source_handoff_reference = None
     if configuration.get("schema") == "noah.weekly-assignment-template/2":
         from .weekly_runtime import bind_template, marker_path, validate_no_bonus_marker, retain_no_bonus
         from .report_reward_transition import read_document
@@ -504,8 +516,9 @@ def prepare_daily(adapter, vector):
     # Restart/retry never silently retimes a signed round or substitutes a policy.
     path = root / "report-state" / f"day-{manifest['day']}.request.json"
     if path.exists():
-        request = json.loads(path.read_text())
-        source, manifest = resume_raw_source(adapter, source, request["calculation"]["reference"])
+        request_raw = path.read_bytes()
+        request = json.loads(request_raw)
+        source, manifest = resume_raw_source(adapter, source, request["calculation"]["reference"], request_raw=request_raw)
         require(request["calculation"]["fixture_sha256"] == manifest["artifacts"]["fixture"]["sha256"]
                 and request["policy"] == policy
                 and request.get("assignments") == assignments,
@@ -549,7 +562,8 @@ def prepare_daily(adapter, vector):
     ref, gated = retain_report(root, source, request, package,
                                allocation_inputs(adapter, attempt_height), selection=selection,
                                reward=selected_reward(adapter, manifest["day"]),
-                               reward_transition=transition_reference(adapter, manifest["day"]))
+                               reward_transition=transition_reference(adapter, manifest["day"]),
+                               source_handoff=adapter._report_source_handoff_reference)
     adapter._calculation_reference = ref
     return gated
 
@@ -656,6 +670,8 @@ def check_before_send(adapter, reference, vector):
         require(proof is None, "new report cutoff would bypass an existing frozen proof")
         return  # Pre-effective financial days keep their original allocation.
     require(proof is not None, "new send lacks selected report enforcement")
+    from .report_source_handoff import check_send
+    check_send(adapter, proof)
     require(proof.get("reward", "gate") == selected_reward(adapter, manifest["day"]),
             "report reward differs from frozen calculation")
     require(proof.get("reward_transition") == transition_reference(adapter, manifest["day"]),

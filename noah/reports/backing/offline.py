@@ -273,7 +273,8 @@ def _params(params) -> list:
 
 
 class _ReplaySocket:
-    def __init__(self, index: dict[str, list[dict]]):
+    def __init__(self, index: dict[str, list[dict]], *, immutable_reuse=False):
+        self.immutable_reuse = immutable_reuse
         self.index = {key: list(rows) for key, rows in index.items()}
         self.pending: list[str] = []
 
@@ -286,7 +287,9 @@ class _ReplaySocket:
         # Metadata and the runtime version do not change across this package.
         # Replaying them once per recorded call is not enough: initialization
         # and the collector both read them.
-        if request["method"] in {"state_getMetadata", "state_getRuntimeVersion", "rpc_methods"}:
+        from .rpc_cache import immutable_key
+        reusable = self.immutable_reuse and immutable_key(request["method"], request.get("params")) is not None
+        if reusable or request["method"] in {"state_getMetadata", "state_getRuntimeVersion", "rpc_methods"}:
             row = queue[0]
         else:
             row = queue.pop(0)

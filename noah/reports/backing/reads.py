@@ -140,6 +140,12 @@ class Reader:
             raise RunFailure("decode_error") from exc
 
     def discover_coldkeys(self, netuid: int) -> list[bytes]:
+        inventory = getattr(self.source, 'alpha_inventory', None)
+        if inventory is not None:
+            coldkeys, pages, positions = inventory(netuid)
+            self.page_count += pages
+            self.position_count += positions
+            return coldkeys
         prefix = hex_encode(alpha_v2_prefix())
         start = None
         found: set[bytes] = set()
@@ -269,3 +275,36 @@ def _header_number(header: Any) -> int:
     except ValueError as exc:
         raise RunFailure("decode_error") from exc
     raise RunFailure("decode_error")
+
+
+def alpha_inventory(source, block_hash):
+    prefix = hex_encode(alpha_v2_prefix())
+    start = None
+    found, positions, pages = {}, {}, 0
+    while True:
+        page = source.call('state_getKeysPaged', [prefix, KEY_PAGE_SIZE, start, block_hash])
+        if (not isinstance(page, list) or len(page) > KEY_PAGE_SIZE
+                or any(type(key) is not str or not key.startswith(prefix) for key in page)
+                or page != sorted(set(page))
+                or (start is not None and page and page[0] <= start)):
+            raise RunFailure('decode_error')
+        pages += 1
+        if pages > 4096:
+            raise RunFailure('decode_error')
+        if not page:
+            break
+        for key_hex in page:
+            if not isinstance(key_hex, str):
+                raise RunFailure('decode_error')
+            parsed = parse_alpha_v2_key(hex_decode(key_hex))
+            if parsed is None:
+                continue
+            _hot, cold, netuid = parsed
+            found.setdefault(netuid, set()).add(cold)
+            positions[netuid] = positions.get(netuid, 0) + 1
+        if start is not None and page[-1] == start:
+            raise RunFailure('decode_error')
+        start = page[-1]
+        if len(page) < KEY_PAGE_SIZE:
+            break
+    return {netuid: sorted(coldkeys) for netuid, coldkeys in found.items()}, positions, pages

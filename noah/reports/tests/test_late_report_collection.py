@@ -27,12 +27,14 @@ def moment(number):
 class ReportChain(SyntheticChain):
     def __init__(self):
         super().__init__(15)
-        self.decoded = []
+        self.body_reads, self.event_reads = [], []
 
     def rpc_request(self, method, params=None, result_handler=None):
         params = params or []
         if method == 'chain_getBlockHash' and params:
             return {'result': _hash(int(params[0], 16) if isinstance(params[0], str) else params[0])}
+        if method == 'chain_getBlock':
+            self.body_reads.append(int(self.headers[params[0]]['number'], 16))
         if method == 'state_getStorage':
             assert params[0] == '0x' + timestamp_now_key().hex()
             number = int(self.headers[params[1]]['number'], 16)
@@ -45,7 +47,7 @@ class ReportChain(SyntheticChain):
         if (module, storage) == ('SubtensorModule', 'Owner'):
             return _Query(ss58_encode(OTHER))
         if (module, storage) == ('System', 'Events'):
-            self.decoded.append(int(self.headers[block_hash]['number'], 16))
+            self.event_reads.append(int(self.headers[block_hash]['number'], 16))
         return super().query(module, storage, params, block_hash, **kwargs)
 
     def submit(self, number, raw, *, success=True, signer=MINER, netuid=82):
@@ -111,9 +113,10 @@ def test_collector_classifies_only_observed_current_round_pairs(monkeypatch, com
     pair(chain, payload, commit, reveal)
     verdict, evidence = collect(chain, contract, monkeypatch)
     assert (verdict['status'], verdict['reason']) == (status, reason)
-    assert max(chain.decoded) == 11
+    assert set(chain.body_reads) == set(range(2, 12))
+    assert set(chain.event_reads) == {n for n in (commit, reveal) if n is not None and 2 <= n <= 11}
     if reveal == 12:
-        assert evidence['reveal'] is None and 12 not in chain.decoded
+        assert evidence['reveal'] is None and 12 not in chain.body_reads
 
 
 def test_earliest_timely_pair_wins_over_early_late_and_later_commits(monkeypatch):

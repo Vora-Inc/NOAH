@@ -773,7 +773,9 @@ def _report_identity_labels(text: str) -> str:
                     validators = {
                         'noah.report-adjudication-manifest/1': validate_adjudication,
                         'noah.report-adjudication-manifest/2': validate_adjudication,
+                        'noah.report-adjudication-manifest/3': validate_adjudication,
                         'noah.report-shared-window/1': validate_shared_window,
+                        'noah.report-shared-window/2': validate_shared_window,
                         'noah.report-adjudication-result/1': validate_adjudication,
                         'noah.report-snapshot-roster/1': validate_roster,
                         'noah.report-required-roster/1': validate_required_roster,

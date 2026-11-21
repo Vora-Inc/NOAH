@@ -25,6 +25,12 @@ LIMITS = ReportPackageLimits(manifest_bytes=16*1024**2, member_bytes=64*1024**2,
     expanded_member_bytes=128*1024**2, total_bytes=256*1024**2,
     total_expanded_bytes=512*1024**2, members=500000, path_depth=12,
     json_depth=64, line_bytes=8*1024**2)
+# Package/3 shares immutable engine inputs and uses measured Mainnet capacity.
+# Old package schemas retain their original package ceilings below.
+SHARED_LIMITS = ReportPackageLimits(manifest_bytes=16*1024**2, member_bytes=64*1024**2,
+    expanded_member_bytes=128*1024**2, total_bytes=384*1024**2,
+    total_expanded_bytes=768*1024**2, members=500000, path_depth=12,
+    json_depth=64, line_bytes=8*1024**2)
 ANCESTRY_LIMIT = 10000
 ROSTER_LIMIT = 4096
 MAX_ROUNDS = 128
@@ -68,7 +74,7 @@ def _inventory(root):
             with gzip.open(path, 'rb') as handle:
                 expanded = handle.read(LIMITS.expanded_member_bytes + 1)
             require(len(expanded) <= LIMITS.expanded_member_bytes, 'package expansion limit')
-            kind = 'rpc_responses' if path.name == 'responses.jsonl.gz' else 'receipts'
+            kind = 'rpc_responses' if path.name == 'responses.jsonl.gz' or path.name.startswith('responses-') else 'receipts'
             encoding = 'gzip'
         else:
             expanded, encoding = raw, 'identity'
@@ -299,7 +305,7 @@ def _semantic_reconstruction(request, root, *, budget=None, shared=False):
         paths = [root / 'seats' / label / f'{pin}.jsonl.gz' for pin, _ in _seat_groups(request)]
         if shared:
             from .shared_window import stream_paths
-            paths.extend(stream_paths(request, root, label))
+            paths.extend(stream_paths(request, root, label, version=3 if shared == 3 else 2))
         else:
             for contract in request['policy']['required_rounds']:
                 directory = root / 'rounds' / digest(contract) / label
@@ -316,7 +322,7 @@ def _semantic_reconstruction(request, root, *, budget=None, shared=False):
             require(rebuilt == seats, 'scored identity differs')
     if shared:
         from .shared_window import reconstruct_readers
-        paired = {label: reconstruct_readers(request, root, label, budget=budget) for label in ('reader_a', 'reader_b')}
+        paired = {label: reconstruct_readers(request, root, label, budget=budget, version=3 if shared == 3 else 2) for label in ('reader_a', 'reader_b')}
     for contract in request['policy']['required_rounds']:
         if budget:
             budget.remaining()
@@ -364,20 +370,21 @@ def verify_adjudication(package, request, manifest_sha256, *, include_round_arti
     """Offline raw replay against externally pinned manifest and exact request."""
     _policy(request)
     from .package_snapshot import snapshot_package
-    with snapshot_package(package, manifest_sha256=manifest_sha256, limits=LIMITS) as root:
+    with snapshot_package(package, manifest_sha256=manifest_sha256, limits=SHARED_LIMITS) as root:
         return _verify_snapshot(root, request, manifest_sha256, include_round_artifacts=include_round_artifacts)
 
 
 def _verify_snapshot(root, request, manifest_sha256, *, include_round_artifacts=False):
     manifest = _read(root / 'manifest.json')
-    from .shared_window import SCHEMA as SHARED_SCHEMA, expected_members
+    from .shared_window import SCHEMA as SHARED_SCHEMA, ENGINE_SCHEMA, expected_members
     schema = manifest.get('schema')
-    require(schema in (MANIFEST_SCHEMA, SHARED_SCHEMA), 'unsupported adjudication package schema')
-    shared = schema == SHARED_SCHEMA
-    validate_package_inventory(root, manifest_sha256=manifest_sha256, limits=LIMITS,
-                               expected_members=expected_members(request) if shared else _expected_members(request))
+    require(schema in (MANIFEST_SCHEMA, SHARED_SCHEMA, ENGINE_SCHEMA), 'unsupported adjudication package schema')
+    shared = 3 if schema == ENGINE_SCHEMA else (2 if schema == SHARED_SCHEMA else False)
+    limits = SHARED_LIMITS if shared == 3 else LIMITS
+    validate_package_inventory(root, manifest_sha256=manifest_sha256, limits=limits,
+                               expected_members=expected_members(request, version=shared, root=root) if shared else _expected_members(request))
     require(manifest.get('request') == request, 'manifest answers a different request')
-    summaries, decisions, artifacts = (_semantic_reconstruction(request, root, shared=True) if shared else
+    summaries, decisions, artifacts = (_semantic_reconstruction(request, root, shared=shared) if shared else
                                        _semantic_reconstruction(request, root))
     for artifact in artifacts:
         directory = root / 'rounds' / digest(artifact['contract'])
@@ -386,15 +393,23 @@ def _verify_snapshot(root, request, manifest_sha256, *, include_round_artifacts=
     expected = _manifest(request, root, summaries, decisions, schema=schema)
     require(canonical_bytes(manifest) == canonical_bytes(expected), 'manifest differs from raw reconstruction')
     # Recheck immutable bytes after replay, including sources used by decoders.
-    validate_package_inventory(root, manifest_sha256=manifest_sha256, limits=LIMITS)
+    validate_package_inventory(root, manifest_sha256=manifest_sha256, limits=limits)
     result = {key: expected[key] for key in ('request_sha256', 'policy_sha256', 'status', 'rounds', 'scored_decisions')}
     return {'schema': RESULT_SCHEMA, 'manifest_sha256': manifest_sha256, **result,
             **({'round_artifacts': artifacts} if include_round_artifacts else {})}
 
 
-def adjudicate(invocation, output):
+def budget_for_request(request):
     from .budget import ProviderBudget
-    budget = ProviderBudget()
+    from .shared_window import eligible
+    if eligible(request):
+        return ProviderBudget(seconds=3600, total_bytes=768*1024**2, retained_bytes=768*1024**2)
+    return ProviderBudget()
+
+
+def adjudicate(invocation, output):
+    validate_invocation(invocation)
+    budget = budget_for_request(invocation['request'])
     try:
         return _adjudicate(invocation, output, budget)
     finally:
@@ -408,8 +423,8 @@ def _adjudicate(invocation, output, budget):
     require(len(request['policy']['required_rounds']) <= MAX_ROUNDS and len(request['scored_seats']) <= ROSTER_LIMIT,
             'invocation round/seat resource limit')
     require(all(source['history'] is None for source in invocation['sources']), 'report provider does not accept deposit history')
-    from .shared_window import eligible, collect_readers, SCHEMA as SHARED_SCHEMA
-    shared = eligible(request)
+    from .shared_window import eligible, collect_readers, ENGINE_SCHEMA
+    shared = 3 if eligible(request) else False
     root = Path(output)
     root.mkdir(parents=True, exist_ok=False, mode=0o700)
     for source in invocation['sources']:
@@ -419,7 +434,7 @@ def _adjudicate(invocation, output, budget):
             _source_session(source['endpoint'], pin, _seat_group_operation(request, seats),
                 directory / f"{pin}.jsonl.gz", source['id'], budget)
         if shared:
-            collect_readers(request, source, root, budget)
+            collect_readers(request, source, root, budget, version=shared)
         else:
             for contract in request['policy']['required_rounds']:
                 _collect_reader(request, contract, source, root / 'rounds' / digest(contract) / source['id'], budget)
@@ -429,7 +444,7 @@ def _adjudicate(invocation, output, budget):
         _write(directory / 'required-roster.json', artifact['required_roster'])
         _write(directory / 'final-verdicts.json', artifact['verdicts'])
     _write(root / 'manifest.json', _manifest(request, root, summaries, decisions,
-           schema=SHARED_SCHEMA if shared else MANIFEST_SCHEMA))
+           schema=ENGINE_SCHEMA if shared else MANIFEST_SCHEMA))
     result = verify_adjudication(root, request, bytes_sha256((root / 'manifest.json').read_bytes()))
     budget.remaining()
     # Persist files and directory entries before returning a complete package.

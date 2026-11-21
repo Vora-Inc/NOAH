@@ -63,7 +63,9 @@ class ProviderBudget:
         socket = self.transports.get(endpoint)
         if socket is None:
             socket = self.transports[endpoint] = self.socket(endpoint)
-        socket.timeout = min(timeout, self.remaining())
+        # send checks terminal failures before the deadline; each actual socket
+        # operation still clamps this timeout to the remaining invocation time.
+        socket.timeout = timeout
         socket.send(json.dumps(payload))
         raw = socket.recv()  # Checked before JSON decoding or receipt creation.
         return json.loads(raw)
@@ -80,44 +82,69 @@ class BoundedSocket:
         self.connection = None
         self.payload = None
         self.timeout = 30
+        self._failure = None
+
+    def check_failure(self):
+        """Refuse cached or retried work after this transport's first failure."""
+        if self._failure is not None:
+            error, traceback = self._failure
+            # Reuse the original traceback rather than accumulating retry frames.
+            raise error.with_traceback(traceback)
+
+    def _remember_failure(self, error):
+        # An incomplete response cannot be consumed or retried on this transport.
+        # SDK retries must retain its cause, not mask it as a pending request.
+        if self._failure is None:
+            self._failure = (error, error.__traceback__)
+        self.payload = None
 
     def send(self, raw):
+        self.check_failure()
         payload = json.loads(raw)
         self.budget.request(payload)
         if self.payload is not None:
             raise ReportError('report RPC overlapping request refused')
         self.payload = raw
-        if urlsplit(self.endpoint).scheme in ('http', 'https'):
-            return
-        if urlsplit(self.endpoint).scheme not in ('ws', 'wss'):
-            raise ReportError('report RPC scheme refused')
-        if self.connection is None:
-            from websockets.sync.client import connect
-            self.connection = connect(self.endpoint,
-                open_timeout=min(self.timeout, self.budget.remaining()), close_timeout=1,
-                max_size=self.budget.response_limit, max_queue=1)
-        self.connection.send(raw)
+        try:
+            if urlsplit(self.endpoint).scheme in ('http', 'https'):
+                return
+            if urlsplit(self.endpoint).scheme not in ('ws', 'wss'):
+                raise ReportError('report RPC scheme refused')
+            if self.connection is None:
+                from websockets.sync.client import connect
+                self.connection = connect(self.endpoint,
+                    open_timeout=min(self.timeout, self.budget.remaining()), close_timeout=1,
+                    max_size=self.budget.response_limit, max_queue=1)
+            self.connection.send(raw)
+        except Exception as error:
+            self._remember_failure(error)
+            raise
 
     def recv(self):
+        self.check_failure()
         if self.payload is None:
             raise ReportError('report RPC response without request')
-        request = json.loads(self.payload)
-        if urlsplit(self.endpoint).scheme in ('http', 'https'):
-            from urllib.request import Request, urlopen
-            req = Request(self.endpoint, data=self.payload.encode('utf-8'),
-                          headers={'Content-Type': 'application/json'})
-            with urlopen(req, timeout=min(self.timeout, self.budget.remaining())) as response:
-                raw = response.read(min(self.budget.response_limit,
-                    self.budget.total_limit - self.budget.bytes) + 1)
-        else:
-            raw = self.connection.recv(timeout=min(self.timeout, self.budget.remaining()))
-        raw = self.budget.response(raw)
-        # Refuse unsolicited/subscription replies before the SDK queues them.
-        decoded = json.loads(raw)
-        if not isinstance(decoded, dict) or decoded.get('id') != request.get('id'):
-            raise ReportError('report RPC response ID differs')
-        self.payload = None
-        return raw
+        try:
+            request = json.loads(self.payload)
+            if urlsplit(self.endpoint).scheme in ('http', 'https'):
+                from urllib.request import Request, urlopen
+                req = Request(self.endpoint, data=self.payload.encode('utf-8'),
+                              headers={'Content-Type': 'application/json'})
+                with urlopen(req, timeout=min(self.timeout, self.budget.remaining())) as response:
+                    raw = response.read(min(self.budget.response_limit,
+                        self.budget.total_limit - self.budget.bytes) + 1)
+            else:
+                raw = self.connection.recv(timeout=min(self.timeout, self.budget.remaining()))
+            raw = self.budget.response(raw)
+            # Refuse unsolicited/subscription replies before the SDK queues them.
+            decoded = json.loads(raw)
+            if not isinstance(decoded, dict) or decoded.get('id') != request.get('id'):
+                raise ReportError('report RPC response ID differs')
+            self.payload = None
+            return raw
+        except Exception as error:
+            self._remember_failure(error)
+            raise
 
     def close(self):
         if self.connection is not None:

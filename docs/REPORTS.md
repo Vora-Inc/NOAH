@@ -319,8 +319,11 @@ with the bonus through V2 pay, an omitted reveal with two preserved verified
 results and no bonus, and rejection of a different assignment signer on both
 sides. Local fixtures do not establish live acceptance. The shared-window package
 passed synthetic capacity and fresh replay checks for 128 targets, 214 miners and
-7,200 blocks under the existing limits. Final Linux release checks and actual
-host qualification remain required before claiming production readiness.
+7,200 blocks under the existing limits. Those counts do not establish capacity
+for Mainnet block and event payload sizes. Qualification must also complete the
+actual frozen paired-reader request under the configured resource bounds.
+Final Linux release checks and actual host qualification remain required before
+claiming production readiness.
 
 ## Validator commands
 
@@ -358,6 +361,41 @@ collector alone is not sufficient evidence for a live reward or penalty.
 The paired provider obtains the complete registered roster itself, authenticates
 scored identities including owner and registration block, freezes one finalized
 evaluation boundary, and reconstructs both readers before deciding:
+
+New weekly packages use format 3. Within each reader's shared window, repeated
+queries at an explicit block hash reuse bounded raw input copies. Global AlphaV2
+pages and their decoded input index are retained/reconstructed once per reader
+and snapshot; every target still executes its own engine and verdict rules.
+Inputs are never shared between readers. Event records are fetched only when a
+fully decoded body could contain a commitment for the mining subnet, including
+nested or undecodable candidate calls. Complete snapshot-to-evaluation coverage
+and early/late observations remain required. A failed transport stays failed;
+a cache hit cannot hide its original refusal.
+
+An actual Mainnet frozen request contained 127 targets. One reader's complete
+block bodies consumed 113,929,245 response bytes; its global AlphaV2 inventory
+contained 342,537 keys in 343 pages and consumed 90,787,303 wire bytes. Two
+independent readers therefore cannot fit the former 256 MiB aggregate ceiling,
+even before other required reads. Format 3 selects finite 768 MiB network and
+retained-input ceilings, with 200,000 calls and 8 MiB single-response limits.
+The actual paired 127-target trial reached 900 seconds while the slower second
+reader was still completing its full block window; it did not exhaust bytes or
+memory. Compatible weekly collection therefore has a finite 3,600-second budget,
+including both internal raw replays. The parent allows 3,900 seconds for that
+collection and for hash-pinned format 3 offline verification, including startup
+and cleanup. Nonweekly collection and historical format 1/2 replay retain their
+900-second parent bounds; assignment generation retains 120 seconds. There is
+no operator timeout override. A timeout refuses publication and preserves the
+frozen request. The longer bound still needs actual full-request qualification. Raw streams use contiguous, bounded 32 MiB expanded
+chunks. Per-member limits remain 64 MiB stored/128 MiB expanded; the new package
+allows 384 MiB stored/768 MiB expanded. Actual full-request completion, independent
+offline replay and memory measurement are still qualification gates, not implied
+by these ceilings. There is no automatic budget increase or missing-report bypass.
+
+Historical formats 1 and 2 retain their replay rules and semantic package limits.
+The backup transport's outer report profile accepts the larger format 3 envelope;
+semantic verification still selects the original limits for historical schemas.
+Backup and restore tools must be upgraded together with the provider.
 
 ```sh
 noah-validator reports adjudicate --invocation invocation.json --output new-private-package
@@ -582,3 +620,13 @@ supported report-signing path, but does not patch the dependency. The raw audit
 remains failing and is retained for review; no blanket advisory suppression was
 added. Replacing the legacy decoder or approving a narrowly justified exception
 is required before calling the candidate release-ready.
+
+## Frozen requests across a producer upgrade
+
+An unsent frozen request keeps its original evaluation, policy, assignments and
+financial calculation after a report-only code upgrade. Source changes remain
+refused by default. The optional [exact-request source handoff](REPORT_SOURCE_HANDOFF.md)
+requires a protected operator authorization, authenticated old/new artifacts,
+four matching scoring-engine results and a separately generated successor R0
+with identical financial evidence. `noah-validator report-handoff` only prepares
+a reviewable draft; it never installs configuration or publishes weights.

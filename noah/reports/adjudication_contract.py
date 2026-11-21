@@ -48,8 +48,8 @@ def strict_manifest_json(raw):
     """Only retained report manifests receive the larger full-day inventory cap."""
     value = _strict_json(raw, MAX_MANIFEST_BYTES, 'manifest')
     require(type(value) is dict and value.get('schema') in
-            ('noah.report-adjudication-manifest/1', 'noah.report-adjudication-manifest/2',
-             'noah.report-reader-package/1', 'noah.report-reader-package/2', 'noah.report-shared-window/1'),
+            ('noah.report-adjudication-manifest/1', 'noah.report-adjudication-manifest/2', 'noah.report-adjudication-manifest/3',
+             'noah.report-reader-package/1', 'noah.report-reader-package/2', 'noah.report-reader-package/3', 'noah.report-shared-window/1', 'noah.report-shared-window/2'),
             'retained manifest schema required')
     return value
 

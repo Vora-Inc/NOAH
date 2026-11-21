@@ -14,13 +14,13 @@ from noah.secret_scan import _report_identity_labels, scan_text
 @pytest.fixture(scope='module')
 def shared(paired):
     root, _, _ = paired
-    return json.loads((root/'v2/shared/reader_a/manifest.json').read_bytes())
+    return json.loads((root/'v3/shared/reader_a/manifest.json').read_bytes())
 
 
 @pytest.mark.parametrize('style', ['compact', 'pretty', 'spaced'])
 def test_real_shared_manifests_preserve_identity_values_and_offsets(paired, shared, style):
     root, _, _ = paired
-    manifest = json.loads((root/'v2/manifest.json').read_bytes())
+    manifest = json.loads((root/'v3/manifest.json').read_bytes())
     for value, validator in ((manifest, validate_adjudication), (shared, validate_shared_window)):
         nodes = validator(value)
         text = encode(value, style)
@@ -43,7 +43,7 @@ def test_malformed_shared_binding_never_projects_partial_round(shared, damage):
     value = copy.deepcopy(shared)
     binding = value['binding']; contract = binding['round']
     if damage == 'extra': value['unexpected'] = True
-    elif damage == 'schema': value['schema'] = 'noah.report-shared-window/2'
+    elif damage == 'schema': value['schema'] = 'noah.report-shared-window/999'
     elif damage == 'reader': value['reader'] = 'unknown'
     elif damage == 'binding_schema': binding['schema'] = 'unknown'
     elif damage == 'round_extra': contract['unexpected'] = True
@@ -89,9 +89,9 @@ def test_shared_ambiguous_json_never_projects(shared, damage):
     assert _report_identity_labels(text) == text
 
 
-def test_rehashed_root_v2_requires_common_context_window(paired):
+def test_rehashed_root_v3_requires_common_context_window(paired):
     root, _, _ = paired
-    value = json.loads((root/'v2/manifest.json').read_bytes())
+    value = json.loads((root/'v3/manifest.json').read_bytes())
     request = value['request']
     request['policy']['required_rounds'][1]['scoring_release'] += '-different'
     request['policy_sha256'] = digest(request['policy'])
@@ -104,7 +104,7 @@ def test_rehashed_root_v2_requires_common_context_window(paired):
 @pytest.mark.parametrize('damage', ['extra', 'hash', 'targets'])
 def test_invalid_assignment_keeps_its_key_labels(paired, damage):
     root, _, _ = paired
-    request = json.loads((root/'v2/manifest.json').read_bytes())['request']
+    request = json.loads((root/'v3/manifest.json').read_bytes())['request']
     assignment = request['assignments'][0]
     if damage == 'extra': assignment['secret_seed'] = 'ab' * 32
     elif damage == 'hash': assignment['hotkey'] = 'zz' * 32

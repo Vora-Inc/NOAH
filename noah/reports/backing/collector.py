@@ -96,7 +96,7 @@ def collect(round_contract: dict, urls: list[str], out_dir: Path, hotkeys: list[
                 pass
 
 
-def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock, *, chain_source=None, history_checkpoint=None, prior_responses=None, history_dir=None, evaluation=None, evaluation_ancestor_limit=None, budget=None, shared_window=None, capture_window=False):
+def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock, *, chain_source=None, history_checkpoint=None, prior_responses=None, history_dir=None, evaluation=None, evaluation_ancestor_limit=None, budget=None, shared_window=None, capture_window=False, shared_engine=None, mining_netuid_filter=None):
     from .protocol.preimage import REPORT_POLICY
     report_only = round_contract["eligibility_policy_version"] == REPORT_POLICY
     if report_only and any(value is not None for value in (history_checkpoint, prior_responses, history_dir)):
@@ -185,14 +185,15 @@ def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock,
         decode_errors = []
         for row in window:
             try:
-                decoded, raw = _decode_block(substrate, row)
+                decoded, raw = _decode_block(substrate, row, mining_netuid=mining_netuid_filter)
             except Exception as exc:
                 decode_errors.append(f"block {row['number']}: {type(exc).__name__}")
                 continue
             for call in decoded:
                 call["genesis_hash"] = bare_genesis
             calls.extend(decoded)
-            raw_blocks[row["number"]] = raw
+            if not capture_window:
+                raw_blocks[row["number"]] = raw
         if report_only:
             history_rows, history_errors, history_missing = [], [], []
         elif checkpoint_error is not None:
@@ -253,7 +254,11 @@ def _collect(substrate, endpoint, urls, round_contract, out_dir, hotkeys, clock,
                          'history_complete': history_complete,
                          'response_count': response_start}
     pin = "0x" + round_contract["block_hash"]
-    if chain_source is None:
+    if shared_engine is not None:
+        shared_engine.begin_round()
+        source = shared_engine
+        calc_receipts = shared_engine.receipts
+    elif chain_source is None:
         client = RpcClient(urls, pin, budget.transport if budget else websocket_transport, run_budget_s=180)
         source = LiveSource(client)
         calc_receipts = client.receipts
@@ -429,12 +434,27 @@ def _one(round_contract, selected, registered, owner, hotkey, history_rows, hist
     }
 
 
-def _attach_recorder(substrate, budget=None):
+def _attach_recorder(substrate, budget=None, *, immutable_cache=False):
     """Keep every raw response the collector asks the node for."""
     original = substrate.rpc_request
     rows = []
+    from .rpc_cache import ImmutableRpcCache, immutable_key
+    cache = (ImmutableRpcCache(max_bytes=budget.total_limit, max_entries=budget.max_calls)
+             if immutable_cache and budget is not None else None)
+    substrate._immutable_rpc_cache = cache
 
     def wrapped(method, params=None, result_handler=None):
+        key = immutable_key(method, params, result_handler) if cache is not None else None
+        if cache is not None:
+            check_failure = getattr(getattr(substrate, 'websocket', None), 'check_failure', None)
+            if callable(check_failure):
+                check_failure()
+            else:
+                key = None  # An unknown transport cannot bypass its own failure checks.
+            budget.remaining()
+            cached = cache.get(key)
+            if cached is not None:
+                return cached
         response = original(method, params, result_handler)
         if result_handler is None and isinstance(response, dict) and "result" in response:
             # Copy now. Later decoders mutate the same object.
@@ -451,20 +471,22 @@ def _attach_recorder(substrate, budget=None):
                 "result": result,
                 "sha256": digest,
             })
+            if cache is not None:
+                cache.put(key, response)
         return response
 
     substrate.rpc_request = wrapped
     return rows
 
 
-def _connect(urls, budget=None):
+def _connect(urls, budget=None, *, immutable_cache=False):
     last = None
     for url in urls:
         substrate = None
         try:
             substrate = (SubstrateInterface(websocket=budget.socket(url), auto_discover=False)
                          if budget else live_sdk(url, auto_discover=False))
-            substrate._response_log = _attach_recorder(substrate, budget=budget)
+            substrate._response_log = _attach_recorder(substrate, budget=budget, immutable_cache=immutable_cache)
             substrate.init_runtime()
             return substrate, endpoint_label(url)
         except Exception as exc:
@@ -635,10 +657,43 @@ def _walk(substrate, head, stop=None, *, max_blocks=None):
     return rows, errors
 
 
-def _decode_block(substrate, row):
+def _body_has_commitment(block, mining_netuid=None):
+    pending = [extrinsic.value for extrinsic in block["extrinsics"]]
+    seen = set()
+    while pending:
+        value = pending.pop()
+        if not isinstance(value, (dict, list, tuple)):
+            continue
+        identity = id(value)
+        if identity in seen or len(seen) >= 100000:
+            return True  # Do not infer absence from an opaque/cyclic structure.
+        seen.add(identity)
+        if isinstance(value, dict):
+            if value.get("call_module") == "Commitments" and value.get("call_function") == "set_commitment":
+                if mining_netuid is None:
+                    return True
+                args = value.get("call_args")
+                if isinstance(args, list):
+                    try:
+                        args = {item["name"]: item["value"] for item in args}
+                    except (KeyError, TypeError):
+                        return True
+                if not isinstance(args, dict) or type(args.get("netuid")) is not int or args["netuid"] == mining_netuid:
+                    return True
+            pending.extend(value.values())
+        else:
+            pending.extend(value)
+    return False
+
+
+def _decode_block(substrate, row, *, mining_netuid=None):
     raw = substrate.rpc_request("chain_getBlock", [row["hash"]])["result"]
     block = substrate.get_block(block_hash=row["hash"])
-    events = substrate.query("System", "Events", block_hash=row["hash"]).value or []
+    # Event success is relevant only if a decoded body contains a commitment
+    # call. Inspect nested calls too; unknown/cyclic structures conservatively
+    # retain the old event read. Direct-call selection semantics stay unchanged.
+    events = (substrate.query("System", "Events", block_hash=row["hash"]).value or []
+              if _body_has_commitment(block, mining_netuid) else [])
     calls = []
     for index, extrinsic in enumerate(block["extrinsics"]):
         value = extrinsic.value
@@ -648,6 +703,8 @@ def _decode_block(substrate, row):
         args = call.get("call_args") or {}
         if isinstance(args, list):
             args = {item["name"]: item["value"] for item in args}
+        if mining_netuid is not None and type(args.get("netuid")) is int and args["netuid"] != mining_netuid:
+            continue
         payload = _payload(args.get("info"))
         if payload is None:
             continue

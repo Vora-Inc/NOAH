@@ -151,3 +151,84 @@ def test_full_day_call_capacity_remains_shared_and_finite():
     with pytest.raises(ReportError, match='call budget'):
         budget.request(payload())
     assert budget.calls == 200000
+
+
+def test_response_budget_failure_survives_sdk_retries_and_later_deadline(monkeypatch):
+    raw = b'{"id":1,"result":null}'
+    reads = http(monkeypatch, raw)
+    now = [0]
+    budget = ProviderBudget(total_bytes=2*len(raw)-1, clock=lambda: now[0])
+    endpoint = 'http://reader.invalid'
+    budget.transport(endpoint, payload(), 1)
+    with pytest.raises(ReportError, match='response byte budget') as original:
+        budget.transport(endpoint, payload(), 1)
+    counters = (budget.calls, budget.bytes, budget.retained)
+    socket = budget.transports[endpoint]
+    now[0] = 1000  # Even a later deadline must not replace the original refusal.
+    for retry in (socket.check_failure, lambda: socket.send(json.dumps(payload(2))), socket.recv,
+                  lambda: budget.transport(endpoint, payload(2), 1)):
+        with pytest.raises(ReportError) as repeated:
+            retry()
+        assert repeated.value is original.value
+        assert (budget.calls, budget.bytes, budget.retained) == counters
+    assert reads == [2*len(raw), len(raw)]
+
+
+@pytest.mark.parametrize('raw,error_type', [
+    (b'not-json', json.JSONDecodeError),
+    (b'{"id":999,"result":null}', ReportError),
+])
+def test_invalid_response_is_terminal_without_another_http_request(monkeypatch, raw, error_type):
+    reads = http(monkeypatch, raw)
+    budget = ProviderBudget()
+    socket = budget.socket('http://reader.invalid')
+    socket.send(json.dumps(payload()))
+    with pytest.raises(error_type) as original:
+        socket.recv()
+    socket.close()
+    for retry in (lambda: socket.send(json.dumps(payload(2))), socket.recv):
+        with pytest.raises(error_type) as repeated:
+            retry()
+        assert repeated.value is original.value
+    assert budget.calls == 1 and budget.bytes == len(raw)
+    assert reads == [budget.response_limit + 1]
+
+
+@pytest.mark.parametrize('phase', ['send', 'recv'])
+def test_failed_websocket_transport_preserves_first_error_after_close(phase):
+    budget = ProviderBudget()
+    socket = budget.socket('ws://reader.invalid')
+    events = []
+    failure = TimeoutError('synthetic transport failure')
+    def io_step(name):
+        events.append(name)
+        if phase == name:
+            raise failure
+    socket.connection = SimpleNamespace(
+        send=lambda _: io_step('send'), recv=lambda **_: io_step('recv'),
+        close=lambda: events.append('close'))
+    with pytest.raises(TimeoutError) as original:
+        socket.send(json.dumps(payload()))
+        socket.recv()
+    assert original.value is failure
+    socket.close()
+    previous = list(events)
+    for retry in (lambda: socket.send(json.dumps(payload(2))), socket.recv):
+        with pytest.raises(TimeoutError) as repeated:
+            retry()
+        assert repeated.value is failure
+    assert events == previous and budget.calls == 1 and budget.bytes == 0
+
+
+def test_successful_socket_reuse_keeps_shared_limits(monkeypatch):
+    raw = b'{"id":1,"result":null}'
+    reads = http(monkeypatch, raw)
+    budget = ProviderBudget(calls=2)
+    assert budget.socket('http://health-check.invalid').check_failure() is None
+    assert budget.calls == budget.bytes == 0
+    for _ in range(2):
+        assert budget.transport('http://reader.invalid', payload(), 1)['result'] is None
+    with pytest.raises(ReportError, match='call budget'):
+        budget.transport('http://reader.invalid', payload(), 1)
+    assert budget.calls == 2 and budget.bytes == 2*len(raw)
+    assert reads == [budget.response_limit + 1]*2

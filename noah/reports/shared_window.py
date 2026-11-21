@@ -12,6 +12,7 @@ from .artifacts import bytes_sha256, canonical_bytes
 from .common import digest
 
 SCHEMA = 'noah.report-adjudication-manifest/2'
+ENGINE_SCHEMA = 'noah.report-adjudication-manifest/3'
 READER_SCHEMA = 'noah.report-reader-package/2'
 WINDOW_SCHEMA = 'noah.report-shared-window/1'
 COLLECTION = ('engine.json engine-binding.json evaluation.json '
@@ -41,12 +42,16 @@ def eligible(request):
     return all(row == bindings[0] for row in bindings)
 
 
-def expected_members(request):
+def expected_members(request, *, version=2, root=None):
     from .adjudication import _seat_groups, LIMITS
     require(eligible(request), 'shared package has incompatible rounds')
     names = {'manifest.json'}
     for label in ('reader_a', 'reader_b'):
-        names.update('shared/' + label + '/' + item for item in SHARED)
+        names.update('shared/' + label + '/' + item for item in SHARED if version == 2 or item != 'responses.jsonl.gz')
+        if version == 3:
+            from .shared_streams import paths
+            for kind in ('responses', 'engine'):
+                names.update(str(path.relative_to(root)) for path in paths(root / 'shared' / label, kind))
         names.update(f'seats/{label}/{pin}.jsonl.gz' for pin, _ in _seat_groups(request))
     for contract in request['policy']['required_rounds']:
         prefix = 'rounds/' + digest(contract) + '/'
@@ -60,20 +65,20 @@ def expected_members(request):
     return names
 
 
-def _shared_manifest(root, request, label):
+def _shared_manifest(root, request, label, *, version=2):
     from .adjudication import _inventory
     first = request['policy']['required_rounds'][0]
-    return {'schema': WINDOW_SCHEMA, 'reader': label,
+    return {'schema': WINDOW_SCHEMA if version == 2 else 'noah.report-shared-window/2', 'reader': label,
             'binding': window_binding(first, request['evaluation'], 10000), 'files': _inventory(root)}
 
 
-def _reader_manifest(root, contract, label, shared_sha):
+def _reader_manifest(root, contract, label, shared_sha, *, version=2):
     from .adjudication import _inventory
-    return {'schema': READER_SCHEMA, 'round_sha256': digest(contract), 'reader': label,
+    return {'schema': READER_SCHEMA if version == 2 else 'noah.report-reader-package/3', 'round_sha256': digest(contract), 'reader': label,
             'shared_manifest_sha256': shared_sha, 'files': _inventory(root)}
 
 
-def collect_readers(request, source, root, budget):
+def collect_readers(request, source, root, budget, *, version=2):
     from .adjudication import _write, _source_session, _roster_operation
     from .backing.collector import _connect, _collect, _response_file_bytes
     from .backing.rpc import close_sockets
@@ -87,8 +92,11 @@ def collect_readers(request, source, root, budget):
     _write(common / 'roster.json', roster)
     substrate = None
     window = None
+    from .shared_engine import SharedEngineSource
+    from .backing.source import save_receipts
+    engine = SharedEngineSource(source['endpoint'], label, '0x' + first['block_hash'], budget) if version == 3 else None
     try:
-        substrate, _ = _connect([source['endpoint']], budget=budget)
+        substrate, _ = _connect([source['endpoint']], budget=budget, immutable_cache=True)
         for contract in request['policy']['required_rounds']:
             budget.remaining()
             reader = root / 'rounds' / digest(contract) / label
@@ -96,21 +104,40 @@ def collect_readers(request, source, root, budget):
             collected = _collect(substrate, label, [source['endpoint']], contract, reader / 'temporary',
                 [member['hotkey'] for member in roster['members']], lambda: 0,
                 evaluation=request['evaluation'], evaluation_ancestor_limit=10000,
-                budget=budget, capture_window=True, shared_window=window)
+                budget=budget, capture_window=True, shared_window=window, shared_engine=engine,
+                mining_netuid_filter=first['mining_netuid'] if version == 3 else None)
             if window is None:
                 window = collected['shared_window']
                 # Only bytes recorded before target calculation belong to the shared window.
-                _exclusive(common / 'responses.jsonl.gz',
-                           _response_file_bytes(substrate._response_log[:window['response_count']]))
+                if version == 3:
+                    from .shared_streams import write
+                    write(common, 'responses', substrate._response_log[:window['response_count']])
+                    substrate._immutable_rpc_cache.clear()  # Full block inputs are now retained; later targets reuse window.
+                else:
+                    _exclusive(common / 'responses.jsonl.gz',
+                               _response_file_bytes(substrate._response_log[:window['response_count']]))
                 _exclusive(common / 'metadata.hex', window['raw_metadata'].encode())
                 _exclusive(common / 'coverage.json', _coverage(window))
-                _write(common / 'manifest.json', _shared_manifest(common, request, label))
-                shared_sha = bytes_sha256((common / 'manifest.json').read_bytes())
+                if version == 2:
+                    _write(common / 'manifest.json', _shared_manifest(common, request, label))
+                    shared_sha = bytes_sha256((common / 'manifest.json').read_bytes())
             Path(collected['directory']).rename(reader / 'collection')
             shutil.rmtree(reader / 'temporary')  # New private producer-owned scratch only.
-            _write(reader / 'manifest.json', _reader_manifest(reader, contract, label, shared_sha))
+            if version == 2:
+                _write(reader / 'manifest.json', _reader_manifest(reader, contract, label, shared_sha))
             substrate._response_log.clear()
+        if version == 3:
+            from .shared_streams import write
+            write(common, 'engine', (receipt.to_json() for receipt in engine.shared_receipts))
+            _write(common / 'manifest.json', _shared_manifest(common, request, label, version=3))
+            shared_sha = bytes_sha256((common / 'manifest.json').read_bytes())
+            for contract in request['policy']['required_rounds']:
+                reader = root / 'rounds' / digest(contract) / label
+                _write(reader / 'manifest.json', _reader_manifest(reader, contract, label, shared_sha, version=3))
     finally:
+        cache = getattr(substrate, '_immutable_rpc_cache', None)
+        if cache is not None:
+            cache.clear()
         for close in ([substrate.close] if substrate is not None else []) + [close_sockets]:
             try:
                 close()
@@ -123,7 +150,7 @@ def _exclusive(path, raw):
     write(path, raw)
 
 
-def reconstruct_readers(request, root, label, *, budget=None):
+def reconstruct_readers(request, root, label, *, budget=None, version=2):
     """Replay one reader's shared raw window, then every target's separate inputs."""
     from .adjudication import (_read, _equal_file, _replay_session, _roster_operation,
                               _bind_collection_roster)
@@ -136,17 +163,24 @@ def reconstruct_readers(request, root, label, *, budget=None):
     first = request['policy']['required_rounds'][0]
     roster = _replay_session(common / 'roster-receipts.jsonl.gz', first['block_hash'], _roster_operation(first))
     _equal_file(common / 'roster.json', roster)
-    _equal_file(common / 'manifest.json', _shared_manifest(common, request, label))
+    _equal_file(common / 'manifest.json', _shared_manifest(common, request, label, version=version))
     shared_sha = bytes_sha256((common / 'manifest.json').read_bytes())
-    rows = _load_responses(common / 'responses.jsonl.gz')
+    from .shared_streams import load
+    rows = load(common, 'responses') if version == 3 else _load_responses(common / 'responses.jsonl.gz')
+    require(bool(rows), 'shared raw response stream is empty')
+    for row in rows:
+        _check_integrity(row)
     _check_binding(first, rows)
     for contract in request['policy']['required_rounds']:
         directory = root / 'rounds' / digest(contract) / label / 'collection'
         rows.extend(_incremental_responses(directory / 'responses.jsonl.gz'))
-    substrate = SubstrateInterface(websocket=_ReplaySocket(_index(rows)), auto_discover=False)
+    substrate = SubstrateInterface(websocket=_ReplaySocket(_index(rows), immutable_reuse=True), auto_discover=False)
     substrate.init_runtime()
     window = None
     outputs = {}
+    from .shared_engine import SharedReplaySource
+    engine = (SharedReplaySource(load(common, 'engine'), '0x' + first['block_hash'])
+              if version == 3 else None)
     try:
         for contract in request['policy']['required_rounds']:
             if budget:
@@ -163,9 +197,10 @@ def reconstruct_readers(request, root, label, *, budget=None):
             require(settings == {'evaluation': request['evaluation'], 'max_ancestor_distance': 10000},
                     'shared evaluation settings differ')
             result = _collect(substrate, 'retained-package', [], contract, None, hotkeys, lambda: 0,
-                chain_source=ReplaySource(receipts, '0x' + contract['block_hash']),
+                chain_source=engine.for_round(receipts) if engine is not None else ReplaySource(receipts, '0x' + contract['block_hash']),
                 evaluation=request['evaluation'], evaluation_ancestor_limit=10000,
-                capture_window=True, shared_window=window)
+                capture_window=True, shared_window=window,
+                mining_netuid_filter=first['mining_netuid'] if version == 3 else None)
             if window is None:
                 window = result['shared_window']
                 require((common / 'metadata.hex').read_bytes() == window['raw_metadata'].encode(),
@@ -179,7 +214,7 @@ def reconstruct_readers(request, root, label, *, budget=None):
                     'shared reader cutoff differs')
             require(set(report['verdicts']) == set(hotkeys), 'shared verdict coverage differs')
             _bind_collection_roster(roster, report)
-            _equal_file(reader / 'manifest.json', _reader_manifest(reader, contract, label, shared_sha))
+            _equal_file(reader / 'manifest.json', _reader_manifest(reader, contract, label, shared_sha, version=version))
             outputs[digest(contract)] = {'roster': roster, 'report': report,
                                         'manifest_sha256': bytes_sha256((reader / 'manifest.json').read_bytes())}
     finally:
@@ -206,9 +241,14 @@ def _incremental_responses(path):
         _check_integrity(row)
     return rows
 
-def stream_paths(request, root, label):
+def stream_paths(request, root, label, *, version=2):
     common = root / 'shared' / label
-    paths = [common / 'roster-receipts.jsonl.gz', common / 'responses.jsonl.gz']
+    paths = [common / 'roster-receipts.jsonl.gz']
+    if version == 3:
+        from .shared_streams import paths as chunks
+        paths.extend(chunks(common, 'responses') + chunks(common, 'engine'))
+    else:
+        paths.append(common / 'responses.jsonl.gz')
     for contract in request['policy']['required_rounds']:
         directory = root / 'rounds' / digest(contract) / label / 'collection'
         paths.extend([directory / 'receipts.jsonl.gz', directory / 'responses.jsonl.gz'])

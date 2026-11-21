@@ -182,7 +182,7 @@ def validate_shared_window(value):
     """
     from .verification import validate_round
     fields(value, 'schema reader binding files', 'shared window')
-    require(value['schema'] == 'noah.report-shared-window/1', 'shared window schema')
+    require(value['schema'] in ('noah.report-shared-window/1', 'noah.report-shared-window/2'), 'shared window schema')
     require(value['reader'] in ('reader_a', 'reader_b'), 'shared window reader')
     binding = value['binding']
     fields(binding, 'schema round evaluation max_ancestor_distance', 'shared binding')
@@ -208,7 +208,7 @@ def validate_shared_window(value):
 
 def validate_adjudication(value):
     manifest = value.get('schema') in ('noah.report-adjudication-manifest/1',
-                                       'noah.report-adjudication-manifest/2')
+                                       'noah.report-adjudication-manifest/2', 'noah.report-adjudication-manifest/3')
     base = 'schema request_sha256 policy_sha256 status rounds scored_decisions'
     fields(value, base + (' request files' if manifest else ' manifest_sha256'), 'adjudication artifact')
     require(manifest or value['schema'] == 'noah.report-adjudication-result/1', 'adjudication result schema')
@@ -216,7 +216,7 @@ def validate_adjudication(value):
     if manifest:
         require(validate_request(value['request']) == value['request_sha256']
                 and value['request']['policy_sha256'] == value['policy_sha256'], 'manifest request binding')
-        if value['schema'] == 'noah.report-adjudication-manifest/2':
+        if value['schema'] in ('noah.report-adjudication-manifest/2', 'noah.report-adjudication-manifest/3'):
             rounds = value['request']['policy']['required_rounds']
             require('assignments' in value['request'] and 2 <= len(rounds) <= 128,
                     'shared manifest assigned rounds')

@@ -39,6 +39,7 @@ import os
 import re
 import stat
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import Optional
 
 PREFIX = "NOAH_"
@@ -69,6 +70,8 @@ KEYS = (
     "NOAH_REPORT_GATE_ENABLED",
     "NOAH_REPORT_GATE_POLICY",
     "NOAH_REPORT_REWARD",
+    "NOAH_REPORT_SOURCE_HANDOFF",
+    "NOAH_REPORT_SOURCE_HANDOFF_SHA256",
     "NOAH_WEEKLY_ASSIGNMENTS",
     "NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE",
     "NOAH_BURN_ALLOCATION_BPS",
@@ -443,6 +446,8 @@ class Settings:
     report_gate_enabled: bool = False
     report_gate_policy: Optional[str] = None
     report_reward: str = "gate"
+    report_source_handoff: Optional[str] = None
+    report_source_handoff_sha256: Optional[str] = None
     weekly_assignments: bool = False
     weekly_assignment_signing_key_file: Optional[str] = None
     burn_allocation_bps: int = 0
@@ -511,6 +516,15 @@ class Settings:
         report_gate_policy = None
         if report_gate_enabled:
             report_gate_policy = _present(mapping, "NOAH_REPORT_GATE_POLICY")
+
+        report_source_handoff = mapping.get("NOAH_REPORT_SOURCE_HANDOFF", "").strip() or None
+        report_source_handoff_sha256 = mapping.get("NOAH_REPORT_SOURCE_HANDOFF_SHA256", "").strip() or None
+        if bool(report_source_handoff) != bool(report_source_handoff_sha256):
+            raise BadSetting("report source handoff needs both path and SHA256")
+        if report_source_handoff and (not report_gate_enabled
+                or not Path(report_source_handoff).is_absolute()
+                or re.fullmatch(r"[0-9a-f]{64}", report_source_handoff_sha256) is None):
+            raise BadSetting("report source handoff requires reports ON, absolute path and SHA256")
 
         endpoint = mapping.get("NOAH_CHAIN_ENDPOINT", "").strip()
         second_endpoint = _second_endpoint(mapping)
@@ -583,6 +597,8 @@ class Settings:
             report_gate_enabled=report_gate_enabled,
             report_gate_policy=report_gate_policy,
             report_reward=report_reward,
+            report_source_handoff=report_source_handoff,
+            report_source_handoff_sha256=report_source_handoff_sha256,
             weekly_assignments=weekly_assignments,
             weekly_assignment_signing_key_file=(mapping.get("NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE", "").strip() or None) if weekly_assignments and report_gate_enabled else None,
             burn_allocation_bps=burn_allocation_bps,

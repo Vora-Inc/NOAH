@@ -28,15 +28,19 @@ def dispatch(role, args):
 def validator_main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ("-h", "--help"):
-        print("usage: noah-validator {check,run,guard,status,score,reports} ...")
+        print("usage: noah-validator {check,run,guard,status,score,reports,report-handoff} ...")
         print("  check    Read startup/chain checks (--env FILE); no publication")
         print("  run      Existing continuous validator (--env FILE); may publish")
         print("  guard    Existing starter guard (--env FILE); may publish fallback")
         print("  status   Read saved loop state (--state FILE); no RPC")
         print("  score    Twin-check a fixture offline (--fixture FILE); no publication")
+        print("  report-handoff  Prepare exact frozen-request producer handoff offline; never install")
         print("  reports  resolve-day, verify-resolution, collect, verify, adjudicate, adjudicate-verify, publish-week, export-public, status, watch, history, score-preview")
         return 0
     command = args.pop(0)
+    if command == "report-handoff":
+        from noah.core.report_handoff_prepare import main
+        return main(args)
     if command == "reports":
         return dispatch("validator", args)
     if command == "score":
