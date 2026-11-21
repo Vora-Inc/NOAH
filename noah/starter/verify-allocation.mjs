@@ -4,12 +4,13 @@ const {input:x, previous:p, result:r}=JSON.parse(fs.readFileSync(0,'utf8'));
 const B=BigInt, A=5000000000n, U=65535n;
 const sum=a=>a.reduce((v,w)=>v+w,0n), min=(...a)=>a.reduce((v,w)=>v<w?v:w), max=(a,b)=>a>b?a:b;
 const key=(c,h)=>JSON.stringify([c,h]);
-const earnedC={},earnedH={},pendingC={},pendingH={},ledger={};
+// Account identifiers are data, never JavaScript object properties.
+const earnedC=new Map(),earnedH=new Map(),pendingC=new Map(),pendingH=new Map(),ledger=new Map();
 for(const t of x.lifetimeEarnings){
  const c=t.coldkey,h=t.hotkey,e=B(t.earnedRao),q=B(t.pendingExpectedRao);
- earnedC[c]=(earnedC[c]??0n)+e;earnedH[h]=(earnedH[h]??0n)+e;
- pendingC[c]=(pendingC[c]??0n)+q;pendingH[h]=(pendingH[h]??0n)+q;
- ledger[key(c,h)]=t;
+ earnedC.set(c,(earnedC.get(c)??0n)+e);earnedH.set(h,(earnedH.get(h)??0n)+e);
+ pendingC.set(c,(pendingC.get(c)??0n)+q);pendingH.set(h,(pendingH.get(h)??0n)+q);
+ ledger.set(key(c,h),t);
 }
 // Retain departed wallets in the ordinary score/history, but only current seats
 // have destinations. A null UID must never become a synthetic "null" weight key.
@@ -57,30 +58,32 @@ if(reportsEnabled){
    ||JSON.stringify(canonical(g))!==JSON.stringify(canonical(r.reportGate)))throw Error('report result binding');
 }else if('reportGate' in x)throw Error('report schema required');
 const pool=B(sample.amountRao)*B(s.epochSeconds)/B(sample.durationSeconds);
-const requests={},groups={},quarantined=new Set();
+const requests=new Map(),groups=new Map(),quarantined=new Set();
 for(const t of s.seats){
- const l=ledger[key(t.coldkey,t.hotkey)],m=miners[t.uid];
+ if(!Number.isSafeInteger(t.uid)||t.uid<0)throw Error('invalid seat UID');
+ const l=ledger.get(key(t.coldkey,t.hotkey)),m=miners[t.uid];
  const closed=sum(Object.values(m.days).map(d=>B(d.paidRao)+B(d.payUnlockedRao??0)));
  if(!l || t.observedBlock!==s.finalizedBlock || !/^\d+$/.test(String(t.spendableEarnedRao))
    || B(t.spendableEarnedRao)<0n || B(t.pendingExpectedRao)<0n || B(t.spendableEarnedRao)<closed
    || l.earnedRao!==t.spendableEarnedRao || l.pendingExpectedRao!==t.pendingExpectedRao
    || typeof t.ownerExcluded!=='boolean') quarantined.add(t.coldkey);
 }
-const terminals={};
+const terminals=new Map();
 for(const t of s.seats){
  const c=t.coldkey,h=t.hotkey,u=t.uid,m=miners[u],o=ordinary[u];
- if(quarantined.has(c)){requests[u]=0n;continue;}
+ if(quarantined.has(c)){requests.set(u,0n);continue;}
  const prior=p?.seats?.[key(c,h)]?.terminal??'';
- const exhausted=earnedC[c]>=A||earnedH[h]>=A;
+ const exhausted=earnedC.get(c)>=A||earnedH.get(h)>=A;
  const terminal=B(m.entryDepositRao??0)>0n||prior==='ordinary'||(B(o.baseFp)>0n&&(exhausted||prior==='exhausted'))
   ?'ordinary':exhausted||prior==='exhausted'?'exhausted':'';
- terminals[key(c,h)]=terminal;
- if(excluded.has(u)){requests[u]=0n;continue;}
+ terminals.set(key(c,h),terminal);
+ if(excluded.has(u)){requests.set(u,0n);continue;}
  if(terminal||t.ownerExcluded||!o.doorOpen)continue;
- const remaining=max(0n,min(A-earnedC[c]-pendingC[c],A-earnedH[h]-pendingH[h]));
+ const remaining=max(0n,min(A-earnedC.get(c)-pendingC.get(c),A-earnedH.get(h)-pendingH.get(h)));
  const num=min(A*B(s.epochSeconds),remaining*86400n)*U,den=86400n*pool;
- requests[u]=(num+den-1n)/den;
- (groups[c]??={})[u]=requests[u];
+ requests.set(u,(num+den-1n)/den);
+ if(!groups.has(c))groups.set(c,new Map());
+ groups.get(c).set(u,requests.get(u));
 }
 function apport(values,total){
  const n=sum(Object.values(values));if(!n)throw Error('no positive allocation');
@@ -91,20 +94,24 @@ function apport(values,total){
  for(const k of order.slice(0,Number(total-sum(Object.values(out)))))out[k]++;
  return out;
 }
-const wallets={};
-for(const [c,vs] of Object.entries(groups)){
- const remaining=max(0n,A-earnedC[c]-pendingC[c]);
- wallets[c]=min(sum(Object.values(vs)),(min(A*B(s.epochSeconds),remaining*86400n)*U+86400n*pool-1n)/(86400n*pool));
+const wallets=new Map();
+for(const [c,entries] of groups){
+ const vs=Object.fromEntries(entries);
+ const remaining=max(0n,A-earnedC.get(c)-pendingC.get(c));
+ wallets.set(c,min(sum(Object.values(vs)),(min(A*B(s.epochSeconds),remaining*86400n)*U+86400n*pool-1n)/(86400n*pool)));
 }
 // Water filling, one weight unit per eligible wallet per round. Deliberately
 // differs from the Python implementation; at most 163 rounds are needed.
-const shares=Object.fromEntries(Object.keys(wallets).map(c=>[c,0n]));
+const shares=new Map([...wallets.keys()].map(c=>[c,0n]));
 let budget=163n;
-while(budget){let used=false;for(const c of Object.keys(wallets).sort()){
- if(budget&&shares[c]<wallets[c]){shares[c]++;budget--;used=true;}
+while(budget){let used=false;for(const c of [...wallets.keys()].sort()){
+ if(budget&&shares.get(c)<wallets.get(c)){shares.set(c,shares.get(c)+1n);budget--;used=true;}
 }if(!used)break;}
-const proposed={...requests};
-for(const [c,vs] of Object.entries(groups))if(sum(Object.values(vs)))Object.assign(proposed,apport(vs,shares[c]));
+const proposed=Object.fromEntries(requests);
+for(const [c,entries] of groups){
+ const vs=Object.fromEntries(entries);
+ if(sum(Object.values(vs)))Object.assign(proposed,apport(vs,shares.get(c)));
+}
 const normal={};
 for(const [u,o] of Object.entries(ordinary))if(!(u in proposed))normal[u]=B(o.payWeightFp);
 if(reportsEnabled && 'bonusUids' in x.reportGate){
@@ -127,5 +134,5 @@ function check(expected,actual,label){
  for(const [u,v] of Object.entries(expected))if(v!==B(actual[u]))throw Error(label+' '+u);
 }
 check(weights,r.proposedWeightsU16,'weights');check(fw,r.ordinaryFallbackWeightsU16,'fallback');
-for(const [k,t] of Object.entries(terminals))if(r.state.seats[k].terminal!==t)throw Error('terminal state');
+for(const [k,t] of terminals)if(r.state.seats[k].terminal!==t)throw Error('terminal state');
 process.stdout.write('verified\n');

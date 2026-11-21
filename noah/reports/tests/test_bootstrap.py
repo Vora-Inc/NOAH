@@ -144,3 +144,31 @@ def test_provider_error_text_is_not_retained(tmp_path):
     assert not result['advanced']
     assert 'provider-user-and-password' not in json.dumps(result)
     assert 'RuntimeError' in result['error']
+
+
+def test_checkpoint_staging_does_not_follow_legacy_temp_symlink(tmp_path):
+    import os, stat
+    from noah.reports.backing.bootstrap import _atomic_json
+    target = tmp_path / 'checkpoint.json'
+    victim = tmp_path / 'unrelated'; victim.write_bytes(b'preserve')
+    old_temp = target.with_suffix('.json.tmp'); old_temp.symlink_to(victim)
+    previous_umask = os.umask(0)
+    try:
+        _atomic_json(target, {'height': 7})
+    finally:
+        os.umask(previous_umask)
+    assert victim.read_bytes() == b'preserve' and old_temp.is_symlink()
+    assert json.loads(target.read_bytes()) == {'height': 7}
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert list(tmp_path.glob('.checkpoint.json.*.tmp')) == []
+
+
+def test_checkpoint_failed_replacement_preserves_old_file_and_cleans_stage(tmp_path, monkeypatch):
+    import pytest
+    from noah.reports.backing import bootstrap
+    target = tmp_path / 'checkpoint.json'; target.write_bytes(b'original')
+    def refuse(*_): raise OSError('synthetic replacement refusal')
+    monkeypatch.setattr(bootstrap.os, 'replace', refuse)
+    with pytest.raises(OSError):bootstrap._atomic_json(target, {'height': 7})
+    assert target.read_bytes() == b'original'
+    assert list(tmp_path.glob('.checkpoint.json.*.tmp')) == []

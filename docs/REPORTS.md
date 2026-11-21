@@ -90,7 +90,9 @@ Running the continuous validator requires `.venv-validator`.
 
 The front-end commands launch the installed worker with an isolated Python
 module path. `NOAH_REPORT_PYTHON` explicitly selects the installed worker when
-live report processing is enabled.
+live report processing is enabled. This is trusted operator configuration,
+not a value supplied by miners or report documents. Relative paths in the CLI
+select that exact local file; the CLI does not search `PATH` for a replacement.
 Keep it on the same reviewed source revision. Node 24+ is needed for twin-scored
 previews. No separate report package or prototype checkout is installed.
 
@@ -336,6 +338,9 @@ noah-validator reports status --evidence report-evidence
 Report-only collection covers B through the finalized cutoff and rejects
 `--history` and `--allow-genesis-scan`. The `history` command remains available
 for historical deposit-policy evidence; it is not part of current reporting.
+New local history checkpoints and sample summaries use owner-only permissions
+and exclusive temporary files. Keep the history directory operator-controlled;
+use the separate export command for material intended for publication.
 
 `reports watch` accepts the same inputs as `collect`, plus `--poll-seconds` and
 `--timeout-seconds`. It repeats collection and reconstruction until the round is

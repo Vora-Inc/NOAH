@@ -463,6 +463,14 @@ _LEAD = re.compile(r"[\"']((?:[A-Za-z]+[ _-]){1,2})$")
 _ENVIRONMENT_ASSIGNMENT = re.compile(r"(?i)\bEnvironment\s*=\s*")
 
 
+def _has_function_prefix(line: str) -> bool:
+    """Recognize the typed-parameter exception with linear string operations."""
+    prefix = line.lstrip()
+    if prefix.startswith("async") and len(prefix) > 5 and prefix[5].isspace():
+        prefix = prefix[5:].lstrip()
+    return prefix.startswith("def") and len(prefix) > 3 and prefix[3].isspace()
+
+
 def _kv_hits(lines_text, add_line) -> None:
     for line_no, line in lines_text:
         if len(line) < 4:
@@ -470,7 +478,7 @@ def _kv_hits(lines_text, add_line) -> None:
         # A quote is non-whitespace: these ends exactly match the former
         # anchored prefix search, without rescanning a growing JSON prefix.
         environment_ends = {match.end() for match in _ENVIRONMENT_ASSIGNMENT.finditer(line)}
-        is_def = re.match(r"\s*(?:async\s+)?def\s", line) is not None
+        is_def = _has_function_prefix(line)
         for q in _QPAIR.finditer(line):  # SQL rows: VALUES('api_token','<value>')
             if (
                 _name_is_secretish(q.group(1))

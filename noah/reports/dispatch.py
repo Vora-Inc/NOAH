@@ -14,6 +14,9 @@ def dispatch(role, args):
     if not Path(worker).is_file():
         print("Report worker missing. Run scripts/install-reports.sh or set NOAH_REPORT_PYTHON.", file=sys.stderr)
         return 2
+    # Execute exactly the file checked above, even for a relative basename.
+    # Do not let subprocess resolve a different executable through PATH.
+    worker = str(Path(worker).absolute())
     # No shell, secrets, or inherited module search path. Install both packages
     # into the selected worker; do not silently import another checkout's code.
     env = dict(os.environ)

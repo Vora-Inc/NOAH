@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import resource
+import tempfile
 import time
 from pathlib import Path
 
@@ -541,14 +542,19 @@ def _result_sha(result) -> tuple[str, int]:
 def _atomic_json(path: Path, document) -> None:
     payload = json.dumps(document, sort_keys=True, separators=(",", ":")).encode() + b"\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix(path.suffix + ".tmp")
-    fd = os.open(temp, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o644)
+    # A fresh exclusive private staging file cannot follow a pre-existing .tmp
+    # symlink. History checkpoints are local; export is a separate operation.
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temp = Path(name)
     try:
-        os.write(fd, payload)
-        os.fsync(fd)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+        _fsync(path.parent)
     finally:
-        os.close(fd)
-    os.replace(temp, path)
+        temp.unlink(missing_ok=True)
 
 
 def _fsync(path: Path) -> None:

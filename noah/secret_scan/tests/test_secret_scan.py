@@ -1017,3 +1017,17 @@ class CalculationSourceInventory(unittest.TestCase):
         obj["candidate"]["source_sha256"] = self.digest(obj["candidate"]["files"])
         raw = self.render(obj)
         self.assertIn("key-hex", kinds(raw))
+
+
+class FunctionPrefixBoundary(unittest.TestCase):
+    def test_typed_function_prefix_and_nonfunctions(self):
+        for text in ("def f(token: str)", "  async def f(token: str)", "\tasync\tdef\tf()", "\u2003def\u00a0f()"):
+            with self.subTest(text=text):
+                self.assertTrue(m._has_function_prefix(text))
+        for text in ("default: value", "asyncdef f()", "async def", "def", "'def f()'", "x def f()", "async async def f()"):
+            with self.subTest(text=text):
+                self.assertFalse(m._has_function_prefix(text))
+    def test_long_prefix_and_near_match(self):
+        spaces = " " * (1024 * 1024)
+        self.assertTrue(m._has_function_prefix(spaces + "async" + spaces + "def f()"))
+        self.assertFalse(m._has_function_prefix(spaces + "async" + spaces + "deX f()"))

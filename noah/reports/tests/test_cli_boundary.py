@@ -212,3 +212,15 @@ def test_miner_follower_does_not_start_next_phase_at_timeout(tmp_path, monkeypat
                      '--timeout-seconds', '10']) == 1
     assert calls == [{'authorized': True, 'allow_mainnet': False}]
     assert clock[0] >= 10
+
+
+def test_relative_worker_executes_checked_file_not_path_search(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    checked = tmp_path / 'report-python'
+    checked.write_text('selected fixture'); checked.chmod(0o700)
+    monkeypatch.setenv('NOAH_REPORT_PYTHON', checked.name)
+    monkeypatch.setenv('PATH', str(tmp_path / 'different-executable-directory'))
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, 'call', lambda command, **kw: calls.append(command) or 0)
+    assert dispatch.dispatch('miner', ['status']) == 0
+    assert calls[0][0] == str(checked)

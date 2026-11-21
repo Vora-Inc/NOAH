@@ -56,3 +56,18 @@ def test_historical_unseated_rows_remain_in_score_but_not_publishable_vectors(ne
     result["ordinaryFallbackWeightsU16"]["null"] = 0
     with pytest.raises(PublicationStatusUnknown):
         check(raw, None, result)
+
+
+@pytest.mark.parametrize('identifier', ['__proto__', 'constructor', 'toString', 'prototype'])
+@pytest.mark.parametrize('field', ['coldkey', 'hotkey'])
+def test_account_identifiers_are_data_not_object_properties(identifier, field):
+    raw = request(2)
+    seat = raw['snapshot']['seats'][1]
+    seat[field] = identifier
+    if field == 'coldkey':
+        raw['fixture']['miners'][1]['coldkey'] = identifier
+    else:
+        raw['scoredHotkeys']['1'] = identifier
+    raw['lifetimeEarnings'] = []
+    result = checked(raw)
+    check(raw, None, result)
