@@ -17,6 +17,7 @@ CODES = {
     491: '0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
     492: '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
     493: '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
+    494: '0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
 }
 BASE_CHAIN = reference.EmaChain
 
@@ -27,7 +28,7 @@ def fixture(tmp_path, monkeypatch, spec, parent=None):
             context = super().token_reference_context(block, assets)
             version = parent if parent is not None and block < 50 else spec
             context['runtime'] = {'spec_version': version, 'code_hash': CODES[version],
-                                  'transaction_version': 1}
+                                  'transaction_version': 2 if version == 494 else 1}
             context['parent_runtime'] = dict(context['runtime'])
             return context
     monkeypatch.setattr(reference, 'EmaChain', ReviewedChain)
@@ -36,7 +37,7 @@ def fixture(tmp_path, monkeypatch, spec, parent=None):
     return raw, policy
 
 
-@pytest.mark.parametrize('spec', [483, 488, 490, 491, 492, 493])
+@pytest.mark.parametrize('spec', [483, 488, 490, 491, 492, 493, 494])
 def test_full_v5_new_ema_credit_agrees_in_both_engines(tmp_path, monkeypatch, spec):
     raw, policy = fixture(tmp_path, monkeypatch, spec)
     assert len(raw['pointsReceipts']) == 2
@@ -52,9 +53,10 @@ def test_full_v5_new_ema_credit_agrees_in_both_engines(tmp_path, monkeypatch, sp
     assert policy.ema_collector.chain.calls['ema_snapshot'] == 1
 
 
-def test_full_v5_upgrade_receipt_keeps_reviewed_parent_and_current_tuples(tmp_path, monkeypatch):
-    raw, _ = fixture(tmp_path, monkeypatch, 493, parent=492)
-    assert all(p['runtime']['spec_version'] == 493 and p['parent_runtime']['spec_version'] == 492
+@pytest.mark.parametrize(('spec', 'parent'), [(493, 492), (494, 493)])
+def test_full_v5_upgrade_receipt_keeps_reviewed_parent_and_current_tuples(tmp_path, monkeypatch, spec, parent):
+    raw, _ = fixture(tmp_path, monkeypatch, spec, parent=parent)
+    assert all(p['runtime']['spec_version'] == spec and p['parent_runtime']['spec_version'] == parent
                for p in raw['pointsPricing'].values())
     assert agreed(raw)['policy'] == onboarding.POLICY
 
@@ -62,14 +64,14 @@ def test_full_v5_upgrade_receipt_keeps_reviewed_parent_and_current_tuples(tmp_pa
 @pytest.mark.parametrize('role', ['runtime', 'parent_runtime'])
 @pytest.mark.parametrize('fault', ['wrong-code', 'unreviewed-spec', 'wrong-transaction', 'lifecycle-only-486'])
 def test_rehashed_unreviewed_runtime_proof_is_refused_by_both_engines(tmp_path, monkeypatch, role, fault):
-    raw, _ = fixture(tmp_path, monkeypatch, 493, parent=492)
+    raw, _ = fixture(tmp_path, monkeypatch, 494, parent=493)
     changed = {}
     pins = {}
     for old, original in raw['pointsPricing'].items():
         proof = copy.deepcopy(original)
         if fault == 'wrong-code': proof[role]['code_hash'] = CODES[491]
-        elif fault == 'unreviewed-spec': proof[role]['spec_version'] = 494
-        elif fault == 'wrong-transaction': proof[role]['transaction_version'] = 2
+        elif fault == 'unreviewed-spec': proof[role]['spec_version'] = 495
+        elif fault == 'wrong-transaction': proof[role]['transaction_version'] = 3 - proof[role]['transaction_version']
         else: proof[role] = {'spec_version':486,'transaction_version':1,'code_hash':'0x49781ac4cfda0ac6cf6e53cfceea7c728394d9c28da7881f47e3fbfbc239800f'}
         new = digest(proof); pins[old] = new; changed[new] = proof
     raw['pointsPricing'] = changed

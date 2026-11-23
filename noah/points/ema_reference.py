@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ..chain.sources import Unverified
 from ..chain.ema_context import EMA_CODES as CODES
+from ..chain.token_context import transaction_version
 from ..core.calculation_record import durable_write, encoded
 from .eligibility import generation, require
 from .ema_policy import EMA_SOURCES
@@ -76,7 +77,10 @@ def validate_reference_proof(document):
     for name in ('runtime','parent_runtime'):
         value=document[name]
         require(type(value) is dict and set(value)=={'spec_version','code_hash','transaction_version'})
-        require(type(value['spec_version']) is int and value['spec_version'] in CODES and value['code_hash']==CODES[value['spec_version']] and type(value['transaction_version']) is int and value['transaction_version']==1)
+        require(type(value['spec_version']) is int and value['spec_version'] in CODES
+                and value['code_hash'] == CODES[value['spec_version']]
+                and type(value['transaction_version']) is int
+                and value['transaction_version'] == transaction_version(value['spec_version']))
     import re
     require(type(document['metadata_sha256']) is str and re.fullmatch('[0-9a-f]{64}',document['metadata_sha256']))
     reason=lifecycle_reason(document)

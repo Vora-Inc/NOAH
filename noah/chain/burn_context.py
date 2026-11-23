@@ -3,6 +3,7 @@
 The exact V15 digest authenticates the reviewed storage declaration, Identity
 u16 key, Default 0x00 and Burn=0/Recycle=1 layout. The exact deployed code hash
 binds that layout to run_coinbase's Burn-or-absent fallback at upstream commit
+a68c6e8c65411a842fbf69269dc385aa13041391 (494),
 8b407e40988ea7a251abb6dbc07a9ab7d602b740 (493),
 541a50d38764acdce23578bd8ba54f80156ffb2a (492) and
 db3fdeb98bc82c38b238bfac9f6a3303a3361ee4 (483). RPC errors are never runtime absence.
@@ -19,6 +20,7 @@ REVIEWED = {
     483: ('0x99856ec64a61eb8011999a803bd336979512275214a173fea583abd5c89952d2', 'eb3df3b6d0f2677d96e515d667259ec046cedd6059a4bdfc6848d44f5fd1b15a'),
     492: ('0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e', 'a397a753ad67ba335fb02cd5c54ccb0c1149fbf981f3ed6d9df44d49ca5bf71d'),
     493: ('0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591', '89f3e67a94db5f9a155678122b5a5daff5b2ddbb1f179ac669df996bd3332a98'),
+    494: (token.CODES[494], '80df15954eca22bf5349a687563ccc9ec03ef101c9916779a4e8782143aa5c1c'),
 }
 SCHEMA = 'noah-effective-burn/1'
 
@@ -50,7 +52,8 @@ def validate(evidence):
                 and validated_hash_digits(evidence[k]) and int(evidence[k][2:], 16)
                 for k in ('block_hash', 'genesis')))
     require(type(evidence['spec_version']) is int and evidence['spec_version'] in REVIEWED)
-    require(type(evidence['transaction_version']) is int and evidence['transaction_version'] == 1)
+    require(type(evidence['transaction_version']) is int
+            and evidence['transaction_version'] == token.transaction_version(evidence['spec_version']))
     require((evidence['code_hash'], evidence['metadata_sha256']) == REVIEWED[evidence['spec_version']])
     require(evidence['key'] == storage_key(evidence['netuid']))
     require(evidence['raw'] is None or evidence['raw'] == '0x00', 'effective Burn requires Burn or proven absence')
@@ -79,7 +82,8 @@ def read(rpc, block, block_hash, netuid):
     runtime = rpc('state_getRuntimeVersion', [block_hash])
     require(type(runtime) is dict and type(runtime.get('specVersion')) is int
             and runtime['specVersion'] in REVIEWED and type(runtime.get('transactionVersion')) is int
-            and runtime['transactionVersion'] == 1, 'effective Burn runtime is not reviewed')
+            and runtime['transactionVersion'] == token.transaction_version(runtime['specVersion']),
+            'effective Burn runtime is not reviewed')
     code, metadata_sha = REVIEWED[runtime['specVersion']]
     require(rpc('state_getStorageHash', ['0x3a636f6465', block_hash]) == code,
             'effective Burn runtime code is not reviewed')
@@ -103,6 +107,7 @@ def read(rpc, block, block_hash, netuid):
     require(raw_value() == raw, 'effective Burn storage changed at finalized pin')
     require(rpc('chain_getBlockHash', [block]) == block_hash, 'effective Burn block hash changed')
     return validate(dict(schema=SCHEMA, block=block, block_hash=block_hash, genesis=genesis,
-                         netuid=netuid, spec_version=runtime['specVersion'], transaction_version=1,
+                         netuid=netuid, spec_version=runtime['specVersion'],
+                         transaction_version=runtime['transactionVersion'],
                          code_hash=code, metadata_sha256=metadata_sha, key=key, raw=raw,
                          effective='Burn', origin='runtime-default' if raw is None else 'explicit'))

@@ -18,6 +18,7 @@ CODES = {
     491: '0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
     492: '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
     493: '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
+    494: '0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
 }
 FIELDS = (('NetworksAdded', 'bool'), ('NetworkRegisteredAt', 'u64'),
           ('RegisteredSubnetCounter', 'u64'), ('SubnetMechanism', 'u16'))
@@ -73,13 +74,20 @@ def decoded(raw, kind):
     return value
 
 
+def transaction_version(spec):
+    return 2 if spec == 494 else 1
+
+
 def runtime_identity(connection, at):
     version = rpc(connection, 'state_getRuntimeVersion', [at])
     require(isinstance(version, dict) and type(version.get('specVersion')) is int)
     code = rpc(connection, 'state_getStorageHash', ['0x3a636f6465', at])
-    if version['specVersion'] not in CODES or code != CODES[version['specVersion']] or version.get('transactionVersion') != 1:
+    spec = version['specVersion']
+    tx_version = version.get('transactionVersion')
+    if (spec not in CODES or code != CODES[spec] or type(tx_version) is not int
+            or tx_version != transaction_version(spec)):
         raise Unverified('token lifecycle runtime semantics have not been reviewed')
-    return {'spec_version': version['specVersion'], 'code_hash': code, 'transaction_version': 1}
+    return {'spec_version': spec, 'code_hash': code, 'transaction_version': tx_version}
 
 
 def raw_batch(connection, at, keys):

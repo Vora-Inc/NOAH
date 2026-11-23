@@ -10,6 +10,7 @@ const codes: Record<number,string>={
  491:'0x4201278656a17aff924ca24123c8e5866d569a84a7150bb0372bc7078fc6173c',
  492:'0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
  493:'0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
+ 494:'0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
 };
 export const EMA_SOURCES=['SubnetMovingPrice'];
 const hash=(v:unknown)=>typeof v==='string'&&/^0x[0-9a-f]{64}$/.test(v);
@@ -35,7 +36,11 @@ export function validateEmaProof(p:any):string{
  need(hash(p.genesis)&&sha(p.metadata_sha256));integer(p.native_netuid,1,65535);integer(p.asset_netuid,0,65535);need(p.native_netuid!==p.asset_netuid);
  keys(p.receipt,['block','block_hash','parent_hash','timestamp']);integer(p.receipt.block,1);integer(p.receipt.timestamp);need(hash(p.receipt.block_hash)&&hash(p.receipt.parent_hash));
  keys(p.reference,['block','block_hash']);need(p.reference.block===p.receipt.block-1&&p.reference.block_hash===p.receipt.parent_hash);
- for(const runtime of [p.runtime,p.parent_runtime]){keys(runtime,['spec_version','code_hash','transaction_version']);integer(runtime.spec_version);need(Object.hasOwn(codes,runtime.spec_version)&&runtime.code_hash===codes[runtime.spec_version]&&runtime.transaction_version===1);}
+ for(const runtime of [p.runtime,p.parent_runtime]){
+  keys(runtime,['spec_version','code_hash','transaction_version']);integer(runtime.spec_version);
+  const transactionVersion=runtime.spec_version===494?2:1;
+  need(Object.hasOwn(codes,runtime.spec_version)&&runtime.code_hash===codes[runtime.spec_version]&&runtime.transaction_version===transactionVersion);
+ }
  let reason:string|null=null;
  for(const role of ['native','asset']){
   if(role==='asset'&&p.asset_netuid===0){need(p.receipt_asset===null&&p.parent_asset===null);continue;}

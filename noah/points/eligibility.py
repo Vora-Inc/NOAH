@@ -10,7 +10,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from ..chain.sources import Refusal, SourceLied, Unverified
-from ..chain.token_context import CODES, FIELDS, decoded
+from ..chain.token_context import CODES, FIELDS, decoded, transaction_version
 from ..core.calculation_record import durable_write, encoded
 from .pricing import PriceInterval
 from .ledger import R
@@ -97,7 +97,8 @@ def validate_reference_proof(document, *, read_proof=None):
             require(isinstance(value, dict) and set(value) == {'spec_version', 'code_hash', 'transaction_version'})
             require(type(value['spec_version']) is int and value['spec_version'] in CODES
                     and value['code_hash'] == CODES[value['spec_version']]
-                    and type(value['transaction_version']) is int and value['transaction_version'] == 1)
+                    and type(value['transaction_version']) is int
+                    and value['transaction_version'] == transaction_version(value['spec_version']))
         require(sha(document['metadata_sha256']))
         markers = {}
         for role in ('native', 'asset'):
