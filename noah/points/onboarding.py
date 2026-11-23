@@ -154,38 +154,35 @@ def build_v6_policy(predecessor_bytes, switch_day):
 def check_v6_transition(adapter, document):
     """Validate the first selection while the exact V2 policy is still installed."""
     import json
-    from pathlib import Path
+    import os
+    from fnmatch import fnmatchcase
+
+    from .state_files import directory, read
 
     validate_v6_document(document)
-    root = Path(adapter._submitted_record_dir)
-    if any(path.is_symlink() for path in (root, *root.parents)):
-        raise ValueError("symlinked V2.1 transition state")
-    installed = root / "points-policy.json"
-    predecessor_bytes = document["predecessor_json"].encode("utf-8")
-    if (
-        installed.is_symlink()
-        or not installed.is_file()
-        or installed.read_bytes() != predecessor_bytes
-    ):
-        raise ValueError("first V2.1 selection requires the exact installed V2 policy")
+    root = adapter._submitted_record_dir
     pending = getattr(adapter, "_publish_intent", None)
     if pending is not None and pending.load() is not None:
         raise ValueError("pending publication forbids V2.1 switch")
-    for name in ("starter-pending.json", "starter-intent.json"):
-        if (root / name).exists():
+    with directory(root) as scores:
+        if read(scores, "points-policy.json") != document["predecessor_json"].encode("utf-8"):
+            raise ValueError("first V2.1 selection requires the exact installed V2 policy")
+        entries = set(os.listdir(scores))
+        if entries.intersection(("starter-pending.json", "starter-intent.json")):
             raise ValueError("pending starter publication forbids V2.1 switch")
-    switch = document["switch_day"]
-    for path in sorted(root.glob("day-*.calculation.json")):
-        if path.is_symlink() or not path.is_file():
-            raise ValueError("unsafe retained calculation")
-        record = json.loads(path.read_bytes())
-        day = record.get("day") if isinstance(record, dict) else None
-        if type(day) is not int or day < 0 or path.name != f"day-{day}.calculation.json":
-            raise ValueError("invalid retained calculation day")
-        if day >= switch:
-            # A legitimate successor calculation can exist only after the
-            # successor envelope is durable. Retry those under restart rules.
-            raise ValueError("a retained calculation already exists on or after the switch day")
+        for name in sorted(entries):
+            if not fnmatchcase(name, "day-*.calculation.json"):
+                continue
+            try:
+                record = json.loads(read(scores, name))
+            except (OSError, TypeError, ValueError) as exc:
+                raise ValueError("unsafe retained calculation") from exc
+            day = record.get("day") if isinstance(record, dict) else None
+            if type(day) is not int or day < 0 or name != f"day-{day}.calculation.json":
+                raise ValueError("invalid retained calculation day")
+            if day >= document["switch_day"]:
+                # Successor calculations are valid only after the successor policy is durable.
+                raise ValueError("a retained calculation already exists on or after the switch day")
     require_v2_cutover_day(adapter, document, root)
     return document
 
@@ -197,9 +194,9 @@ def require_v2_cutover_day(adapter, document, root):
     from ..core.burn_publication import confirmed_transition
     from ..core.calculation_record import CalculationEvidenceRefused
     from ..core.publish_intent import PublicationStatusUnknown
-    from ..core.submitted_record import submitted_record_path
     from . import ema_policy
     from .mode import check_confirmed_daily, source_mode
+    from .state_files import read_file
 
     switch = document["switch_day"]
     day = switch - 1
@@ -208,10 +205,8 @@ def require_v2_cutover_day(adapter, document, root):
     if latest not in (day, switch):
         raise ValueError("V2.1 requires the planned last V2 closed day")
     try:
-        path = submitted_record_path(root, day)
-        if path.is_symlink():
-            raise ValueError("symlinked last V2 receipt")
-        record = confirmed_transition(root, day) or json.loads(path.read_bytes())
+        daily = read_file(root, f"day-{day}.submitted.json")
+        record = confirmed_transition(root, day) or json.loads(daily)
         reference = record["calculation_evidence"]
         mode, context, proof = source_mode(root, reference)
         predecessor = manifest(ema_policy.manifest(validate_v6_document(document), adapter.netuid))

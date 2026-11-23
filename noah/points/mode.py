@@ -91,16 +91,16 @@ def check_historical_refresh(adapter, reference, manifest, refresh, predecessor)
 def check_confirmed_daily(adapter, reference, manifest, predecessor):
     from ..core.burn_publication import confirmed_transition
     from ..core.direct import reconcile, same_address
-    from ..core.submitted_record import SCHEMA, submitted_record_path
+    from ..core.submitted_record import SCHEMA
     from ..core.version import version_key_for
+    from .state_files import read_file
 
     day = manifest["day"]
     root = adapter._submitted_record_dir
     try:
-        path = submitted_record_path(root, day)
-        if path.is_symlink():
-            raise ValueError("symlinked receipt")
-        daily = json.loads(path.read_bytes())
+        if type(day) is not int or day < 0:
+            raise ValueError("invalid receipt day")
+        daily = json.loads(read_file(root, f"day-{day}.submitted.json", required=True))
         record = confirmed_transition(root, day) or daily
         marker = record["direct_intent"]
         result = marker["result"]

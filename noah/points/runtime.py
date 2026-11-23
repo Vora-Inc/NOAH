@@ -10,9 +10,9 @@ from pathlib import Path
 from ..chain.entry_history import selected as entry_history
 from ..chain.foreign_value import ForeignDepositUnpriced
 from ..chain.sources import Refusal, SourceDisagreement, SourceLied, Unverified
-from ..core.calculation_record import digest, durable_write, encoded
+from ..core.calculation_record import digest, encoded
 from ..core.settings import SettingsError
-from . import amendment, ema_policy, onboarding
+from . import amendment, ema_policy, onboarding, state_files
 from .collector import Collector
 from .engine import POLICY, evaluate
 from .migration import validate
@@ -142,7 +142,7 @@ def _check_cutover_state(adapter, mode, policy_sha=None, *, historical=None):
             from .mode import check_historical_refresh
 
             predecessor = historical.predecessor_manifest
-            if (historical.path.read_bytes() != historical.document_bytes
+            if (state_files.read_file(root, "points-policy.json") != historical.document_bytes
                     or manifest["day"] >= historical.switch_day
                     or context.get("points_policy") != predecessor
                     or pending.get("version_key") != version_key_for(predecessor["policy"] + "/" + predecessor["sha256"])
@@ -363,34 +363,34 @@ class RuntimePolicy:
         # The same policy on restart is idempotent. A changed policy never silently
         # rewrites earlier balances or permits unreviewed repricing.
         self.path = root / "points-policy.json"
+        self.scores_root = root
         self.document_bytes = encoded(supplied_document)
         if amendment_transition:
             (ema_policy if self.ema else amendment).check_transition(adapter, supplied_document)
         else:
-            if self.amended and not self.path.is_file():
+            current = state_files.read_file(root, "points-policy.json")
+            if self.amended and current is None:
                 raise ValueError("amended policy must be explicitly installed before startup")
             old_envelope = (
                 ema_policy.validate_document(self.ema_document) if self.ema else supplied_document
             )
-            if self.ema and (
-                root / "points-policy-ema-predecessor.json"
-            ).read_bytes() != self.ema_document["predecessor_json"].encode("utf-8"):
+            if self.ema and state_files.read_file(
+                root, "points-policy-ema-predecessor.json", required=True
+            ) != self.ema_document["predecessor_json"].encode("utf-8"):
                 raise ValueError("retained EMA predecessor bytes differ")
-            if self.amended and (
-                root / "points-policy-predecessor.json"
-            ).read_bytes() != old_envelope["predecessor_json"].encode("utf-8"):
+            if self.amended and state_files.read_file(
+                root, "points-policy-predecessor.json", required=True
+            ) != old_envelope["predecessor_json"].encode("utf-8"):
                 raise ValueError("retained predecessor bytes differ")
-            if self.v6 and self.path.exists():
-                current = self.path.read_bytes()
+            if self.v6 and current is not None:
                 if current == self.v6_predecessor_bytes:
                     onboarding.check_v6_transition(adapter, supplied_document)
                 elif current != self.document_bytes:
                     raise ValueError("existing points policy differs; explicit migration required")
                 else:
-                    archive = root / "points-policy-v5-predecessor.json"
-                    if archive.is_symlink() or not archive.is_file() or archive.read_bytes() != self.v6_predecessor_bytes:
+                    if state_files.read_file(root, "points-policy-v5-predecessor.json") != self.v6_predecessor_bytes:
                         raise ValueError("retained V2 predecessor is missing or changed")
-            elif self.path.exists() and self.path.read_bytes() != self.document_bytes:
+            elif current is not None and current != self.document_bytes:
                 raise ValueError("existing points policy differs; explicit migration required")
         self.predecessor_manifest = onboarding.manifest(self.manifest) if self.v6 else None
         if self.v6:
@@ -431,21 +431,19 @@ class RuntimePolicy:
         """Install only after successful runtime configuration, never in preflight."""
         if self.transition_preview:
             raise ValueError("transition preview cannot install a policy")
-        replacing_predecessor = False
-        if self.v6 and self.v6_predecessor_bytes is not None:
-            archive = self.path.parent / "points-policy-v5-predecessor.json"
-            if archive.exists() and (
-                archive.is_symlink()
-                or not archive.is_file()
-                or archive.read_bytes() != self.v6_predecessor_bytes
-            ):
-                raise ValueError("retained V5 predecessor differs")
-            if not archive.exists():
-                durable_write(archive, self.v6_predecessor_bytes)
-            replacing_predecessor = (
-                self.path.is_file() and self.path.read_bytes() == self.v6_predecessor_bytes
-            )
-        durable_write(self.path, self.document_bytes, replace=replacing_predecessor)
+        with state_files.directory(self.scores_root, create=True) as scores:
+            replacing_predecessor = False
+            if self.v6 and self.v6_predecessor_bytes is not None:
+                archive = "points-policy-v5-predecessor.json"
+                retained = state_files.read(scores, archive)
+                if retained is not None and retained != self.v6_predecessor_bytes:
+                    raise ValueError("retained V2 predecessor differs")
+                if retained is None:
+                    state_files.write(scores, archive, self.v6_predecessor_bytes)
+                replacing_predecessor = (
+                    state_files.read(scores, "points-policy.json") == self.v6_predecessor_bytes
+                )
+            state_files.write(scores, "points-policy.json", self.document_bytes, replace=replacing_predecessor)
 
     def check_snapshot(self, adapter, fixture, hotkeys):
         if int(fixture["evalDay"]) <= self.migration["cutoff_day"]:

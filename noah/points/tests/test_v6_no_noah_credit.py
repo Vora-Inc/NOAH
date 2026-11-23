@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from noah.points import onboarding
+from noah.points import onboarding, state_files
 from noah.points.engine import evaluate, replay_state
 from noah.points.ledger import State
 from noah.points.tests.test_no_pool import economics_fixture
@@ -15,6 +15,31 @@ from noah.scoring.fixture_io import parse_fixture
 
 R = 10**9
 SWITCH = 2
+
+
+def test_points_state_requires_safe_directory_and_regular_files(tmp_path):
+    root = tmp_path.resolve() / "scores"
+    with state_files.directory(root, create=True) as scores:
+        state_files.write(scores, "points-policy.json", b"V2")
+        state_files.write(scores, "points-policy.json", b"V2")
+        with pytest.raises(ValueError, match="state differs"):
+            state_files.write(scores, "points-policy.json", b"V2.1")
+        assert state_files.read(scores, "points-policy.json") == b"V2"
+        state_files.write(scores, "points-policy.json", b"V2.1", replace=True)
+        assert state_files.read(scores, "points-policy.json") == b"V2.1"
+        assert state_files.read(scores, "day-7.submitted.json") is None
+        with pytest.raises(ValueError, match="file name"):
+            state_files.read(scores, "../fixture.json")
+        (root / "day-7.submitted.json").mkdir()
+        with pytest.raises(ValueError, match="regular file"):
+            state_files.read(scores, "day-7.submitted.json")
+        (root / "day-8.submitted.json").symlink_to(root / "points-policy.json")
+        with pytest.raises(OSError):
+            state_files.read(scores, "day-8.submitted.json")
+    alias = root.with_name("linked-scores")
+    alias.symlink_to(root, target_is_directory=True)
+    with pytest.raises(OSError):
+        state_files.read_file(alias, "points-policy.json")
 
 
 def v6(raw, switch=SWITCH):
