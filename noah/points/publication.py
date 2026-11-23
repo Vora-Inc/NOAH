@@ -10,7 +10,7 @@ def check_before_send(adapter, reference, vector, *, refresh=None):
     """Bind amounts to finalized hotkey AND coldkey immediately before sending."""
     from ..core.report_runtime import check_before_send as check_reports
     check_reports(adapter, reference, vector, **({} if refresh is None else {"refresh": refresh}))
-    check_publication_mode(adapter, reference)
+    check_publication_mode(adapter, reference, refresh=refresh)
     root = adapter._submitted_record_dir
     manifest = verify(root, reference)
     context = artifact(root, manifest, "context")
@@ -48,3 +48,15 @@ def check_before_send(adapter, reference, vector, *, refresh=None):
         raise PublicationStatusUnknown("miner wallet ownership changed before signing")
     if paid.intersection(adapter.owner_uids()):
         raise PublicationStatusUnknown("ordinary publication would pay an owner seat")
+    if getattr(adapter.points_policy, "v6", False):
+        return publication_key(chain, head, context["points_policy"])
+
+
+def publication_key(chain, head, policy):
+    from ..core.version import version_key_for
+
+    key = version_key_for(policy["policy"] + "/" + policy["sha256"])
+    floor = chain.starter_epoch_info(head)["WeightsVersionKey"]
+    if type(floor) is not int or key < floor:
+        raise PublicationStatusUnknown("points publication key below chain floor")
+    return key

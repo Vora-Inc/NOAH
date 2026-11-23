@@ -38,6 +38,7 @@ def legacy_shape(raw):
         ]
     data.pop("pointsExcludedUids", None)
     data.pop("pointsRules", None)
+    data.pop(onboarding.SWITCH_FIELD, None)
     data.pop("pointsMigration", None)
     data.pop("pointsReceipts", None)
     data.pop("pointsHotkeys", None)
@@ -51,6 +52,13 @@ def evaluate(raw):
     if "pointsRules" in raw and raw.get("schema") != ema_policy.INPUT_SCHEMA:
         raise ValueError("ordinary onboarding requires points fixture schema /3")
     rules = onboarding.validate(raw["pointsRules"]) if "pointsRules" in raw else None
+    switch_day = (
+        onboarding.validate_switch_day(raw[onboarding.SWITCH_FIELD])
+        if onboarding.SWITCH_FIELD in raw
+        else None
+    )
+    if switch_day is not None and rules is None:
+        raise ValueError("NOAH credit switch requires ordinary onboarding rules")
     excluded = onboarding.excluded(raw) if rules else set()
     if not rules and "pointsExcludedUids" in raw:
         raise ValueError("owner exclusions require ordinary onboarding")
@@ -85,7 +93,12 @@ def evaluate(raw):
         if miner.uid is None:
             continue
         state = replay_state(
-            miner, fixture.eval_day, cutoff=cutoff, balance=balances.get(miner.uid), rules=rules
+            miner,
+            fixture.eval_day,
+            cutoff=cutoff,
+            balance=balances.get(miner.uid),
+            rules=rules,
+            noah_credit_switch_day=switch_day,
         )
         if miner.uid in excluded:
             state = replace(state, points=0, last_compliant=0)
@@ -117,7 +130,9 @@ def evaluate(raw):
             if ema
             else {}
         ),
-        policy=onboarding.POLICY
+        policy=onboarding.V6_POLICY
+        if switch_day is not None and fixture.eval_day >= switch_day
+        else onboarding.POLICY
         if rules
         else ema_policy.POLICY
         if ema
@@ -131,18 +146,40 @@ def evaluate(raw):
     )
 
 
-def replay_state(miner, eval_day, *, cutoff=-2, balance=None, rules=None):
-    """Pure per-lineage replay, including identities without an active UID."""
+def replay_state(miner, eval_day, *, cutoff=-2, balance=None, rules=None, noah_credit_switch_day=None):
+    """Pure per-lineage replay, including identities without an active UID.
+
+    Days before ``noah_credit_switch_day`` keep the V5 deposit. From that day
+    on, SN82 NOAH adds nothing and is not a penalty. Prepaid balance stays.
+    Past NOAH is removed once from the lifetime deposit total used for the
+    contribution bonus. Replaying from the start applies that removal once.
+    """
+    if noah_credit_switch_day is not None:
+        onboarding.validate_switch_day(noah_credit_switch_day)
+        if rules is None:
+            raise ValueError("NOAH credit switch requires ordinary onboarding rules")
     state = onboarding.initial_state() if rules else State()
+    noah_before = 0
+    adjusted = False
     for day in range(miner.first_activity_day, eval_day + 1):
         if day == cutoff + 1 and balance is not None:
             state = replace(state, balance=balance)
         prior, today = miner.days.get(day - 1), miner.days[day]
         earned = prior.paid_rao + prior.pay_unlocked_rao if prior else 0
+        deposit = today.noah_deposit_rao + today.foreign_deposit_noah_equiv_rao
+        if noah_credit_switch_day is not None and day >= noah_credit_switch_day:
+            if not adjusted:
+                if noah_before > state.contributed:
+                    raise ValueError("NOAH lifetime exceeds recorded deposits")
+                state = replace(state, contributed=state.contributed - noah_before)
+                adjusted = True
+            deposit = today.foreign_deposit_noah_equiv_rao
+        else:
+            noah_before += today.noah_deposit_rao
         state = settle(
             state,
             earned,
-            today.noah_deposit_rao + today.foreign_deposit_noah_equiv_rao,
+            deposit,
             rules=rules,
         )
     if eval_day == cutoff and balance is not None:

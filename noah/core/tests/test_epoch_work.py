@@ -207,6 +207,28 @@ def test_publication_failure_does_not_stop_collection(tmp_path):
     assert len(c.calls) == 1
 
 
+def test_epoch_refusal_logs_a_bounded_phase_without_exception_text(tmp_path):
+    from ..publication_diagnostics import publication_phase
+
+    a, _ = ready(tmp_path)
+
+    def refuse(*args, **kwargs):
+        with publication_phase("confirm"):
+            raise NotOnChain("private provider detail") from TimeoutError()
+
+    with patch("noah.core.epoch_work.republish", side_effect=refuse), patch(
+        "noah.core.epoch_work.diagnostic"
+    ) as log:
+        maintain(a, tmp_path / "loop.lock")
+
+    message = log.call_args.args[0]
+    assert "private provider detail" not in message
+    details = json.loads(message.split("[epoch] publication refused ", 1)[1])
+    assert details["publication_stage"] == "confirm"
+    assert details["cause"] == "TimeoutError"
+    assert details["epoch"] == 200
+
+
 def test_hardware_is_never_requested_for_a_held_validator(tmp_path):
     a, c = ready(tmp_path)
     a._publish_hold = SimpleNamespace(raise_if_held=Mock(side_effect=SettingsError("held")))

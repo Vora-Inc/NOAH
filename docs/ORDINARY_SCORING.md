@@ -94,12 +94,20 @@ can receive a large share; the 0.2 starting score is not an absolute payout cap.
 
 ## Which tokens count
 
-**NOAH is not mandatory.** Attributed NOAH, eligible foreign subnet alpha,
-root TAO, or a mixture can meet the obligation. Tokens must actually reach the
+**NOAH is not mandatory.** Under the proposed V2.1 policy, SN82
+NOAH that reaches the Ark earns no miner credit and no penalty from the switch
+day onward. Prepaid balance already on the books stays. The contribution bonus
+from that day uses foreign-only lifetime deposits. Days before the switch stay
+exactly as V2 scored them. Until the switch, V2 still counts
+attributed NOAH one-for-one. Tokens must actually reach the
 Ark with the required Ark Validator delegation and miner attribution.
-Keeping stake in your own wallet does not count.
+Keeping stake in your own wallet does not count. From the switch day, only
+qualifying foreign alpha and root TAO add new credit. The validator continues to
+record raw SN82 NOAH receipts for audit. The existing first missed day still
+uses half of the last compliant score, even when that score came from V2.
+The second consecutive missed day receives zero.
 
-Native NOAH counts by its actual received amount. Foreign and root receipts use
+Foreign and root receipts use
 the existing authenticated parent-block EMA conversion and spot-price safeguard:
 
     credited NOAH-equivalent = received amount × min(foreign EMA / NOAH EMA,

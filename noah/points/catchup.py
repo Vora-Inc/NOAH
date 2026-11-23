@@ -11,9 +11,9 @@ from pathlib import Path
 from ..core.calculation_record import artifact, digest, durable_write, encoded, verify
 from ..core.publish_intent import PublicationStatusUnknown
 from . import amendment, ema_policy, onboarding
-from .mode import MODE, check_publication_mode
+from .mode import MODE, check_accounting_mode
 
-MODES = (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE)
+MODES = (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE, onboarding.V6_MODE)
 SCHEMA = "noah-points-accounted-day/1"
 
 
@@ -183,7 +183,7 @@ def record_accounted(adapter, height):
     )
     if adapter._publish_hold is not None:
         adapter._publish_hold.raise_if_held()
-    check_publication_mode(adapter, ref)
+    check_accounting_mode(adapter, ref)
     require(
         height == context["height"]
         and chain.block_hash(context["to_block"]) == context["to_block_hash"],
@@ -201,7 +201,7 @@ def record_accounted(adapter, height):
         day=manifest["day"],
         height=height,
         calculation_evidence=ref,
-        points_policy=adapter.points_policy.manifest,
+        points_policy=context["points_policy"],
         identity=dict(
             genesis_hash=chain.genesis_hash(),
             netuid=adapter.netuid,

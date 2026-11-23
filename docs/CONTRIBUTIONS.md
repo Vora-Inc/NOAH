@@ -60,8 +60,10 @@ An unnamed deposit receives no mining credit.
 
 In review candidate `points-204040-v5`, a new miner starts with 0.2 points and no
 entry deposit or starter pool. Its actual earnings create the 50% contribution
-obligation the next UTC day. NOAH, qualifying foreign alpha, root TAO or mixtures
-can satisfy it. Read [ordinary scoring](ORDINARY_SCORING.md) for exact conversion,
+obligation the next UTC day. Qualifying foreign alpha, root TAO, or, while V2
+is still the selected mode, NOAH can satisfy it. The held V2.1 candidate
+(`points-204040-v6`) gives SN82 NOAH deposits zero miner credit and no penalty
+from its switch day. Deposit other subnet alpha or root TAO instead. Read [ordinary scoring](ORDINARY_SCORING.md) for exact conversion,
 bonuses, prepayment, debt and catch-up rules. This is not an activation claim.
 
 Historical entry amounts, consumed receipts and balances retain their frozen

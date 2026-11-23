@@ -28,8 +28,9 @@ Ark receiving address, validator delegation and amount before signing.
 ## 5. Mining rewards
 
 The Ark does not repay your deposit or promise you a financial return.
-Qualifying contributions can affect your Noah mining score. Rewards and
-continued ownership of a miner seat are not guaranteed.
+Qualifying foreign alpha or root TAO can affect your Noah mining score.
+SN82 NOAH deposited into the Ark earns no miner credit under the held V2.1
+candidate. Rewards and continued ownership of a miner seat are not guaranteed.
 
 ## What makes a contribution count
 

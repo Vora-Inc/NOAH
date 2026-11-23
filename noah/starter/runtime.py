@@ -53,14 +53,14 @@ def configure(adapter, settings):
         from .allocation import POLICY_ID
 
         parameters = load_parameters()
-        if parameters.profile_version not in ("mainnet-production-starter-25bps-v1", "mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5"):
+        if parameters.profile_version not in ("mainnet-production-starter-25bps-v1", "mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5", "mainnet-production-points-204040-v6"):
             raise SettingsError("starter entry requires its separately versioned parameter profile")
-        if parameters.profile_version in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and not getattr(settings,"points_policy",None):
+        if parameters.profile_version in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5", "mainnet-production-points-204040-v6") and not getattr(settings,"points_policy",None):
             raise SettingsError("points profile requires NOAH_POINTS_POLICY")
         key = version_key_for("noah-scoring/surplus-bonus-v1/" + POLICY_ID)
         head = adapter.runner_chain.head_block()
         floor = adapter.runner_chain.starter_epoch_info(head)["WeightsVersionKey"]
-        if type(floor) is not int or (parameters.profile_version not in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5") and key < floor):
+        if type(floor) is not int or (parameters.profile_version not in ("mainnet-production-points-402040-v1", "mainnet-production-points-204040-v5", "mainnet-production-points-204040-v6") and key < floor):
             raise SettingsError("starter publication version is below the chain floor")
         adapter.publisher.version_key = key
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -198,8 +198,8 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
 
 def guard_tick(adapter, *, remove_now=False):
     """One independent guard pass. Failures are recorded and never clear intent."""
-    from ..points.onboarding import enabled
-    if enabled(adapter):
+    from ..points.onboarding import no_pool_mode
+    if no_pool_mode(adapter):
         return dict(status="disabled-no-pool", head=None)
     root = Path(adapter._submitted_record_dir)
     status = "blocked"

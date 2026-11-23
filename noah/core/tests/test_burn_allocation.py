@@ -51,6 +51,14 @@ def test_setting_is_zero_or_9800_and_9800_requires_v2():
     ))
     assert restored.burn_allocation_bps == 0
     assert restored.scoring_mode == "points-204040-v5"
+    v6 = Settings.from_mapping(dict(
+        COMPLETE,
+        NOAH_SCORING_MODE="points-204040-v6",
+        NOAH_POINTS_POLICY="/unused/policy.json",
+        NOAH_BURN_ALLOCATION_BPS="9800",
+    ))
+    assert v6.burn_allocation_bps == 9800
+    assert v6.scoring_mode == "points-204040-v6"
     with pytest.raises(BadSetting):
         Settings.from_mapping(dict(COMPLETE, NOAH_BURN_ALLOCATION_BPS="9800"))
     with pytest.raises(BadSetting):
