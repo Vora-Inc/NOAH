@@ -24,7 +24,7 @@ def directory(root, *, create=False):
                 if not create:
                     raise
                 try:
-                    os.mkdir(part, dir_fd=fd)
+                    os.mkdir(part, mode=0o700, dir_fd=fd)
                 except FileExistsError:
                     pass
                 else:
@@ -73,7 +73,7 @@ def write(fd, name, data, *, replace=False):
     """Fsync policy bytes and preserve immutable predecessors across retries."""
     _check_name(name)
     temp = f".{name}.{uuid.uuid4().hex}.tmp"
-    entry = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666, dir_fd=fd)
+    entry = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd)
     try:
         with os.fdopen(entry, "wb") as stream:
             stream.write(data)

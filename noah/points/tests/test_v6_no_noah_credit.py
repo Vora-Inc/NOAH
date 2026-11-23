@@ -20,6 +20,7 @@ SWITCH = 2
 def test_points_state_requires_safe_directory_and_regular_files(tmp_path):
     root = tmp_path.resolve() / "scores"
     with state_files.directory(root, create=True) as scores:
+        assert root.stat().st_mode & 0o077 == 0
         state_files.write(scores, "points-policy.json", b"V2")
         state_files.write(scores, "points-policy.json", b"V2")
         with pytest.raises(ValueError, match="state differs"):
@@ -27,6 +28,7 @@ def test_points_state_requires_safe_directory_and_regular_files(tmp_path):
         assert state_files.read(scores, "points-policy.json") == b"V2"
         state_files.write(scores, "points-policy.json", b"V2.1", replace=True)
         assert state_files.read(scores, "points-policy.json") == b"V2.1"
+        assert (root / "points-policy.json").stat().st_mode & 0o077 == 0
         assert state_files.read(scores, "day-7.submitted.json") is None
         with pytest.raises(ValueError, match="file name"):
             state_files.read(scores, "../fixture.json")

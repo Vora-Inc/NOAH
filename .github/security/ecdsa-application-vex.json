@@ -1692,7 +1692,7 @@
     },
     "noah/points/state_files.py": {
       "mode": "100644",
-      "sha256": "4b6c1987490254abdfc9adede7ea5600ca2b3e1ed58b084e991d6a8d6c166141"
+      "sha256": "fb0a7f420275dd4dade3cd3680d6f61a0f179a1980a22205edc18bbb0a6659bc"
     },
     "noah/points/tests/__init__.py": {
       "mode": "100644",
@@ -1816,7 +1816,7 @@
     },
     "noah/points/tests/test_v6_no_noah_credit.py": {
       "mode": "100644",
-      "sha256": "29d9838b5d6d84556c9cd42e210d8654c286af793329fed3cf2df804ab19c794"
+      "sha256": "ecf727d93d228d6972364ca24d5bbdefede683125fc88db48e0be9d59d21ed65"
     },
     "noah/points/transition.py": {
       "mode": "100644",
@@ -2997,7 +2997,7 @@
   },
   "review": {
     "date": "2026-11-23",
-    "evidence_sha256": "fb7f6bee3d671ad38c8d1fc9b949bb61ae83aae68a216285309ccd2974eefae7",
+    "evidence_sha256": "133578639d892618e4de8181c80e6f208162ecb90d44e924f6f55d17fdd5420d",
     "owner": "Codex independent public V2.1 ECDSA execute-path reviewer",
     "status": "reviewed"
   },
