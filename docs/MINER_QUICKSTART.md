@@ -194,3 +194,10 @@ noah-miner --config noah-mainnet-deposit.ini deposit --preview
 The preview contacts the chain. Stop on an unexpected network, identity, amount
 or refusal. An actual send requires the helper's separate confirmation; follow
 the [ongoing contribution procedure](../noah/deposits/assistant/USAGE.md#3-choose-an-ongoing-contribution).
+
+### Proposed V2.1 deposit rule
+
+From the announced UTC switch day, SN82 NOAH deposited into the Ark earns
+zero miner credit. Qualifying foreign subnet alpha and root TAO continue to
+count. V2 prepaid balances carry forward. Check the scoring rules and the
+active validator policy before making a deposit.

@@ -14,6 +14,7 @@ from ..chain.store import DAY_SECONDS
 from ..diagnostics import write as diagnostic
 from .calculation_record import durable_write, encoded, verify
 from .direct import reconcile
+from .publication_diagnostics import failure_details, publication_phase
 from .publish_intent import PublicationStatusUnknown
 from .settings import SettingsError
 from .writer_lock import LockHeld, held
@@ -25,8 +26,8 @@ def configure(adapter, settings):
     adapter.scoring_mode = validate_configuration(settings)
     adapter.epoch_collection = settings.epoch_collection
     adapter.epoch_republication = settings.epoch_republication
-    from ..points.onboarding import enabled
-    if enabled(adapter):
+    from ..points.onboarding import no_pool_mode
+    if no_pool_mode(adapter):
         from ..chain.entry_history import configure as configure_history
         configure_history(adapter, settings)
     else:
@@ -100,8 +101,8 @@ def collect(adapter, head):
 
 def republish(adapter, epoch, head, *, before_send=lambda: None):
     """Republish verified weights; added unscored seats receive no old weight."""
-    from ..points.onboarding import enabled
-    if getattr(adapter, "starter_entry_policy", None) is not None and not enabled(adapter):
+    from ..points.onboarding import no_pool_mode
+    if getattr(adapter, "starter_entry_policy", None) is not None and not no_pool_mode(adapter):
         from ..starter.runtime import republish as publish_starters
         return publish_starters(adapter, epoch, head, before_send=before_send)
 
@@ -121,7 +122,7 @@ def republish(adapter, epoch, head, *, before_send=lambda: None):
         adapter._publish_intent.clear()
     path = submitted_record_path(adapter._submitted_record_dir, day)
     if not path.exists():
-        if enabled(adapter):
+        if no_pool_mode(adapter):
             from ..points.outage import republish_plain
             return republish_plain(adapter, epoch, head, before_send=before_send)
         return "awaiting_daily_publication"
@@ -350,7 +351,8 @@ def maintain(adapter, lock_path):
 
                 def before_send():
                     if state.get("attempted_epoch") == epoch:
-                        raise PublicationStatusUnknown("this epoch already had a send attempt")
+                        with publication_phase("epoch_already_attempted"):
+                            raise PublicationStatusUnknown("this epoch already had a send attempt")
                     state["attempted_epoch"] = epoch
                     durable_write(path, encoded(state), replace=True)
 
@@ -361,9 +363,9 @@ def maintain(adapter, lock_path):
                         state["published_epoch"] = epoch
                 except (Exception, Refusal) as error:
                     state["publication_status"] = type(error).__name__
-                    diagnostic(
-                        f"[epoch] publication refused ({type(error).__name__})", severity="error"
-                    )
+                    details = {"epoch": epoch, "head": head, **failure_details(error)}
+                    diagnostic(f"[epoch] publication refused {json.dumps(details, sort_keys=True)}",
+                               severity="error")
                 durable_write(path, encoded(state), replace=True)
             if (
                 getattr(adapter, "epoch_collection", False)

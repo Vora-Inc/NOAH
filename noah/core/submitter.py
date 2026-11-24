@@ -237,7 +237,7 @@ class Publisher:
                 }
         return outcome
 
-    def submit_direct(self, uids, values, netuid, *, persist=None, finalized_chain=None):
+    def submit_direct(self, uids, values, netuid, *, persist=None, finalized_chain=None, version_key=None):
         """Compose and submit the open weight-setting call through the supplied client."""
         from bittensor._generated import calls
 
@@ -249,7 +249,7 @@ class Publisher:
             mecid=self.mecid,
             dests=list(uids),
             weights=list(values),
-            version_key=self.version_key,
+            version_key=self.version_key if version_key is None else version_key,
         )
         if self.commit_identity is not None:
             # Compose only the inner call; submit_call still takes a generated

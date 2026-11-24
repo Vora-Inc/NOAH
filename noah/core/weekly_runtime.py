@@ -57,7 +57,7 @@ def marker_path(directory, day):
 
 def _proof_context(directory, source, configuration, reason, week, transition):
     context = artifact(directory, source, 'context')
-    require(context.get('scoring_mode') == 'points-204040-v5'
+    require(context.get('scoring_mode') in ('points-204040-v5', 'points-204040-v6')
             and not any(k in context for k in ('report_gate', 'report_no_bonus', 'starter_overlay', 'burn_allocation')),
             'weekly no-bonus source must be original V2 calculation')
     day, anchor = source['day'], configuration['day_anchor_ts']

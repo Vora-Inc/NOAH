@@ -41,7 +41,7 @@ def test_supported_direct_modes_load_policy_and_validate_worker(selected, mode):
 def test_unqualified_historical_modes_refuse_before_worker_or_policy(selected, mode):
     selected.scoring_mode = mode
     with mock.patch.object(Path, 'open', side_effect=AssertionError('policy inspected')):
-        with pytest.raises(BadSetting, match='only Legacy or V2.0'):
+        with pytest.raises(BadSetting, match='only Legacy, V2.0, or V6'):
             require_report_gate_runtime_ready(selected)
 
 

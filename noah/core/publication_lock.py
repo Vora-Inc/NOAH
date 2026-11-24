@@ -31,9 +31,9 @@ def deployment_lease(directory):
 
 @contextmanager
 def publication_lock(adapter):
-    from ..points.onboarding import enabled
+    from ..points.onboarding import no_pool_mode
 
-    if not enabled(adapter) and getattr(adapter, "starter_entry_policy", None) is None:
+    if not no_pool_mode(adapter) and getattr(adapter, "starter_entry_policy", None) is None:
         yield
         return
     path = str((Path(adapter._submitted_record_dir) / "starter-publication.lock").resolve())

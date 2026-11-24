@@ -15,7 +15,7 @@ from ..chain.dayblocks import day_anchor
 from ..chain.entry_history import EntryPolicy
 from ..chain.live import LiveRunnerChain
 from ..core.settings import Settings, parse_env_file
-from .onboarding import MODE as ORDINARY_MODE
+from .onboarding import no_pool_mode
 from .runtime import configure
 
 
@@ -35,10 +35,10 @@ def inspect(chain, settings, runtime_root, *, amendment_transition=False):
         epoch_collection=settings.epoch_collection,
         epoch_republication=settings.epoch_republication,
         starter_entry_policy=None
-        if settings.scoring_mode == ORDINARY_MODE
+        if no_pool_mode(settings.scoring_mode)
         else EntryPolicy.load(settings.starter_entry_snapshot),
         entry_history_policy=EntryPolicy.load(settings.starter_entry_snapshot)
-        if settings.scoring_mode == ORDINARY_MODE
+        if no_pool_mode(settings.scoring_mode)
         else None,
         _submitted_record_dir=root / "ticket-16/scores",
         _publish_intent=SimpleNamespace(

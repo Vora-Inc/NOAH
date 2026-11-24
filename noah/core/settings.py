@@ -488,10 +488,10 @@ class Settings:
                 and mapping.get("NOAH_PUBLISH_MODE", PUBLISH_MODE_DEFAULT) != "direct"):
             raise BadSetting("epoch republication requires direct publication mode")
         scoring_mode = _one_of_or_default(
-            mapping, "NOAH_SCORING_MODE", ("legacy", "points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5"), "legacy"
+            mapping, "NOAH_SCORING_MODE", ("legacy", "points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5", "points-204040-v6"), "legacy"
         )
         points_policy = mapping.get("NOAH_POINTS_POLICY", "").strip() or None
-        if (scoring_mode in ("points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5")) != bool(points_policy):
+        if (scoring_mode in ("points-402040-v2", "points-402040-v3", "points-402040-v4", "points-204040-v5", "points-204040-v6")) != bool(points_policy):
             raise BadSetting("points scoring mode and NOAH_POINTS_POLICY must be selected together")
 
         report_gate_enabled = _flag(
@@ -510,8 +510,8 @@ class Settings:
                 f"It is {_shown(burn_text)}."
             )
         burn_allocation_bps = int(burn_text)
-        if burn_allocation_bps and scoring_mode != "points-204040-v5":
-            raise BadSetting("nonzero burn allocation requires points-204040-v5 scoring")
+        if burn_allocation_bps and scoring_mode not in ("points-204040-v5", "points-204040-v6"):
+            raise BadSetting("nonzero burn allocation requires points-204040-v5 or points-204040-v6 scoring")
         # OFF does not resolve, inspect or retain an unused policy path.
         report_gate_policy = None
         if report_gate_enabled:
@@ -620,8 +620,8 @@ def require_report_gate_runtime_ready(settings):
         return
     if settings.publish_mode != "direct":
         raise BadSetting("report enforcement requires direct publication")
-    if settings.scoring_mode not in ("legacy", "points-204040-v5"):
-        raise BadSetting("report enforcement supports only Legacy or V2.0 scoring")
+    if settings.scoring_mode not in ("legacy", "points-204040-v5", "points-204040-v6"):
+        raise BadSetting("report enforcement supports only Legacy, V2.0, or V6 scoring")
     from .report_runtime import load_policy
     from .report_publication import check_worker_ready
     policy = load_policy(settings.report_gate_policy)

@@ -13,7 +13,7 @@ GUARD_STAGES = frozenset({
 })
 PUBLICATION_STAGES = frozenset({
     "rate_limit", "validate_vector", "submit", "confirm",
-    "pre_send_evidence", "pre_send_overlay", "pre_send_guard",
+    "pre_send_evidence", "pre_send_overlay", "pre_send_guard", "epoch_already_attempted",
 })
 
 PREPARATION_PREDICATES = frozenset({

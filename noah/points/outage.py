@@ -93,7 +93,9 @@ def authorize(adapter, source, now):
     from ..core.calculation_record import artifact
 
     context = artifact(adapter._submitted_record_dir, manifest, "context")
-    if context.get("points_policy") != adapter.points_policy.manifest:
+    policy = adapter.points_policy
+    expected = policy.manifest_for_day(manifest["day"]) if getattr(policy, "v6", False) else policy.manifest
+    if context.get("points_policy") != expected:
         raise PublicationStatusUnknown("outage source uses another points policy")
     if (
         context.get("ark_address") != adapter.ark_coldkey
@@ -221,7 +223,7 @@ def _reconcile_open_intent(adapter):
     adapter._publish_intent.clear()
 
 
-def _require_outage_source(adapter, marker, latest, now):
+def _require_outage_source(adapter, marker, latest, now, epoch):
     """Deadline, identity and receipt checks shared with an ordinary outage refresh."""
     from ..core.calculation_record import verify
     from ..core.direct import reconcile
@@ -231,7 +233,8 @@ def _require_outage_source(adapter, marker, latest, now):
         raise PublicationStatusUnknown("outage source is not the prior daily publication")
     adapter._check_direct_identity(marker)
     reference = marker["calculation_evidence"]
-    check_publication_mode(adapter, reference)
+    refresh = {"day": marker["day"], "height": marker["height"], "epoch": epoch}
+    check_publication_mode(adapter, reference, refresh=refresh)
     authorize(adapter, reference, now)
     manifest = verify(adapter._submitted_record_dir, reference)
     if manifest["publishable_weights_u16"] != marker["vector"]:
@@ -268,7 +271,7 @@ def republish_plain(adapter, epoch, head, *, before_send):
             # The operator removed burn before a replacement existed. Do not
             # refresh the superseded 98% vector. Deadline, rate and receipt
             # checks still apply, then the retained full allocation is published.
-            _require_outage_source(adapter, daily, latest, now)
+            _require_outage_source(adapter, daily, latest, now, epoch)
             if adapter.last_update(adapter.uid, adapter.netuid) >= epoch:
                 return "already_published_this_epoch"
             if head - adapter.last_update(adapter.uid, adapter.netuid) < adapter.rate_limit(adapter.netuid):
@@ -285,7 +288,8 @@ def republish_plain(adapter, epoch, head, *, before_send):
         raise PublicationStatusUnknown("outage source is not the prior daily publication")
     adapter._check_direct_identity(marker)
     reference = marker["calculation_evidence"]
-    check_publication_mode(adapter, reference)
+    refresh = {"day": marker["day"], "height": marker["height"], "epoch": epoch}
+    check_publication_mode(adapter, reference, refresh=refresh)
     authorize(adapter, reference, now)
     manifest = verify(adapter._submitted_record_dir, reference)
     if manifest["publishable_weights_u16"] != marker["vector"]:

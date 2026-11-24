@@ -1694,7 +1694,8 @@ class ChainAdapter:
         )
         points = getattr(self, "points_policy", None)
         if points is not None:
-            foreign_rule = points.foreign_rule(self, foreign_rule)
+            selected_day = {"day": day} if getattr(points, "v6", False) else {}
+            foreign_rule = points.foreign_rule(self, foreign_rule, **selected_day)
 
         # Rule B (#338): deposits that moved alpha into the Ark but credit
         # nobody (no miner hotkey named, or the wrong validator), as of this
@@ -1745,6 +1746,8 @@ class ChainAdapter:
                     from ..points.onboarding import RULES
                     fixture["pointsRules"] = dict(RULES)
                     fixture["pointsExcludedUids"] = sorted(self.owner_uids())
+                if getattr(points, "v6", False) and day >= points.switch_day:
+                    fixture["pointsNoahCreditSwitchDay"] = points.switch_day
                 if getattr(points, "amended", False):
                     from ..points.receipts import from_evidence
                     fixture["pointsReceipts"] = from_evidence(self._foreign_valuation_evidence, ema=getattr(points, "ema", False))
@@ -1841,7 +1844,23 @@ class ChainAdapter:
                                       ("pointsOwners", self._scored_seat_coldkeys)):
                 if remembered is None or remembered[0] != height or observations.get(field) != {str(k): v for k,v in remembered[1].items()}:
                     raise CalculationEvidenceRefused("amended fixture roster differs from authenticated read")
+        points = getattr(self, "points_policy", None)
+        mode = getattr(self, "scoring_mode", "legacy")
+        manifest = points.manifest if points is not None else None
         profile_snapshot = load_parameters_snapshot()
+        if getattr(points, "v6", False):
+            manifest = points.manifest_for_day(day)
+            mode = manifest["scoring_mode"]
+            if day < points.switch_day:
+                from ..points.onboarding import PROFILE
+                from ..scoring.parameters import ENV_VAR
+
+                configured = Path(os.environ[ENV_VAR])
+                predecessor = load_parameters_snapshot({ENV_VAR: str(configured.with_name(PROFILE + ".json"))})
+                economics = lambda profile: {k: v for k, v in profile.items() if k not in ("profileVersion", "createdAt")}
+                if economics(predecessor.profile) != economics(profile_snapshot.profile):
+                    raise CalculationEvidenceRefused("V2 and V2.1 profiles have different economics")
+                profile_snapshot = predecessor
         context = {
             "day": day,
             "height": height,
@@ -1863,8 +1882,8 @@ class ChainAdapter:
             "profile_capture": "configured_file_at_evidence_time",
             "scoring_dials": self.dials,
             "candidate": source_identity(),
-            "points_policy": getattr(getattr(self, "points_policy", None), "manifest", None),
-            "scoring_mode": getattr(self, "scoring_mode", "legacy"),
+            "points_policy": manifest,
+            "scoring_mode": mode,
             **({"publisher_uid": self.uid} if getattr(self, "points_policy", None) else {}),
             "foreign_valuations": getattr(self, "_foreign_valuation_evidence", []),
             **({"scored_coldkeys": {str(k): v for k,v in self._scored_seat_coldkeys[1].items()}} if observations.get("schema") in ("noah-points-fixture/2", "noah-points-fixture/3") else {}),
@@ -1900,8 +1919,8 @@ class ChainAdapter:
         validate_loop(self, references, pending, state=state)
 
     def prepare_starter_vector(self, vector):
-        from ..points.onboarding import enabled
-        if enabled(self) or self.starter_entry_policy is None:
+        from ..points.onboarding import no_pool_mode
+        if no_pool_mode(self) or self.starter_entry_policy is None:
             return vector
         from ..starter.runtime import prepare_daily
         return prepare_daily(self)
@@ -1922,7 +1941,7 @@ class ChainAdapter:
         bps = getattr(self, "burn_allocation_bps", 0)
         if bps == 0 or not any(vector.values()):
             return vector
-        if getattr(self, "scoring_mode", None) != "points-204040-v5":
+        if getattr(self, "scoring_mode", None) not in ("points-204040-v5", "points-204040-v6"):
             raise PublicationRefused("nonzero burn allocation requires V2")
         if self._calculation_reference is None or self._submitted_record_dir is None:
             raise PublicationRefused("burn allocation requires the retained pre-burn calculation")
@@ -2240,9 +2259,10 @@ class ChainAdapter:
         from .report_runtime import enabled as reports_enabled
         if reports_enabled(self) and self._calculation_reference is None:
             raise PublicationRefused("report enforcement requires retained calculation proof")
-        from ..points.onboarding import enabled
-        if enabled(self) and self._calculation_reference is None:
+        from ..points.onboarding import no_pool_mode
+        if no_pool_mode(self) and self._calculation_reference is None:
             raise PublicationRefused("ordinary points requires a retained calculation before submission")
+        publication_key = None
         if self._calculation_reference is not None:
             # These checks run after intent creation, but before the transport
             # is invoked. A refusal here proves no send occurred. Do not leave
@@ -2251,11 +2271,17 @@ class ChainAdapter:
             try:
                 from .report_source_handoff import refresh_attempt
                 refresh = refresh_attempt(self)
-                from ..points.onboarding import enabled
-                if enabled(self):
+                if no_pool_mode(self):
                     from ..points.publication import check_before_send
-                    check_before_send(self, self._calculation_reference, dict(zip(uids, values)),
-                                          **({} if refresh is None else {"refresh": refresh}))
+                    with publication_phase("pre_send_evidence"):
+                        publication_key = check_before_send(
+                            self, self._calculation_reference, dict(zip(uids, values)),
+                            **({} if refresh is None else {"refresh": refresh}),
+                        )
+                        if publication_key is not None:
+                            marker = self._publish_intent.load()
+                            if marker is None or marker.get("version_key") != publication_key:
+                                raise PublicationRefused("publication key or durable intent changed")
                 else:
                     from ..starter.publication import check_before_send, verify_overlay
                     with publication_phase("pre_send_evidence"):
@@ -2292,6 +2318,7 @@ class ChainAdapter:
         result = self.publisher.submit_direct(
             uids, values, netuid, persist=self._publish_intent.persist_prepared,
             finalized_chain=self.runner_chain,
+            **({"version_key": publication_key} if publication_key is not None else {}),
         )
         # Failure to persist the response leaves the original marker intact.
         # Recovery then searches by signer, nonce and complete call.
@@ -2555,16 +2582,17 @@ class ChainAdapter:
         from .report_runtime import enabled as reports_enabled
         if reports_enabled(self) and self._calculation_reference is None:
             raise PublicationRefused("report enforcement requires retained calculation proof")
+        publication_key = None
         if self._calculation_reference is not None:
-            from ..points.onboarding import enabled
-            if enabled(self):
+            from ..points.onboarding import no_pool_mode
+            if no_pool_mode(self):
                 from ..points.publication import check_before_send
             else:
                 from ..starter.publication import check_before_send
             refresh = ({"epoch": refresh_epoch, "day": source_day, "height": height}
                        if refresh_epoch is not None and successor is None else None)
-            check_before_send(self, self._calculation_reference, vector,
-                              **({} if refresh is None else {"refresh": refresh}))
+            publication_key = check_before_send(self, self._calculation_reference, vector,
+                                                   **({} if refresh is None else {"refresh": refresh}))
         if self._calculation_reference is not None:
             from .burn_publication import allocation_of, recheck_for_send
             from .calculation_record import artifact, verify
@@ -2597,7 +2625,7 @@ class ChainAdapter:
             mode="direct",
             uid=self.uid,
             mecid=self.publisher.mecid,
-            version_key=self.publisher.version_key,
+            version_key=self.publisher.version_key if publication_key is None else publication_key,
             signer=signer,
             route="proxy" if self.publisher.commit_identity is not None else "direct-signer",
             vector={str(uid): value for uid, value in vector.items()},

@@ -388,3 +388,7 @@ reservation can establish that no signing request started. Missing or replaced
 signer state cannot establish that fact and remains blocked for investigation.
 Changing an address's SS58 network prefix does not create a new owner, miner or
 plan. Full fixed NOAH amount and lifetime capacity are checked before buying.
+
+For the proposed V2.1 scoring policy, use qualifying foreign subnet alpha
+or root TAO from the announced UTC switch day. A SN82 NOAH deposit then earns
+zero miner credit. Confirm the active validator policy before signing.

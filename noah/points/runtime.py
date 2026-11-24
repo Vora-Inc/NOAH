@@ -10,16 +10,16 @@ from pathlib import Path
 from ..chain.entry_history import selected as entry_history
 from ..chain.foreign_value import ForeignDepositUnpriced
 from ..chain.sources import Refusal, SourceDisagreement, SourceLied, Unverified
-from ..core.calculation_record import digest, durable_write, encoded
+from ..core.calculation_record import digest, encoded
 from ..core.settings import SettingsError
-from . import amendment, ema_policy, onboarding
+from . import amendment, ema_policy, onboarding, state_files
 from .collector import Collector
 from .engine import POLICY, evaluate
 from .migration import validate
 from .mode import MODE, source_mode
 from .valuation import credit
 
-MODES = (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE)
+MODES = (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE, onboarding.V6_MODE)
 
 PROFILE = "mainnet-production-points-402040-v1"
 
@@ -38,9 +38,15 @@ def validate_configuration(settings):
         profile = load_parameters().profile_version
     except ValueError as exc:
         raise SettingsError("scoring mode requires a readable parameter profile") from exc
-    expected = onboarding.PROFILE if mode == onboarding.MODE else PROFILE
+    expected = (
+        onboarding.V6_PROFILE
+        if mode == onboarding.V6_MODE
+        else onboarding.PROFILE
+        if mode == onboarding.MODE
+        else PROFILE
+    )
     if (mode in MODES and profile != expected) or (
-        mode == "legacy" and profile in (PROFILE, onboarding.PROFILE)
+        mode == "legacy" and profile in (PROFILE, onboarding.PROFILE, onboarding.V6_PROFILE)
     ):
         raise SettingsError("scoring mode and parameter profile differ")
     return mode
@@ -60,7 +66,11 @@ def configure(adapter, settings, *, persist=True, amendment_transition=False):
         from ..scoring.parameters import load_parameters
 
         if load_parameters().profile_version != (
-            onboarding.PROFILE if onboarding.enabled(adapter) else PROFILE
+            onboarding.V6_PROFILE
+            if onboarding.v6_enabled(adapter)
+            else onboarding.PROFILE
+            if onboarding.enabled(adapter)
+            else PROFILE
         ):
             raise ValueError("points requires its explicit parameter profile")
         if (
@@ -74,20 +84,33 @@ def configure(adapter, settings, *, persist=True, amendment_transition=False):
         if not adapter._submitted_record_dir:
             raise ValueError("durable calculation evidence required")
         document = json.loads(Path(path).read_text())
-        expected_sha = (
-            onboarding.manifest(ema_policy.manifest(document, adapter.netuid))["sha256"]
-            if onboarding.enabled(adapter)
-            else digest(encoded(document))
-        )
-        _check_cutover_state(adapter, adapter.scoring_mode, expected_sha)
+        if onboarding.v6_enabled(adapter):
+            predecessor = onboarding.v6_predecessor(document)
+            expected_sha = onboarding.manifest(
+                ema_policy.manifest(predecessor, adapter.netuid),
+                mode=onboarding.V6_MODE,
+                switch_day=document["switch_day"],
+            )["sha256"]
+        else:
+            expected_sha = (
+                onboarding.manifest(ema_policy.manifest(document, adapter.netuid))["sha256"]
+                if onboarding.enabled(adapter)
+                else digest(encoded(document))
+            )
         policy = RuntimePolicy(document, adapter, amendment_transition=amendment_transition)
+        _check_cutover_state(adapter, adapter.scoring_mode, expected_sha,
+                             historical=policy if policy.v6 else None)
         if policy.manifest["scoring_mode"] != adapter.scoring_mode:
             raise ValueError("policy document and selected mode differ")
         key = version_key_for(policy.manifest["policy"] + "/" + policy.manifest["sha256"])
-        floor = adapter.runner_chain.starter_epoch_info(adapter.runner_chain.head_block())[
-            "WeightsVersionKey"
-        ]
-        if type(floor) is not int or key < floor:
+        chain = adapter.runner_chain
+        head = chain.head_block()
+        floor = chain.starter_epoch_info(head)["WeightsVersionKey"]
+        keys = [key]
+        if policy.v6 and (chain.block_timestamp(head) - adapter.day_anchor_ts) // 86400 - 1 <= policy.switch_day:
+            prior = policy.predecessor_manifest
+            keys.append(version_key_for(prior["policy"] + "/" + prior["sha256"]))
+        if type(floor) is not int or min(keys) < floor:
             raise ValueError("points publication key below chain floor")
         adapter.publisher.version_key = key
         adapter.points_policy = policy
@@ -99,7 +122,7 @@ def configure(adapter, settings, *, persist=True, amendment_transition=False):
         ) from None
 
 
-def _check_cutover_state(adapter, mode, policy_sha=None):
+def _check_cutover_state(adapter, mode, policy_sha=None, *, historical=None):
     """Do not select a new mode over an unresolved old send or starter overlay."""
     root = Path(adapter._submitted_record_dir)
     if mode == "legacy" and (root / "points-policy.json").exists():
@@ -111,10 +134,24 @@ def _check_cutover_state(adapter, mode, policy_sha=None):
     if pending is not None:
         reference = pending.get("calculation_evidence")
         # Historical legacy sends may predate retained calculation evidence.
-        pending_mode, context = "legacy", {}
+        pending_mode, context, manifest = "legacy", {}, None
         if reference is not None:
-            pending_mode, context, _ = source_mode(adapter._submitted_record_dir, reference)
-        if pending_mode != mode or (
+            pending_mode, context, manifest = source_mode(adapter._submitted_record_dir, reference)
+        if historical is not None and pending_mode == onboarding.MODE:
+            from ..core.version import version_key_for
+            from .mode import check_historical_refresh
+
+            predecessor = historical.predecessor_manifest
+            if (state_files.read_file(root, "points-policy.json") != historical.document_bytes
+                    or manifest["day"] >= historical.switch_day
+                    or context.get("points_policy") != predecessor
+                    or pending.get("version_key") != version_key_for(predecessor["policy"] + "/" + predecessor["sha256"])
+                    or pending.get("vector") != manifest["publishable_weights_u16"]):
+                raise SettingsError("pending pre-switch refresh differs from retained policy")
+            check_historical_refresh(adapter, reference, manifest,
+                {"day": pending.get("day"), "height": pending.get("height"),
+                 "epoch": pending.get("refresh_epoch")}, predecessor)
+        elif pending_mode != mode or (
             mode in MODES and context.get("points_policy", {}).get("sha256") != policy_sha
         ):
             raise SettingsError("reconcile the pending publication before changing scoring mode")
@@ -136,11 +173,19 @@ def _check_cutover_state(adapter, mode, policy_sha=None):
 
 class RuntimePolicy:
     def __init__(self, document, adapter, *, amendment_transition=False):
-        self.no_pool = onboarding.enabled(adapter)
+        self.v6 = onboarding.v6_enabled(adapter)
+        self.switch_day = None
+        self.v6_predecessor_bytes = None
+        supplied_document = document
+        if self.v6:
+            onboarding.validate_v6_document(document)
+            self.switch_day = document["switch_day"]
+            self.v6_predecessor_bytes = document["predecessor_json"].encode("utf-8")
+            document = onboarding.v6_predecessor(supplied_document)
+        self.no_pool = onboarding.enabled(adapter) or self.v6
         if self.no_pool and document.get("schema") != ema_policy.SCHEMA:
             raise ValueError("ordinary onboarding requires the authenticated EMA policy")
         self.day_anchor_ts = adapter.day_anchor_ts
-        supplied_document = document
         self.ema = document.get("schema") == ema_policy.SCHEMA
         self.ema_document = document if self.ema else None
         self.amended = self.ema or document.get("schema") == amendment.SCHEMA
@@ -307,8 +352,8 @@ class RuntimePolicy:
             pricing=p,
         )
         if self.ema:
-            self.manifest = ema_policy.manifest(supplied_document, adapter.netuid)
-            anchor = supplied_document["activation_anchor"]
+            self.manifest = ema_policy.manifest(self.ema_document, adapter.netuid)
+            anchor = self.ema_document["activation_anchor"]
             if (
                 anchor["block"] > chain.head_block()
                 or chain.block_hash(anchor["block"]) != anchor["hash"]
@@ -318,26 +363,41 @@ class RuntimePolicy:
         # The same policy on restart is idempotent. A changed policy never silently
         # rewrites earlier balances or permits unreviewed repricing.
         self.path = root / "points-policy.json"
+        self.scores_root = root
         self.document_bytes = encoded(supplied_document)
         if amendment_transition:
             (ema_policy if self.ema else amendment).check_transition(adapter, supplied_document)
         else:
-            if self.amended and not self.path.is_file():
+            current = state_files.read_file(root, "points-policy.json")
+            if self.amended and current is None:
                 raise ValueError("amended policy must be explicitly installed before startup")
             old_envelope = (
-                ema_policy.validate_document(supplied_document) if self.ema else supplied_document
+                ema_policy.validate_document(self.ema_document) if self.ema else supplied_document
             )
-            if self.ema and (
-                root / "points-policy-ema-predecessor.json"
-            ).read_bytes() != supplied_document["predecessor_json"].encode("utf-8"):
+            if self.ema and state_files.read_file(
+                root, "points-policy-ema-predecessor.json", required=True
+            ) != self.ema_document["predecessor_json"].encode("utf-8"):
                 raise ValueError("retained EMA predecessor bytes differ")
-            if self.amended and (
-                root / "points-policy-predecessor.json"
-            ).read_bytes() != old_envelope["predecessor_json"].encode("utf-8"):
+            if self.amended and state_files.read_file(
+                root, "points-policy-predecessor.json", required=True
+            ) != old_envelope["predecessor_json"].encode("utf-8"):
                 raise ValueError("retained predecessor bytes differ")
-            if self.path.exists() and self.path.read_bytes() != self.document_bytes:
+            if self.v6 and current is not None:
+                if current == self.v6_predecessor_bytes:
+                    onboarding.check_v6_transition(adapter, supplied_document)
+                elif current != self.document_bytes:
+                    raise ValueError("existing points policy differs; explicit migration required")
+                else:
+                    if state_files.read_file(root, "points-policy-v5-predecessor.json") != self.v6_predecessor_bytes:
+                        raise ValueError("retained V2 predecessor is missing or changed")
+            elif current is not None and current != self.document_bytes:
                 raise ValueError("existing points policy differs; explicit migration required")
-        if self.no_pool:
+        self.predecessor_manifest = onboarding.manifest(self.manifest) if self.v6 else None
+        if self.v6:
+            self.manifest = onboarding.manifest(
+                self.manifest, mode=onboarding.V6_MODE, switch_day=self.switch_day
+            )
+        elif self.no_pool:
             self.manifest = onboarding.manifest(self.manifest)
         self.transition_preview = amendment_transition
         self.collector = Collector(chain, root / "points-prices", adapter.netuid)
@@ -349,8 +409,13 @@ class RuntimePolicy:
             from .ema_reference import EmaReference
 
             self.ema_collector = EmaReference(
-                chain, root, adapter.netuid, supplied_document["ema_source"]
+                chain, root, adapter.netuid, self.ema_document["ema_source"]
             )
+
+    def manifest_for_day(self, day):
+        if self.v6 and day < self.switch_day:
+            return self.predecessor_manifest
+        return self.manifest
 
     @property
     def input_schema(self):
@@ -366,7 +431,19 @@ class RuntimePolicy:
         """Install only after successful runtime configuration, never in preflight."""
         if self.transition_preview:
             raise ValueError("transition preview cannot install a policy")
-        durable_write(self.path, self.document_bytes)
+        with state_files.directory(self.scores_root, create=True) as scores:
+            replacing_predecessor = False
+            if self.v6 and self.v6_predecessor_bytes is not None:
+                archive = "points-policy-v5-predecessor.json"
+                retained = state_files.read(scores, archive)
+                if retained is not None and retained != self.v6_predecessor_bytes:
+                    raise ValueError("retained V2 predecessor differs")
+                if retained is None:
+                    state_files.write(scores, archive, self.v6_predecessor_bytes)
+                replacing_predecessor = (
+                    state_files.read(scores, "points-policy.json") == self.v6_predecessor_bytes
+                )
+            state_files.write(scores, "points-policy.json", self.document_bytes, replace=replacing_predecessor)
 
     def check_snapshot(self, adapter, fixture, hotkeys):
         if int(fixture["evalDay"]) <= self.migration["cutoff_day"]:
@@ -429,6 +506,7 @@ class RuntimePolicy:
             prefix.pop("pointsOwners", None)
             prefix.pop("pointsPricing", None)
             prefix.pop("pointsPricingBoundary", None)
+            prefix.pop(onboarding.SWITCH_FIELD, None)
             state = evaluate(prefix)["miners"][0]["state"]
             state["balance"] = str(saved["legacy_coverage_rao"] - saved["legacy_debt_rao"])
             if state != {k: str(v) for k, v in saved["state"].items()}:
@@ -482,7 +560,7 @@ class RuntimePolicy:
                     )
                 )
         return dict(
-            policySha256=self.manifest["sha256"],
+            policySha256=self.manifest_for_day(int(fixture["evalDay"]))["sha256"],
             cutoffDay=self.migration["cutoff_day"],
             balances=sorted(balances, key=lambda row: row["uid"]),
         )
@@ -559,7 +637,7 @@ class RuntimePolicy:
                 "points pricing evidence unavailable; preserve receipt and retry"
             ) from exc
 
-    def foreign_rule(self, adapter, legacy):
+    def foreign_rule(self, adapter, legacy, *, day=None):
         def rule(amount, netuid, block, block_hash, *, receipt=None):
             if block <= self.migration["cutoff_block"]:
                 key = (block, block_hash, netuid, amount)
@@ -636,7 +714,7 @@ class RuntimePolicy:
                     token_netuid=netuid,
                     amount_rao=str(amount),
                     **decision,
-                    policy_sha256=self.manifest["sha256"],
+                    policy_sha256=(self.manifest if day is None else self.manifest_for_day(day))["sha256"],
                     **(
                         {"reference_proof": outcome["proof"], "receipt": receipt}
                         if outcome is not None

@@ -13,27 +13,11 @@ def confirm_legacy_current(adapter, root):
     return confirm_current(adapter, root, allowed_modes=("legacy",))
 
 
-def confirm_current(adapter, root, *, allowed_modes, predecessor_sha256=None):
-    active = json.loads((root / 'starter-active.json').read_bytes())
-    reference, marker = active['reference'], active['marker']
-    manifest = verify(root, reference)
-    proof = verify_overlay(root, reference)
-    from .mode import source_mode
-    selected, context, _ = source_mode(root, reference)
-    if selected not in allowed_modes or (proof is not None and proof['mode'] != 'ordinary-fallback'):
-        raise ValueError('amendment requires reconciled ordinary predecessor current source')
-    if selected != 'legacy' and context.get('points_policy', {}).get('sha256') != predecessor_sha256:
-        raise ValueError('current predecessor policy differs')
-    if (manifest['publishable_weights_u16'] != marker['vector'] or manifest['day'] != marker['day']
-            or marker.get('result') is None):
-        raise ValueError('legacy current source differs from retained receipt')
-    chain = adapter.runner_chain
+def paired_readers(chain):
+    """Independent public publication readers for wallet-free preflight."""
     sources = getattr(chain, '_sources', None)
     if not isinstance(sources, dict) or len(sources) < 2:
-        raise Unverified('amendment requires paired publication reconciliation')
-    head = chain.head_block()
-    head_hash = chain.block_hash(head)
-    answers = []
+        raise Unverified('transition requires paired publication reconciliation')
     for source in sources.values():
         connection = source._connection
         class Raw:
@@ -61,6 +45,38 @@ def confirm_current(adapter, root, *, allowed_modes, predecessor_sha256=None):
                 from ..chain.live import _plain
                 return SimpleNamespace(number=block, hash=at, extrinsics=[_plain(x) for x in value['extrinsics']])
         reader = ChainReader(Client())
+        yield source, reader
+
+
+def confirm_paired_receipt(chain, marker):
+    answers = [
+        reconcile(reader, marker, finalized_chain=chain) for _, reader in paired_readers(chain)
+    ]
+    if any(answer != answers[0] for answer in answers[1:]):
+        raise SourceDisagreement("paired publication reconciliation differs")
+    return answers[0]
+
+
+def confirm_current(adapter, root, *, allowed_modes, predecessor_sha256=None):
+    active = json.loads((root / 'starter-active.json').read_bytes())
+    reference, marker = active['reference'], active['marker']
+    manifest = verify(root, reference)
+    proof = verify_overlay(root, reference)
+    from .mode import source_mode
+    selected, context, _ = source_mode(root, reference)
+    if selected not in allowed_modes or (proof is not None and proof['mode'] != 'ordinary-fallback'):
+        raise ValueError('amendment requires reconciled ordinary predecessor current source')
+    if selected != 'legacy' and context.get('points_policy', {}).get('sha256') != predecessor_sha256:
+        raise ValueError('current predecessor policy differs')
+    if (manifest['publishable_weights_u16'] != marker['vector'] or manifest['day'] != marker['day']
+            or marker.get('result') is None):
+        raise ValueError('legacy current source differs from retained receipt')
+    chain = adapter.runner_chain
+    head = chain.head_block()
+    head_hash = chain.block_hash(head)
+    answers = []
+    for source, reader in paired_readers(chain):
+        connection = source._connection
         confirmed = reconcile(reader, marker, finalized_chain=chain)
         from ..chain.live import _plain
         def query(name, params):

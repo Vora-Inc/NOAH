@@ -143,7 +143,7 @@ def configure(adapter, settings):
     adapter.weekly_assignments = weekly
     adapter.weekly_assignment_signing_key_file = getattr(settings, "weekly_assignment_signing_key_file", None)
     if weekly:
-        require(settings.scoring_mode == "points-204040-v5" and adapter.report_reward == "bonus-20",
+        require(settings.scoring_mode in ("points-204040-v5", "points-204040-v6") and adapter.report_reward == "bonus-20",
                 "weekly assignments require V2 bonus-20")
         from .weekly_runtime import bind_template, signing_pair
         bind_template(adapter._submitted_record_dir, policy)

@@ -56,12 +56,14 @@ export function evaluatePoints(text:string){
  const input=parseStrict(text) as Record<string, any>;
  const ordinary=Object.hasOwn(input,'pointsRules');
  if(ordinary&&input.schema!=='noah-points-fixture/3')throw new Error('ordinary onboarding requires points fixture schema /3');
+ const switchDay=Object.hasOwn(input,'pointsNoahCreditSwitchDay')?input.pointsNoahCreditSwitchDay:null;
+ if(switchDay!==null&&(!ordinary||!Number.isSafeInteger(switchDay)||switchDay<0))throw new Error('invalid NOAH credit switch day');
  const rules={base:20,contribution:40,target:50,bonusAt:75,maturityStart:1,maturityDays:90,maturityCurve:2,consistency:40,consistencyDays:30,consistencyCurve:2,debtKeep:50,debtZero:2};
  if(ordinary&&canonicalJson(input.pointsRules)!==canonicalJson(rules))throw new Error('unsupported ordinary onboarding rules');
  const excluded=ordinary?input.pointsExcludedUids:[];
  if(!Array.isArray(excluded)||excluded.some((u:any)=>!Number.isSafeInteger(u)||u<0)||new Set(excluded).size!==excluded.length||excluded.some((u:number,i:number)=>i>0&&u<=excluded[i-1]))throw new Error('invalid owner exclusions');
  if(!ordinary&&Object.hasOwn(input,'pointsExcludedUids'))throw new Error('owner exclusions require ordinary onboarding');
- const clean={...input};delete clean.pointsRules;delete clean.pointsExcludedUids;delete clean.pointsMigration;delete clean.pointsReceipts;delete clean.pointsHotkeys;delete clean.pointsOwners;
+ const clean={...input};delete clean.pointsRules;delete clean.pointsExcludedUids;delete clean.pointsNoahCreditSwitchDay;delete clean.pointsMigration;delete clean.pointsReceipts;delete clean.pointsHotkeys;delete clean.pointsOwners;
  const ema=input.schema==='noah-points-fixture/3';
  const amended=ema||input.schema==='noah-points-fixture/2';
  if(!ema&&['pointsPricing','pointsPricingBoundary'].some(k=>Object.hasOwn(input,k)))throw new Error('old policy cannot carry EMA pricing');
@@ -91,11 +93,18 @@ export function evaluatePoints(text:string){
  const miners=f.miners.filter(m=>m.uid!==null).map(m=>{
   let earned=0n,contributed=0n,balance=0n,streak=0n,qualified=0n,missed=0n,points=0n,last=0n,bonus=0n,consistency=0n,maturity=0n;
   if(ordinary){points=200000n;last=points;maturity=10000n;}
+  let noahBefore=0n,adjusted=false;
+  const switchAt=switchDay===null?null:BigInt(switchDay);
   for(let day=m.firstActivityDay;day<=f.evalDay;day++){
    if(day===cutoff+1n&&balances.has(m.uid!))balance=balances.get(m.uid!)!;
    const before=m.days.get(day-1n),today=m.days.get(day)!;
    const pay=before?before.paidRao+before.payUnlockedRao:0n;
-   const credit=today.noahDepositRao+today.foreignDepositNoahEquivRao,need=pay/2n,oldBalance=balance;
+   let credit=today.noahDepositRao+today.foreignDepositNoahEquivRao;
+   if(switchAt!==null&&day>=switchAt){
+    if(!adjusted){if(noahBefore>contributed)throw new Error('NOAH lifetime exceeds recorded deposits');contributed-=noahBefore;adjusted=true;}
+    credit=today.foreignDepositNoahEquivRao;
+   }else noahBefore+=today.noahDepositRao;
+   const need=pay/2n,oldBalance=balance;
    earned+=pay;contributed+=credit;balance+=credit-need;
    if(balance<0n){missed++;streak=0n;points=missed===1n?last/2n:0n;bonus=0n;consistency=0n;continue;}
    missed=0n;
@@ -112,7 +121,7 @@ export function evaluatePoints(text:string){
   scores.set(m.uid!,points);
   return {uid:m.uid!,coldkey:m.coldkey,scoreFp:points*1000n,baseFp:points*1000n,payWeightFp:points*1000n,pciFp:earned>0n?contributed*1000000000n/earned:0n,doorOpen:true,state:{earned,contributed,balance,streak,qualified,missed,points,last_compliant:last,contribution:bonus,consistency,baseline:(ordinary?20n:40n)*Q,maturity}};
  }).sort((a,b)=>a.uid-b.uid);
- return {schema:ema?'noah-points-output/3':amended?'noah-points-output/2':'noah-points-output/1',...(amended?{receiptDispositions:dispositions}:{}),...(ema?{pricingReferences:input.pointsPricing,pricingBoundary:input.pointsPricingBoundary}:{}),policy:ordinary?'noah-points-204040-90d-no-pool/5':ema?'noah-points-402040-30d/4':amended?'noah-points-402040-30d/3':'noah-points-402040-30d/2',fixture:f.name,evalDay:Number(f.evalDay),miners,weightsU16:Object.fromEntries(quantizeWeights(scores).weights)};
+ return {schema:ema?'noah-points-output/3':amended?'noah-points-output/2':'noah-points-output/1',...(amended?{receiptDispositions:dispositions}:{}),...(ema?{pricingReferences:input.pointsPricing,pricingBoundary:input.pointsPricingBoundary}:{}),policy:switchDay!==null&&f.evalDay>=BigInt(switchDay)?'noah-points-204040-90d-no-pool/6':ordinary?'noah-points-204040-90d-no-pool/5':ema?'noah-points-402040-30d/4':amended?'noah-points-402040-30d/3':'noah-points-402040-30d/2',fixture:f.name,evalDay:Number(f.evalDay),miners,weightsU16:Object.fromEntries(quantizeWeights(scores).weights)};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{process.stdout.write(canonicalJson(evaluatePoints(readFileSync(process.argv[2],'utf8'))));}

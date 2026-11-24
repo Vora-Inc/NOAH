@@ -4,12 +4,15 @@ Reconciliation of an already sent transaction is deliberately separate: changing
 configuration must not prevent recovery of its exact recorded bytes.
 """
 
+import json
+
 from ..core.calculation_record import verify
 from ..core.publish_intent import PublicationStatusUnknown
 from . import amendment, ema_policy, onboarding
 from .engine import INPUT_SCHEMA, POLICY
 
 MODE = "points-402040-v2"
+_ORDINARY = (onboarding.MODE, onboarding.V6_MODE)
 
 
 def source_mode(directory, reference):
@@ -27,26 +30,39 @@ def source_mode(directory, reference):
             or context.get("points_policy") is not None
         ):
             raise PublicationStatusUnknown("legacy evidence contains another scoring mode")
-    elif mode in (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE):
+    elif mode in (MODE, amendment.MODE, ema_policy.MODE, *_ORDINARY):
         expected_schema, expected_policy = (
             (ema_policy.INPUT_SCHEMA, ema_policy.POLICY)
-            if mode in (ema_policy.MODE, onboarding.MODE)
+            if mode in (ema_policy.MODE, *_ORDINARY)
             else (amendment.INPUT_SCHEMA, amendment.POLICY)
             if mode == amendment.MODE
             else (INPUT_SCHEMA, POLICY)
         )
-        if mode == onboarding.MODE:
-            expected_policy = onboarding.POLICY
+        if mode in _ORDINARY:
+            expected_policy = onboarding.V6_POLICY if mode == onboarding.V6_MODE else onboarding.POLICY
             onboarding.validate(fixture.get("pointsRules"))
             onboarding.excluded(fixture)
-        elif "pointsRules" in fixture or "pointsExcludedUids" in fixture:
+            if mode == onboarding.V6_MODE:
+                pinned = context.get("points_policy")
+                if (
+                    not isinstance(pinned, dict)
+                    or type(fixture.get(onboarding.SWITCH_FIELD)) is not int
+                    or not 0 <= fixture[onboarding.SWITCH_FIELD] <= manifest["day"]
+                    or fixture[onboarding.SWITCH_FIELD] != pinned.get("noah_credit_switch_day")
+                ):
+                    raise PublicationStatusUnknown(
+                        "NOAH credit switch day differs from the pinned policy"
+                    )
+            elif onboarding.SWITCH_FIELD in fixture:
+                raise PublicationStatusUnknown("V2 evidence contains a V2.1 switch day")
+        elif "pointsRules" in fixture or "pointsExcludedUids" in fixture or onboarding.SWITCH_FIELD in fixture:
             raise PublicationStatusUnknown("old mode contains new scoring rules")
         if (
             fixture.get("schema") != expected_schema
             or score.get("schema")
             != (
                 ema_policy.OUTPUT_SCHEMA
-                if mode in (ema_policy.MODE, onboarding.MODE)
+                if mode in (ema_policy.MODE, *_ORDINARY)
                 else "noah-points-output/2"
                 if mode == amendment.MODE
                 else "noah-points-output/1"
@@ -61,14 +77,86 @@ def source_mode(directory, reference):
     return mode, context, manifest
 
 
-def check_publication_mode(adapter, reference):
+def check_historical_refresh(adapter, reference, manifest, refresh, predecessor):
+    """Only a previously confirmed canonical daily vector may cross the switch."""
+    day = manifest["day"]
+    if (type(refresh) is not dict or set(refresh) != {"day", "height", "epoch"}
+            or any(type(refresh[k]) is not int for k in refresh)
+            or refresh["day"] != day or refresh["height"] != manifest["height"]
+            or refresh["epoch"] <= 0):
+        raise PublicationStatusUnknown("pre-switch calculation is refresh-only")
+    check_confirmed_daily(adapter, reference, manifest, predecessor)
+
+
+def check_confirmed_daily(adapter, reference, manifest, predecessor):
+    from ..core.burn_publication import confirmed_transition
+    from ..core.direct import reconcile, same_address
+    from ..core.submitted_record import SCHEMA
+    from ..core.version import version_key_for
+    from .state_files import read_file
+
+    day = manifest["day"]
+    root = adapter._submitted_record_dir
+    try:
+        if type(day) is not int or day < 0:
+            raise ValueError("invalid receipt day")
+        daily = json.loads(read_file(root, f"day-{day}.submitted.json", required=True))
+        record = confirmed_transition(root, day) or daily
+        marker = record["direct_intent"]
+        result = marker["result"]
+        if (record["schema"] != SCHEMA or record["publish_mode"] != "direct"
+                or record["day"] != marker["day"] or marker["day"] != day
+                or record["height"] != marker["height"] or marker["height"] != manifest["height"]
+                or record["netuid"] != adapter.netuid or marker["netuid"] != adapter.netuid
+                or record["calculation_evidence"] != reference or marker["calculation_evidence"] != reference
+                or record["submitted_weights_u16"] != marker["vector"]
+                or marker["vector"] != manifest["publishable_weights_u16"]
+                or marker.get("refresh_epoch") is not None
+                or marker["version_key"] != version_key_for(predecessor["policy"] + "/" + predecessor["sha256"])
+                or type(result["block"]) is not int or type(result["extrinsic_index"]) is not int
+                or result["block"] != record["block"] or result["block_hash"] != record["block_hash"]
+                or result["extrinsic_index"] != record["extrinsic_index"]):
+            raise ValueError("receipt differs")
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        raise PublicationStatusUnknown("no exact confirmed pre-switch daily receipt") from exc
+    check_identity = getattr(adapter, "_check_direct_identity", None)
+    if check_identity is None:
+        # Managed preflight has paired finalized readers but no wallet or
+        # signer. Compare the proof's publisher with the configured identity.
+        if (marker.get("mode") != "direct" or marker.get("mecid") != 0
+                or not same_address(marker.get("hotkey"), adapter.designated_validator_hotkey)):
+            raise PublicationStatusUnknown("last V2 publisher differs from configured identity")
+        from .transition import confirm_paired_receipt
+
+        confirm_paired_receipt(adapter.runner_chain, marker)
+    else:
+        check_identity(marker)
+        reconcile(adapter.reader, marker, finalized_chain=adapter.runner_chain)
+
+
+def check_publication_mode(adapter, reference, *, refresh=None):
+    return _check_calculation_mode(adapter, reference, refresh=refresh)
+
+
+def check_accounting_mode(adapter, reference):
+    """Prove the calculation for an explicitly non-publishing catch-up record."""
+    return _check_calculation_mode(adapter, reference, accounting=True)
+
+
+def _check_calculation_mode(adapter, reference, *, refresh=None, accounting=False):
     policy = getattr(adapter, "points_policy", None)
     mode = getattr(adapter, "scoring_mode", MODE if policy is not None else "legacy")
     selected, context, manifest = source_mode(adapter._submitted_record_dir, reference)
+    expected = getattr(policy, "manifest", None)
+    if mode == onboarding.V6_MODE and policy is not None:
+        expected = policy.manifest_for_day(manifest["day"])
+        mode = expected["scoring_mode"]
+        if selected == mode == onboarding.MODE and not accounting:
+            check_historical_refresh(adapter, reference, manifest, refresh, expected)
     if selected != mode:
         raise PublicationStatusUnknown("calculation scoring mode differs from configured mode")
-    if mode in (MODE, amendment.MODE, ema_policy.MODE, onboarding.MODE):
-        if policy is None or context.get("points_policy") != policy.manifest:
+    if mode in (MODE, amendment.MODE, ema_policy.MODE, *_ORDINARY):
+        if policy is None or context.get("points_policy") != expected:
             raise PublicationStatusUnknown(
                 "calculation points policy differs from configured policy"
             )
@@ -93,9 +181,10 @@ def check_publication_mode(adapter, reference):
                         "pointsPricingBoundary",
                         "pointsRules",
                         "pointsExcludedUids",
+                        onboarding.SWITCH_FIELD,
                     )
                 }
-                if selected in (amendment.MODE, ema_policy.MODE, onboarding.MODE):
+                if selected in (amendment.MODE, ema_policy.MODE, *_ORDINARY):
                     if fixture.get("pointsHotkeys") != {str(k): v for k, v in hotkeys.items()}:
                         raise ValueError("points fixture hotkeys differ from retained context")
                     if fixture.get("pointsOwners") != context.get("scored_coldkeys"):
@@ -104,13 +193,13 @@ def check_publication_mode(adapter, reference):
 
                     if fixture.get("pointsReceipts") != from_evidence(
                         context.get("foreign_valuations", []),
-                        ema=selected in (ema_policy.MODE, onboarding.MODE),
+                        ema=selected in (ema_policy.MODE, *_ORDINARY),
                     ):
                         raise ValueError(
                             "points receipt population differs from retained input context"
                         )
                     reconcile_fixture(fixture, fixture["pointsReceipts"])
-                    if selected in (ema_policy.MODE, onboarding.MODE):
+                    if selected in (ema_policy.MODE, *_ORDINARY):
                         from .ema_reference import verify_dispositions
 
                         verify_dispositions(adapter._submitted_record_dir, fixture, policy)
@@ -120,7 +209,7 @@ def check_publication_mode(adapter, reference):
                         verify_dispositions(
                             adapter._submitted_record_dir, fixture.get("pointsReceipts"), policy
                         )
-                if selected == onboarding.MODE and fixture.get("pointsExcludedUids") != sorted(
+                if selected in _ORDINARY and fixture.get("pointsExcludedUids") != sorted(
                     adapter.owner_uids()
                 ):
                     raise ValueError("owner-seat exclusions changed")
