@@ -1,10 +1,10 @@
 # Ordinary scoring: 20 / 40 / 40
 
-> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+> Mainnet uses V2.1 (`points-204040-v6`, policy/6) from November 24, 2026 at 00:00 UTC (scoring day 1345). V2 (`points-204040-v5`, policy/5) remains the policy for its earlier results.
 
-**Review candidate, not an activation announcement.** This describes mode
-`points-204040-v5`. Publishing source does not activate this mode on a validator.
-Check the scoring mode in the retained calculation before interpreting live rewards.
+V2 introduced ordinary 20 / 40 / 40 scoring on Mainnet on November 20, 2026.
+V2.1 keeps that scoring structure and changes which deposits earn credit.
+Check the policy in the retained calculation when verifying published weights.
 
 ## Joining
 
@@ -94,12 +94,11 @@ can receive a large share; the 0.2 starting score is not an absolute payout cap.
 
 ## Which tokens count
 
-**NOAH is not mandatory.** Under the proposed V2.1 policy, SN82
-NOAH that reaches the Ark earns no miner credit and no penalty from the switch
-day onward. Prepaid balance already on the books stays. The contribution bonus
-from that day uses foreign-only lifetime deposits. Days before the switch stay
-exactly as V2 scored them. Until the switch, V2 still counts
-attributed NOAH one-for-one. Tokens must actually reach the
+**Since November 24, 2026 at 00:00 UTC, SN82 NOAH deposited into
+the Ark earns zero miner credit and carries no deposit penalty.** V2.1 carries
+forward prepaid balances and debt and removes historical SN82 NOAH once from
+the lifetime deposits used for the contribution bonus. Earlier V2 results
+retain their original policy, under which attributed NOAH counted one-for-one. Tokens must actually reach the
 Ark with the required Ark Validator delegation and miner attribution.
 Keeping stake in your own wallet does not count. From the switch day, only
 qualifying foreign alpha and root TAO add new credit. The validator continues to

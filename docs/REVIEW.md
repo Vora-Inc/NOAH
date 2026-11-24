@@ -2,11 +2,11 @@
 
 This repository contains the scoring calculation, the chain records that feed
 it, the validator that publishes weights, and tools for miner contributions.
-For the V2 candidate, start with [participation](PARTICIPATION.md),
+For the live Mainnet V2.1 rules, start with [participation](PARTICIPATION.md),
 [ordinary scoring](ORDINARY_SCORING.md) and [score verification](VERIFYING_SCORES.md),
 then trace a contribution through the implementation.
 
-This map describes the V2 candidate. Historical starter allocation and
+This map describes ordinary V2 and V2.1 scoring. Historical starter allocation and
 commit/reveal procedures apply only to the versions that used them.
 
 ## From a chain receipt to a reward weight

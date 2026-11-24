@@ -1,8 +1,9 @@
 # Miner quickstart: Finney mainnet
 
-> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+> Mainnet uses V2.1 (`points-204040-v6`, policy/6) from November 24, 2026 at 00:00 UTC (scoring day 1345). V2 (`points-204040-v5`, policy/5) remains the policy for its earlier results.
 
-> **Review candidate:** `points-204040-v5` uses ordinary onboarding with no starter pool or entry payment. Verify activation before relying on these candidate economics. See [ordinary scoring](ORDINARY_SCORING.md).
+Mainnet uses ordinary onboarding with no starter pool or entry payment.
+See [ordinary scoring](ORDINARY_SCORING.md).
 
 This is the participant setup for Noah on Bittensor **Finney mainnet, netuid
 82**. It uses a public chain RPC and your own local wallet. There is no Noah
@@ -195,9 +196,9 @@ The preview contacts the chain. Stop on an unexpected network, identity, amount
 or refusal. An actual send requires the helper's separate confirmation; follow
 the [ongoing contribution procedure](../noah/deposits/assistant/USAGE.md#3-choose-an-ongoing-contribution).
 
-### Proposed V2.1 deposit rule
+### Mainnet V2.1 deposit rule
 
-From the announced UTC switch day, SN82 NOAH deposited into the Ark earns
+From November 24, 2026 at 00:00 UTC, SN82 NOAH deposited into the Ark earns
 zero miner credit. Qualifying foreign subnet alpha and root TAO continue to
 count. V2 prepaid balances carry forward. Check the scoring rules and the
 active validator policy before making a deposit.

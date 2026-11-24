@@ -1,13 +1,13 @@
-# Validator: Legacy defaults and optional candidates
+# Validator setup and Mainnet scoring modes
 
-**Review candidate, not an instruction to switch a live validator.** Miners only
+Miners only
 need registration and correctly attributed contributions; they do not run a
 validator. An independent validator needs its own chain-authorized publishing
 identity, two verified history readers, retained accounting evidence and a signer.
 Software configuration does not grant a validator permit.
 
 Read [Legacy scoring](LEGACY_SCORING.md) for the default mode and
-[ordinary scoring](ORDINARY_SCORING.md) for the optional V2.0 candidate. Install with
+[ordinary scoring](ORDINARY_SCORING.md) for the live Mainnet V2.1 rules and historical V2 behavior. Install with
 `./scripts/install.sh`; `.env.validator.mainnet.example` is a placeholder example,
 not a ready-to-run production file. Never commit a filled file or signing material.
 
@@ -18,9 +18,10 @@ The release ships with `NOAH_SCORING_MODE=legacy`, empty `NOAH_POINTS_POLICY`,
 `NOAH_WEEKLY_ASSIGNMENTS=false`, and `NOAH_BURN_ALLOCATION_BPS=0`.
 Installation and offline previews do not activate these features. Authenticated
 report processing is implemented through a separate report worker and a verified
-report policy. The proposed combined rollout selects V2, explicitly selects
-`NOAH_REPORT_REWARD=bonus-20`, and selects temporary miner burn
-`NOAH_BURN_ALLOCATION_BPS=9800` only after testing and approval. See [report configuration and commands](REPORTS.md).
+report policy. Mainnet enabled V2, `NOAH_REPORT_REWARD=bonus-20`, weekly
+assignments and temporary miner burn `NOAH_BURN_ALLOCATION_BPS=9800` on
+November 20, 2026. From November 24, 2026 at 00:00 UTC it uses V2.1
+(`points-204040-v6`) with those reporting and burn settings. See [report configuration and commands](REPORTS.md).
 
 Legacy retains its existing starter policy: preserve the verified original entry
 snapshot, all financial history and the healthy starter guard. Do not fabricate a
@@ -29,10 +30,10 @@ new cutoff or replace deployed configuration with this placeholder example.
 its historical installation details must be read with the current installer.
 Reports use a separate `.venv-reports` environment (Python 3.11+).
 
-## Optional V2.0 selection — not the shipping default
+## V2.0 settings for historical reference
 
-The candidate selection below is for review, not activation or an initial
-migration procedure. First migration requires the maintained held transitions
+The V2.0 settings below document the predecessor required by a verified V2.1
+migration. First migration requires the maintained held transitions
 Legacy → V3 → EMA V4 → V5, preserving financial state and predecessor evidence.
 Do not start intermediate modes or try to create the required policy by editing
 these settings alone:
@@ -58,7 +59,7 @@ legacy fields support historical replay; the V5 points rules live in
 
 Before switching, reconcile pending old-mode sends and any active old overlay
 under the predecessor configuration. Preserve journals, backups and recovery
-receipts. The candidate refuses unresolved old publications. The old starter guard
+receipts. The validator refuses unresolved old publications. The old starter guard
 must not be running beside the V2.0 ordinary publisher; this does not remove
 the guard requirement while Legacy starter allocation remains selected. Once a
 new financial policy has been installed, changing configuration or selecting an

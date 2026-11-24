@@ -1,8 +1,8 @@
 # Daily scoring and epoch publication
 
-> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+> Mainnet uses V2.1 (`points-204040-v6`, policy/6) from November 24, 2026 at 00:00 UTC (scoring day 1345). V2 (`points-204040-v5`, policy/5) remains the policy for its earlier results.
 
-For the review candidate `points-204040-v5`, daily calculations produce ordinary
+Under ordinary V2 and V2.1 scoring, daily calculations produce ordinary
 weights without a starter allocation. Epoch collection gathers finalized history;
 epoch republication refreshes the latest verified ordinary vector. It does not
 recompute the daily score and does not require a starter guard.

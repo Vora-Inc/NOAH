@@ -1,16 +1,16 @@
 # Miner reports and validator checks
 
-This candidate includes report commands and an optional daily reporting bonus.
-The proposed rollout combines V2 scoring, reporting bonuses and temporary miner
-burn; this guide is not an activation announcement. Shipping defaults remain
-Legacy scoring, reports OFF and burn OFF. Mainnet report submission requires an
-explicit per-command opt-in after activation approval.
+Mainnet activated V2 scoring, the optional daily reporting bonus, weekly
+assignments and temporary miner burn on November 20, 2026. These report and burn
+settings continue under V2.1, effective November 24, 2026 at 00:00 UTC. Shipping
+defaults remain Legacy scoring, reports OFF and burn OFF. Mainnet report
+submission requires an explicit per-command opt-in.
 
 ## What reporting earns
 
-In the proposed `bonus-20` mode, all three assigned daily reports must be timely
+In the active Mainnet `bonus-20` mode, all three assigned daily reports must be timely
 and verified to earn one bonus of up to 20 points in the miner's daily payout
-calculation. If fewer than three verify, the miner keeps their ordinary V2 score
+calculation. If fewer than three verify, the miner keeps their ordinary score
 and each verified report is retained. Missing, late, invalid, inaccurate or
 verified unresolved reports earn no bonus; a broken reader, worker or
 evidence package can still stop validator publication rather than authorize an
@@ -27,7 +27,7 @@ Reporting and deposit validation remain separate. An accurate report does not
 pay debt or replace an ordinary contribution. Keep using the deposit commands
 for contributions and the report commands for this optional work.
 
-The proposed temporary `9800` burn setting allocates approximately 98% of the
+The active Mainnet `9800` burn setting allocates approximately 98% of the
 miner weight distribution to a verified burn destination, after adding report
 bonuses. Reporting therefore affects a miner's share of the remaining allocation;
 it does not exempt a bonus from burn. Integer rounding, minimum weight units and
@@ -518,21 +518,21 @@ index or enable either feature toggle.
 Before publication, independently validate the prepared file using the website
 repository's `node tools/validate-backing-export.mjs FILE.json [HISTORY.json ...]`.
 Publishing approved JSON and activating website display are separate operator
-steps after approved report activation. The proposed combined V2/bonus/burn
-rollout does not automatically publish JSON or enable website display.
+steps after approved report activation. Website publication requires its own approval and activation.
 
 ## Validator settings and compatibility
 
-V2 scoring, report processing and burn are separate settings. The proposed
-combination selects `NOAH_SCORING_MODE=points-204040-v5`, enables
+Scoring, report processing and burn are separate settings. Mainnet initially
+selected `NOAH_SCORING_MODE=points-204040-v5` and now uses
+`points-204040-v6`. Mainnet enables
 `NOAH_REPORT_GATE_ENABLED=true`, explicitly sets `NOAH_REPORT_REWARD=bonus-20`,
 and sets `NOAH_BURN_ALLOCATION_BPS=9800`. These settings are for a separately
 qualified and approved activation; they are not shipping defaults or an
 instruction to enable an installed validator.
-Nonzero burn requires V2; the accepted burn values are only `0` and `9800`.
+Nonzero burn requires ordinary V2 or V2.1 scoring; the accepted burn values are only `0` and `9800`.
 Burn activation also requires verified effective `RecycleOrBurn=Burn` behavior.
 An explicit raw Burn value follows the existing verification path. An absent
-value qualifies only for exact reviewed runtime 483, 492 or 493 code and V15 metadata,
+value qualifies only for exact reviewed runtime 483, 492, 493 or 494 code and V15 metadata,
 with matching raw-state evidence from the paired readers and author RPC at one
 finalized block. An SDK-supplied default alone never qualifies. These checks run
 again before sending; unknown semantics, unreadable state and Recycle refuse.
@@ -548,7 +548,7 @@ financial history and pending intents through a reviewed transition.
 
 ### Preserving an existing penalty-mode activation
 
-The candidate supports one prospective transition from `gate` to `bonus-20`.
+The report runtime supports one prospective transition from `gate` to `bonus-20`.
 It retains the original activation document and selects a future scoring day
 as the boundary. Days before that boundary keep their original gate policy;
 days at or after it use the bonus policy. Historical requests, proofs, credits
@@ -589,7 +589,7 @@ noah-validator score --fixture scoring-fixture.json \
   --rounds required-rounds.json --evidence report-evidence --out gated-preview.json
 ```
 
-This compatibility preview models the older penalty gate, **not** the proposed
+This compatibility preview models the older penalty gate, **not** the live Mainnet
 `bonus-20` policy. Its flag is **off by default** and independent of V2 selection.
 These commands are offline previews; every result says `publishable: false`.
 They run the real Python and TypeScript scorers, and refuse disagreement.
@@ -614,8 +614,7 @@ These are preview inputs, not an authenticated production chain-reader interface
 
 `NOAH_BACKING_SCORE_GATE` is an offline penalty-preview option, not a live
 validator setting or a preview of the reporting bonus. Legacy/report
-compatibility remains available; it does not change the proposed combined
-V2/bonus/burn rollout or authorize activation.
+compatibility remains available for historical replay and offline checks.
 
 ## Test and review boundaries
 
@@ -658,8 +657,9 @@ rejects every crypto type except SR25519 before claiming a journal or signing;
 validator report commands do not sign. This removes that algorithm from the
 supported report-signing path, but does not patch the dependency. The raw audit
 remains failing and is retained for review; no blanket advisory suppression was
-added. Replacing the legacy decoder or approving a narrowly justified exception
-is required before calling the candidate release-ready.
+added. The public dependency audit retains a narrowly scoped application assessment
+for the supported Linux SR25519 entry points. Replacing the legacy decoder
+remains open.
 
 ## Frozen requests across a producer upgrade
 

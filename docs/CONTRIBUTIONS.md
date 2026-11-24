@@ -1,6 +1,6 @@
-> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+> Mainnet uses V2.1 (`points-204040-v6`, policy/6) from November 24, 2026 at 00:00 UTC (scoring day 1345). V2 (`points-204040-v5`, policy/5) remains the policy for its earlier results.
 
-> Candidate scope: `points-204040-v5`. [Older contribution rules](LEGACY_CONTRIBUTIONS.md) remain available for historical replay.
+> [Older contribution rules](LEGACY_CONTRIBUTIONS.md) remain available for historical replay.
 
 # Contribution rules
 
@@ -58,13 +58,12 @@ An unnamed deposit receives no mining credit.
 
 ## Ordinary onboarding and ongoing contributions
 
-In review candidate `points-204040-v5`, a new miner starts with 0.2 points and no
+Under ordinary scoring, a new miner starts with 0.2 points and no
 entry deposit or starter pool. Its actual earnings create the 50% contribution
-obligation the next UTC day. Qualifying foreign alpha, root TAO, or, while V2
-is still the selected mode, NOAH can satisfy it. The held V2.1 candidate
-(`points-204040-v6`) gives SN82 NOAH deposits zero miner credit and no penalty
-from its switch day. Deposit other subnet alpha or root TAO instead. Read [ordinary scoring](ORDINARY_SCORING.md) for exact conversion,
-bonuses, prepayment, debt and catch-up rules. This is not an activation claim.
+obligation the next UTC day. Qualifying foreign alpha and root TAO can satisfy it. From November 24, 2026
+at 00:00 UTC, V2.1 gives SN82 NOAH deposits zero miner credit and no deposit
+penalty. Existing prepaid balances carry forward. Read [ordinary scoring](ORDINARY_SCORING.md)
+for conversion, bonuses, prepayment, debt and catch-up rules.
 
 Historical entry amounts, consumed receipts and balances retain their frozen
 migration treatment. They are not new deposits and cannot be counted twice.
@@ -115,9 +114,8 @@ an on-time contribution. The [scoring guide](SCORING.md) separates those parts.
 
 ## Other subnet tokens and root TAO
 
-The candidate accepts attributed eligible foreign alpha and root TAO without
-requiring a native NOAH deposit or matching native credit. Native NOAH counts
-by amount. Foreign/root value is converted once to NOAH-equivalent using the
+V2.1 accepts attributed eligible foreign alpha and root TAO. SN82 NOAH
+receipts remain visible in raw deposit history and earn zero new credit. Foreign/root value is converted once to NOAH-equivalent using the
 verified block immediately before its receipt, applying the lower of the
 foreign/NOAH EMA ratio and spot-price ratio. Root TAO has a one-TAO numerator.
 See [the complete valuation rule](ORDINARY_SCORING.md#which-tokens-count).
