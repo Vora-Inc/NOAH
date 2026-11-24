@@ -26,15 +26,16 @@ Configuration stays in the existing miner INI and validator environment files.
 
 Report processing, V2 scoring and burn are independent. Shipping defaults are
 `NOAH_REPORT_GATE_ENABLED=false`, `NOAH_WEEKLY_ASSIGNMENTS=false`,
-`NOAH_SCORING_MODE=legacy` and `NOAH_BURN_ALLOCATION_BPS=0`. The proposed rollout enables V2, explicitly selects
-`NOAH_REPORT_REWARD=bonus-20` with reports ON, and enables temporary `9800` burn.
-Nonzero burn requires V2; separate settings do not imply every combination is supported.
+`NOAH_SCORING_MODE=legacy` and `NOAH_BURN_ALLOCATION_BPS=0`. Mainnet enabled V2 on November 20, 2026, explicitly selected
+`NOAH_REPORT_REWARD=bonus-20` with reports ON, and enabled temporary `9800` burn. These report and burn
+settings continue with V2.1 from November 24, 2026 at 00:00 UTC.
+Nonzero burn requires ordinary V2 or V2.1 scoring; separate settings do not imply every combination is supported.
 In bonus mode, missing a report leaves ordinary V2 scoring intact; accurate
 reporting can add up to 20 points subject to maturity and debt. The default reward
-selector `gate` retains the older penalty behavior and is not the proposed mode.
+selector `gate` retains the older penalty behavior and differs from the live Mainnet bonus mode.
 See [Reports](REPORTS.md) for policy, reward and burn limits.
 
-The candidate supports direct report-aware publication with Legacy or V2.0.
+The validator supports direct report-aware publication with Legacy, V2 or V2.1.
 Startup requires a valid frozen report policy, a matching mining subnet and an
 explicitly selected
 isolated report worker loading this exact source. Network and retained activation

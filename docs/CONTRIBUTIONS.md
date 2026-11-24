@@ -1,10 +1,10 @@
-> The current release candidate is V2.0, internally identified as `points-204040-v5` (policy/5). Historical policy identifiers remain unchanged for verification.
+> Mainnet uses V2.1 (`points-204040-v6`, policy/6) from November 24, 2026 at 00:00 UTC (scoring day 1345). V2 (`points-204040-v5`, policy/5) remains the policy for its earlier results.
 
-> Candidate scope: `points-204040-v5`. [Older contribution rules](LEGACY_CONTRIBUTIONS.md) remain available for historical replay.
+> [Older contribution rules](LEGACY_CONTRIBUTIONS.md) remain available for historical replay.
 
 # Contribution rules
 
-> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+> **Current Mainnet entry policy:** V2.1 uses ordinary onboarding without an upfront NOAH purchase, Ark entry deposit or starter pool. Registration fees and ongoing contribution rules apply.
 
 A Noah contribution transfers ownership of staked tokens to the Ark. Staking
 tokens to the Ark Validator while retaining them in your own wallet does not
@@ -58,13 +58,12 @@ An unnamed deposit receives no mining credit.
 
 ## Ordinary onboarding and ongoing contributions
 
-In review candidate `points-204040-v5`, a new miner starts with 0.2 points and no
+Under ordinary scoring, a new miner starts with 0.2 points and no
 entry deposit or starter pool. Its actual earnings create the 50% contribution
-obligation the next UTC day. Qualifying foreign alpha, root TAO, or, while V2
-is still the selected mode, NOAH can satisfy it. The held V2.1 candidate
-(`points-204040-v6`) gives SN82 NOAH deposits zero miner credit and no penalty
-from its switch day. Deposit other subnet alpha or root TAO instead. Read [ordinary scoring](ORDINARY_SCORING.md) for exact conversion,
-bonuses, prepayment, debt and catch-up rules. This is not an activation claim.
+obligation the next UTC day. Qualifying foreign alpha and root TAO can satisfy it. From November 24, 2026
+at 00:00 UTC, V2.1 gives SN82 NOAH deposits zero miner credit and no deposit
+penalty. Existing prepaid balances carry forward. Read [ordinary scoring](ORDINARY_SCORING.md)
+for conversion, bonuses, prepayment, debt and catch-up rules.
 
 Historical entry amounts, consumed receipts and balances retain their frozen
 migration treatment. They are not new deposits and cannot be counted twice.
@@ -104,9 +103,9 @@ already have a shortfall, surplus contributions repay it before becoming
 advance coverage. No contribution can be spent twice in this accounting.
 
 For example, 100 NOAH of eligible earnings creates a 50 NOAH obligation. If
-you contribute 70 NOAH against it, 20 NOAH remains available for later
-obligations. If you first contribute 30 and later contribute 20, the later
-payment clears the 20 NOAH shortfall. These examples exclude any preserved
+you make qualifying contributions worth 70 NOAH-equivalent, 20 remains
+available for later obligations. If you first contribute 30 and later
+contribute 20 NOAH-equivalent, the later payment clears the shortfall. These examples exclude any preserved
 legacy entry credit and assume no other earnings or deposits in the interval.
 
 That is the coverage calculation. Your score also depends on maturity, cumulative contribution and
@@ -115,9 +114,8 @@ an on-time contribution. The [scoring guide](SCORING.md) separates those parts.
 
 ## Other subnet tokens and root TAO
 
-The candidate accepts attributed eligible foreign alpha and root TAO without
-requiring a native NOAH deposit or matching native credit. Native NOAH counts
-by amount. Foreign/root value is converted once to NOAH-equivalent using the
+V2.1 accepts attributed eligible foreign alpha and root TAO. SN82 NOAH
+receipts remain visible in raw deposit history and earn zero new credit. Foreign/root value is converted once to NOAH-equivalent using the
 verified block immediately before its receipt, applying the lower of the
 foreign/NOAH EMA ratio and spot-price ratio. Root TAO has a one-TAO numerator.
 See [the complete valuation rule](ORDINARY_SCORING.md#which-tokens-count).

@@ -2,7 +2,7 @@
 
 # Contribution rules
 
-> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+> **Historical starter policy:** Mainnet used starter entry from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. V2 replaced the starter pool on November 20. See [starter entry](STARTER_ENTRY.md) for historical verification.
 
 A Noah contribution transfers ownership of staked tokens to the Ark. Staking
 tokens to the Ark Validator while retaining them in your own wallet does not
@@ -111,9 +111,9 @@ already have a shortfall, surplus contributions repay it before becoming
 advance coverage. No contribution can be spent twice in this accounting.
 
 For example, 100 NOAH of eligible earnings creates a 50 NOAH obligation. If
-you contribute 70 NOAH against it, 20 NOAH remains available for later
-obligations. If you first contribute 30 and later contribute 20, the later
-payment clears the 20 NOAH shortfall. These examples exclude any preserved
+you make qualifying contributions worth 70 NOAH-equivalent, 20 remains
+available for later obligations. If you first contribute 30 and later
+contribute 20 NOAH-equivalent, the later payment clears the shortfall. These examples exclude any preserved
 legacy entry credit and assume no other earnings or deposits in the interval.
 
 That is the coverage calculation. Your score also depends on credit aging and

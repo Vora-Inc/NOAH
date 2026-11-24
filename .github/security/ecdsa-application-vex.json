@@ -20,7 +20,7 @@
   "files": {
     ".env.validator.mainnet.example": {
       "mode": "100644",
-      "sha256": "6e5305cbbe2e71bcd28deeaa49eb704233e5b00ef1babc4e6f7c0ed8ad587dc0"
+      "sha256": "f4711d3810933f63962fb555f729f4c235789486da2b14ed367516348cb88b3a"
     },
     ".github/security/check_application_vex.py": {
       "mode": "100644",
@@ -56,7 +56,7 @@
     },
     "README.md": {
       "mode": "100644",
-      "sha256": "fad83dfd7208cf3208c6cf64d7a26fb675f2a5b115769ef63954aa43fe9ee326"
+      "sha256": "7f27d28323384f9f2ba2854ee61121dec48bb79e3a88ca6c5b4065e54bf71576"
     },
     "SECURITY.md": {
       "mode": "100644",
@@ -80,27 +80,27 @@
     },
     "docs/COMMANDS.md": {
       "mode": "100644",
-      "sha256": "d6274badd8fb3305d27e3751e44ae9b910678720d04b9a0a6132d593d7567ac1"
+      "sha256": "e1edd629d5826c66af9b93998690d3aa849a130037342db0ad76c4b9450cd018"
     },
     "docs/CONTRIBUTIONS.md": {
       "mode": "100644",
-      "sha256": "226f66149a4a4b1b120181bddfe43509fb897f340b727ad5ef7a2086f85b6489"
+      "sha256": "6066a847b30df84bc8f4065d4eb52bf5fbaa524e347186b4052a2875cba8c10a"
     },
     "docs/DEPOSIT_NOTICES.md": {
       "mode": "100644",
-      "sha256": "238086778753dab51c2a457cd179ad304d46107ea6bad38fc3e387d237f720d5"
+      "sha256": "70c3ea0d293fa39a38fca2773e83478632e99bdb7558364d904884f21dff912e"
     },
     "docs/EPOCH_MAINTENANCE.md": {
       "mode": "100644",
-      "sha256": "6fb39bed2a8157b1f9e0bcb23b7d77deeb3202a6245e8fd1eecd0a2fafc00ec3"
+      "sha256": "be1090ff18a0fc6569416c79ba5b07e545ff9ee833a027c381a7b8e6d7ffefa9"
     },
     "docs/GLOSSARY.md": {
       "mode": "100644",
-      "sha256": "f8dc4d39bf7d11fdffd1b6d5766aade024a2733d6437973ca8818a0155135783"
+      "sha256": "9a7dc0309a90f3aae9cd36d49721ea846f6fe71b2fb5c309fdb7a807dc92e2ea"
     },
     "docs/LEGACY_CONTRIBUTIONS.md": {
       "mode": "100644",
-      "sha256": "8ea325472a89efcaaa28a4446451d604acfcb643de5e9083526397280ce9f05e"
+      "sha256": "cc41ab5da32d08e81038f1659a6788c5fb5ab250234f7804db1b9f5d395a10c0"
     },
     "docs/LEGACY_EPOCH_MAINTENANCE.md": {
       "mode": "100644",
@@ -108,7 +108,7 @@
     },
     "docs/LEGACY_PARTICIPATION.md": {
       "mode": "100644",
-      "sha256": "be327568efeaf3c2f968e9780828e04e1159356b9e69734f6539450e58deb581"
+      "sha256": "4292282806fd5331bbe3d0224762e68b3f23fdf3c08e2b24bff6a1976b282842"
     },
     "docs/LEGACY_POINTS_MODE.md": {
       "mode": "100644",
@@ -116,15 +116,15 @@
     },
     "docs/LEGACY_SCORING.md": {
       "mode": "100644",
-      "sha256": "0fe05f18a2bf9d302d580e9944f7f3ae8eb8189460b81278eff9e02149e00dac"
+      "sha256": "2ef17b10de19b0ec92af33f25701bb813c21c7776a17fb112c137ac1f4a4dd60"
     },
     "docs/LEGACY_VALIDATOR_QUICKSTART.md": {
       "mode": "100644",
-      "sha256": "6761b3ae10954d97846141454809f3415470cc33fdd1e209838e6277b0ef0ef1"
+      "sha256": "f7989d58d640b5acdd4d8a14b65e052927a2346a17309685db870ddb0b460edb"
     },
     "docs/LEGACY_VERIFYING_SCORES.md": {
       "mode": "100644",
-      "sha256": "6ba019d9ad7bf00dddaf2ca830a9d2ddac58c20ff91ba584b4da97eb5d7b8104"
+      "sha256": "ca048befe1d02a9da04a2913495f20ef350f103039645320084c682d0bcd488b"
     },
     "docs/MAINNET_STARTER_SNAPSHOT.md": {
       "mode": "100644",
@@ -140,7 +140,7 @@
     },
     "docs/MINER_QUICKSTART.md": {
       "mode": "100644",
-      "sha256": "e5f1a12b93be7aac65508ac07149cf1123d81bf87e3f3b8b5611a568d46d03cc"
+      "sha256": "490823bf0e0505bc8607545f23b27a20894bcce68d450c8af40b4d2fb292d1b7"
     },
     "docs/MINER_SETUP.md": {
       "mode": "100644",
@@ -148,15 +148,15 @@
     },
     "docs/ORDINARY_SCORING.md": {
       "mode": "100644",
-      "sha256": "599a61c9835ad51b0b3d8bccb92b3e9239766266c955d29aa2cb5f31997f1f6a"
+      "sha256": "b262e8e5faf39427f93658acf1bf318de1971eb31b3e84bf41244deec03e0239"
     },
     "docs/PARTICIPATION.md": {
       "mode": "100644",
-      "sha256": "dd49da10b639b853f2c85667d2f90812984e771b6ddd420832266ecd6a325006"
+      "sha256": "51c7e7b292b14d0a8aa46f719734ea6ea68a7422b2cc9e9113a30133aa22c8db"
     },
     "docs/POINTS_MODE.md": {
       "mode": "100644",
-      "sha256": "84e70c9dcc9bada3bd093e4194fb5da877bd97eb23afbcc9c5e888062574fb3a"
+      "sha256": "d34d9d002a4d8696b9f2cdc454bead5020b43ed26cd37fccfa696348d52f122c"
     },
     "docs/RECEIPT_READER_RELEASE.md": {
       "mode": "100644",
@@ -164,7 +164,7 @@
     },
     "docs/REPORTS.md": {
       "mode": "100644",
-      "sha256": "fb4bf2e21b98a46b6d4ef3e0d5eef9060bd953c93e1f0634b94f7e1a9af4456e"
+      "sha256": "bd979cb2caf47832973585a04141999586617c57e3848f2b10c6b3e7059c8747"
     },
     "docs/REPORT_COMMITMENT_PROTOCOL.md": {
       "mode": "100644",
@@ -176,11 +176,11 @@
     },
     "docs/REVIEW.md": {
       "mode": "100644",
-      "sha256": "26188a51a27f7f8618311022b368140d7dc4f6e9cd827905bab4045ec52f11f2"
+      "sha256": "4eb69a0a93a646c18ee2cdf94169fff6a6c0999e4a2abc65c271a59d908f4c7a"
     },
     "docs/SCORING.md": {
       "mode": "100644",
-      "sha256": "d6a3fda101aa46c0bd421420cf2a9fdbd68ab6a6a286e37c22c0c46e02f84e85"
+      "sha256": "562a3147d9c34e00805628ff31de752618c4db2fecddda50f2613d7b0f7bc723"
     },
     "docs/STARTER_ENTRY.md": {
       "mode": "100644",
@@ -192,7 +192,7 @@
     },
     "docs/VALIDATOR_QUICKSTART.md": {
       "mode": "100644",
-      "sha256": "2e5c7bd89ed0f4358c1c3e63dc3ecc90039656ab4db59d17f679da6551060de2"
+      "sha256": "41476c3d03b54a7ff887325240790b0c6df6b3da6ce5c73f673032f423058bb9"
     },
     "docs/VERIFYING_SCORES.md": {
       "mode": "100644",
@@ -1268,7 +1268,7 @@
     },
     "noah/deposits/assistant/USAGE.md": {
       "mode": "100644",
-      "sha256": "ac6e607d9257d0490a711a9f9bd686da2eca9640cb997aa588b69dd91cf9ed5e"
+      "sha256": "f161b79611fd064979ff4e63568bee16ffa92e6b42fbddb1a556b72ab16fc982"
     },
     "noah/deposits/assistant/__init__.py": {
       "mode": "100644",

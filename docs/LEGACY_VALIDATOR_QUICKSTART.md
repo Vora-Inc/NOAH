@@ -2,7 +2,7 @@
 
 # Validator guide
 
-> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+> **Historical starter policy:** Mainnet used starter entry from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. V2 replaced the starter pool on November 20. See [starter entry](STARTER_ENTRY.md) for historical verification.
 
 The Noah Validator reads chain history, calculates miner scores, checks the
 Python and TypeScript results, and publishes weights. Its local history store

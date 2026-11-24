@@ -389,6 +389,5 @@ signer state cannot establish that fact and remains blocked for investigation.
 Changing an address's SS58 network prefix does not create a new owner, miner or
 plan. Full fixed NOAH amount and lifetime capacity are checked before buying.
 
-For the proposed V2.1 scoring policy, use qualifying foreign subnet alpha
-or root TAO from the announced UTC switch day. A SN82 NOAH deposit then earns
-zero miner credit. Confirm the active validator policy before signing.
+Under Mainnet V2.1, effective November 24, 2026 at 00:00 UTC, use qualifying
+foreign subnet alpha or root TAO. A SN82 NOAH deposit earns zero miner credit. Confirm the active validator policy before signing.
