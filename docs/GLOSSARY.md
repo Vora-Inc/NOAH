@@ -1,6 +1,6 @@
 # Terms used in Noah
 
-> **Current Mainnet entry policy:** Starter entry is active from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. New miners do not need an upfront NOAH purchase or Ark deposit. Registration fees, eligibility checks and ongoing contribution rules still apply. See [starter entry](STARTER_ENTRY.md).
+> **Historical starter policy:** Mainnet used starter entry from UTC day 1324 (November 3, 2026), after cutoff block **9,421,694**. V2 replaced the starter pool on November 20. See [starter entry](STARTER_ENTRY.md) for historical verification.
 
 | Term | Meaning |
 |---|---|
@@ -15,7 +15,7 @@
 | Ark Validator | The validator hotkey required as the delegation of qualifying Ark deposits |
 | Noah Validator | The validator that reads records, scores miners, and publishes weights |
 | Delegation | The validator hotkey under which a stake position is held |
-| Starter entry | Current Mainnet route without an upfront NOAH purchase or Ark deposit; eligibility and lifetime limits apply |
+| Starter entry | Historical Mainnet allocation with eligibility and lifetime limits |
 | Preserved entry credit | Historical credit frozen at the activation cutoff for previously qualified miners; not a fee required from new miners |
 | Eligible earnings | Mining earnings counted once they are spendable, including later unlocks |
 | Target | The requested share of eligible earnings, fixed at 50% by launch policy |

@@ -84,7 +84,7 @@
     },
     "docs/CONTRIBUTIONS.md": {
       "mode": "100644",
-      "sha256": "626b021879d454598fd56ba0d8d03ee6466b2573e02b6d1241fe2f345d15f616"
+      "sha256": "6066a847b30df84bc8f4065d4eb52bf5fbaa524e347186b4052a2875cba8c10a"
     },
     "docs/DEPOSIT_NOTICES.md": {
       "mode": "100644",
@@ -96,11 +96,11 @@
     },
     "docs/GLOSSARY.md": {
       "mode": "100644",
-      "sha256": "f8dc4d39bf7d11fdffd1b6d5766aade024a2733d6437973ca8818a0155135783"
+      "sha256": "9a7dc0309a90f3aae9cd36d49721ea846f6fe71b2fb5c309fdb7a807dc92e2ea"
     },
     "docs/LEGACY_CONTRIBUTIONS.md": {
       "mode": "100644",
-      "sha256": "8ea325472a89efcaaa28a4446451d604acfcb643de5e9083526397280ce9f05e"
+      "sha256": "cc41ab5da32d08e81038f1659a6788c5fb5ab250234f7804db1b9f5d395a10c0"
     },
     "docs/LEGACY_EPOCH_MAINTENANCE.md": {
       "mode": "100644",
@@ -108,7 +108,7 @@
     },
     "docs/LEGACY_PARTICIPATION.md": {
       "mode": "100644",
-      "sha256": "be327568efeaf3c2f968e9780828e04e1159356b9e69734f6539450e58deb581"
+      "sha256": "4292282806fd5331bbe3d0224762e68b3f23fdf3c08e2b24bff6a1976b282842"
     },
     "docs/LEGACY_POINTS_MODE.md": {
       "mode": "100644",
@@ -116,15 +116,15 @@
     },
     "docs/LEGACY_SCORING.md": {
       "mode": "100644",
-      "sha256": "0fe05f18a2bf9d302d580e9944f7f3ae8eb8189460b81278eff9e02149e00dac"
+      "sha256": "2ef17b10de19b0ec92af33f25701bb813c21c7776a17fb112c137ac1f4a4dd60"
     },
     "docs/LEGACY_VALIDATOR_QUICKSTART.md": {
       "mode": "100644",
-      "sha256": "6761b3ae10954d97846141454809f3415470cc33fdd1e209838e6277b0ef0ef1"
+      "sha256": "f7989d58d640b5acdd4d8a14b65e052927a2346a17309685db870ddb0b460edb"
     },
     "docs/LEGACY_VERIFYING_SCORES.md": {
       "mode": "100644",
-      "sha256": "6ba019d9ad7bf00dddaf2ca830a9d2ddac58c20ff91ba584b4da97eb5d7b8104"
+      "sha256": "ca048befe1d02a9da04a2913495f20ef350f103039645320084c682d0bcd488b"
     },
     "docs/MAINNET_STARTER_SNAPSHOT.md": {
       "mode": "100644",
