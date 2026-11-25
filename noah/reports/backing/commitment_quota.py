@@ -1,6 +1,6 @@
 """Read-only commitment quota at one finalized state; no wallet or submission.
 
-483/490/491/492/493/494 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
+483/490/491/492/493/494/495 source rule: get_epoch_index returns SubnetEpochIndex, not block/tempo
 arithmetic. set_commitment resets UsedSpaceOf on *inequality* with that counter.
 """
 import re
@@ -8,7 +8,7 @@ import re
 from ..common import ReportError
 from .constants import (
     RUNTIME_CODE_PINS, SUBTENSOR_PIN, SUBTENSOR_491_PIN, SUBTENSOR_492_PIN,
-    SUBTENSOR_493_PIN, SUBTENSOR_494_PIN,
+    SUBTENSOR_493_PIN, SUBTENSOR_494_PIN, SUBTENSOR_495_PIN,
 )
 from .keys import ss58_decode, ss58_encode
 
@@ -20,6 +20,7 @@ SOURCE_PINS = {
     492: SUBTENSOR_492_PIN,
     493: SUBTENSOR_493_PIN,
     494: SUBTENSOR_494_PIN,
+    495: SUBTENSOR_495_PIN,
 }
 
 
@@ -69,7 +70,7 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
     """Return a public receipt; required_space=909 checks the whole new batch.
 
     All state queries use the same finalized hash. Runtime qualification retains
-    the existing adapter policy: exact 483/491/492/493/494 code, or the supported 490 spec.
+    the existing adapter policy: exact 483/491/492/493/494/495 code, or the supported 490 spec.
     The receipt records the observed code for each runtime.
     A positive result is an observation, not an atomic reservation.
     """
@@ -98,7 +99,7 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
         transaction = _uint(version.get('transactionVersion'), 32)
         code = _hash(rpc('state_getStorageHash', ['0x3a636f6465', pin]))
         _require(spec in SOURCE_PINS and (spec not in RUNTIME_CODE_PINS or code == RUNTIME_CODE_PINS[spec])
-                 and (spec != 494 or transaction == 2),
+                 and (spec not in (494, 495) or transaction == 2),
                  'unsupported finalized runtime')
         def query(module, name, params):
             result = substrate.query(module, name, params, block_hash=pin)

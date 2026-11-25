@@ -43,7 +43,7 @@ def retained(tmp_path,engine):
     return contract
 
 
-@pytest.mark.parametrize('spec',[483,492,493])
+@pytest.mark.parametrize('spec',[483,492,493,495])
 def test_fresh_coverage_uses_stake_not_nonholder_alpha_and_answers_are_identical(spec):
     c=chain(spec)
     new=compute(c,NETUID,BLOCK)[0];old=_compute(c,NETUID,BLOCK)[0]
