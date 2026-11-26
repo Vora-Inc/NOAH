@@ -7,7 +7,7 @@ VERSION = "0.1.0"
 # signed calculation identity are unchanged. Legacy is retained replay only.
 COVERAGE_LEGACY = "alpha-out-v1"
 COVERAGE_STAKED_V2 = "total-alpha-staked-v2"
-STAKED_COVERAGE_SPECS = frozenset({483, 492, 493, 494, 495})
+STAKED_COVERAGE_SPECS = frozenset({483, 492, 493, 494, 495, 497})
 
 # Public Ark coldkey. SS58 prefix 42. Not a secret.
 ARK_SS58 = "5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3"
