@@ -162,24 +162,26 @@ def test_unknown_send_reconciles_without_reopening_quota_or_signer(case):
     assert not result['sent'] and result['commit']=='finalized' and len(fake.sent)==1
 
 
-def test_495_requires_the_reviewed_code_and_transaction_two():
-    from noah.reports.backing.constants import RUNTIME_495_CODE_HASH
+@pytest.mark.parametrize('spec', [495, 497])
+def test_current_runtime_requires_the_reviewed_code_and_transaction_two(spec):
+    from noah.reports.backing.constants import RUNTIME_CODE_PINS
+    code = RUNTIME_CODE_PINS[spec]
     sdk = SDK()
-    sdk.spec = 495
-    sdk.code = RUNTIME_495_CODE_HASH
+    sdk.spec = spec
+    sdk.code = code
     with pytest.raises(ReportError, match='unsupported finalized runtime'):
         read_commitment_quota(sdk, mining_netuid=82, hotkey=HOT, required_space=100)
     original = sdk.rpc_request
     def version_two(method, params):
         response = original(method, params)
         if method == 'state_getRuntimeVersion':
-            response = {'result': {'specVersion': 495, 'transactionVersion': 2}}
+            response = {'result': {'specVersion': spec, 'transactionVersion': 2}}
         return response
     sdk.rpc_request = version_two
     receipt = read_commitment_quota(sdk, mining_netuid=82, hotkey=HOT, required_space=100)
     assert receipt['runtime']['qualification'] == 'spec-and-code'
-    assert receipt['runtime']['spec_version'] == 495
-    assert receipt['runtime']['code_hash'] == RUNTIME_495_CODE_HASH
+    assert receipt['runtime']['spec_version'] == spec
+    assert receipt['runtime']['code_hash'] == code
     sdk.code = '0x' + '00' * 32
     with pytest.raises(ReportError, match='unsupported finalized runtime'):
         read_commitment_quota(sdk, mining_netuid=82, hotkey=HOT, required_space=100)
