@@ -75,7 +75,7 @@ def test_unrecognized_runtime_refuses_before_pool_or_scan(spec, code):
     ]
 
 
-def signing_chain(finalized_spec, finalized_code, parent_spec, parent_code):
+def signing_chain(finalized_spec, parent_spec):
     chain = adapter()
     chain.substrate.block_hash = BEST
     chain.substrate.runtime_version = parent_spec
@@ -92,9 +92,6 @@ def signing_chain(finalized_spec, finalized_code, parent_spec, parent_code):
         if method == 'state_getRuntimeVersion':
             return {'specVersion': {PIN: finalized_spec, PARENT: parent_spec}[params[0]],
                     'transactionVersion': 1}
-        if method == 'state_getStorageHash':
-            assert params[0] == '0x3a636f6465'
-            return {PIN: finalized_code, PARENT: parent_code}[params[1]]
         pytest.fail(f'unexpected signing RPC {method}')
 
     chain._rpc = rpc
@@ -102,37 +99,24 @@ def signing_chain(finalized_spec, finalized_code, parent_spec, parent_code):
 
 
 @pytest.mark.parametrize(('finalized_spec', 'parent_spec'), [(490, 491), (491, 491),
-                                                            (491, 492), (492, 492), (492, 493), (493, 493)])
-def test_signer_gets_only_reviewed_sdk_parent(finalized_spec, parent_spec):
-    chain, observed = signing_chain(
-        finalized_spec, RUNTIME_CODE_HASHES.get(finalized_spec, RUNTIME_490_CODE_HASH),
-        parent_spec, RUNTIME_CODE_HASHES[parent_spec],
-    )
+    (491, 492), (492, 492), (492, 493), (493, 493), (497, 999)])
+def test_signer_uses_the_sdk_parent_context_without_a_version_allowlist(finalized_spec, parent_spec):
+    chain, observed = signing_chain(finalized_spec, parent_spec)
     payloads = []
     identity, _ = chain.sign(key(lambda payload: payloads.append(payload) or bytes(64)),
                              82, 'Raw32', bytes(32))
     assert identity == '0x' + 'aa' * 32
     assert payloads == [b'synthetic-signing-payload']
-    assert observed.count(('state_getStorageHash', ['0x3a636f6465', PARENT])) == 2
-    if finalized_spec in RUNTIME_CODE_HASHES:
-        assert ('state_getStorageHash', ['0x3a636f6465', PIN]) in observed
+    assert observed.count(('state_getRuntimeVersion', [PARENT])) == 2
+    assert ('state_getRuntimeVersion', [PIN]) in observed
 
 
-@pytest.mark.parametrize('spec', [491, 492, 493])
-@pytest.mark.parametrize('mismatch', ['finalized', 'sdk-parent'])
-def test_unknown_runtime_never_reaches_signer(spec, mismatch):
-    code = RUNTIME_CODE_HASHES[spec]
-    invalid_code = RUNTIME_CODE_HASHES[491] if spec in (492, 493) else UNKNOWN
-    chain, observed = signing_chain(
-        spec, invalid_code if mismatch == 'finalized' else code,
-        spec, invalid_code if mismatch == 'sdk-parent' else code,
-    )
-    with pytest.raises(SigningRuntimeRefused):
-        chain.sign(key(lambda _: pytest.fail('unsupported runtime reached signer')),
+def test_signer_refuses_sdk_and_parent_runtime_disagreement():
+    chain, _ = signing_chain(497, 999)
+    chain.substrate.runtime_version = 497
+    with pytest.raises(SigningRuntimeRefused, match='differs from its chain context'):
+        chain.sign(key(lambda _: pytest.fail('disagreement reached signer')),
                    82, 'Raw32', bytes(32))
-    pin = PIN if mismatch == 'finalized' else PARENT
-    assert ('state_getStorageHash', ['0x3a636f6465', pin]) in observed
-    assert chain.substrate.compositions == (0 if mismatch == 'finalized' else 1)
 
 
 @pytest.mark.parametrize('spec', [491, 492, 493])

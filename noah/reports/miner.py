@@ -174,26 +174,22 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
                         raise ReportError("another round has an unfinished commitment; reconcile it before submitting")
             quota = None
             if not existing and isinstance(chain, SubstrateChain):
-                # Preparation pins B, but a scheduled phase may sign hours later.
-                # Refuse a newly unsupported runtime before opening the wallet.
-                chain.ensure_supported_signing_runtime()
+                chain.check_finalized_signing_context()
                 from .backing.commitment_quota import required_space_for_payload
                 payload = prepared.wire_commitment if phase == "commit" else prepared.submission.encode()
                 quota = chain.commitment_quota(config.netuid, config.miner_hotkey,
                                                required_space_for_payload(payload))
-                if quota["genesis_hash"].removeprefix("0x") != contract["genesis_hash"]:
-                    raise ReportError("commitment quota belongs to another chain")
-                # Quota storage reads may be slow after their head was pinned.
-                # Check the current clock after those reads; retain the receipt
-                # unchanged, and never move time backwards or extend the windows.
-                now = max(now, quota["finalized_timestamp_ms"], chain.finalized_time_ms())
+                now = max(now, chain.finalized_time_ms())
+                if quota is not None:
+                    if quota["genesis_hash"].removeprefix("0x") != contract["genesis_hash"]:
+                        raise ReportError("commitment quota belongs to another chain")
+                    now = max(now, quota["finalized_timestamp_ms"])
+                receipt = {"commitment_quota": quota} if quota is not None else {}
                 if now >= closed:
-                    return {**state, "action": "expired", "phase": phase, "sent": False,
-                            "commitment_quota": quota}
-                if now < opened or not quota["allowed"]:
+                    return {**state, "action": "expired", "phase": phase, "sent": False, **receipt}
+                if now < opened or quota is not None and not quota["allowed"]:
                     return {**state, "action": "waiting", "phase": phase, "sent": False,
-                            "reason": "commitment_quota" if now >= opened else "phase_not_open",
-                            "commitment_quota": quota}
+                            "reason": "commitment_quota" if now >= opened else "phase_not_open", **receipt}
             # Existing journals can only reconcile. A public-only key is enough;
             # an unresolved attempt must not unlock signing material on restart.
             keypair = Keypair(ss58_address=config.miner_hotkey) if existing else (signer_factory or wallet_signer)(config)

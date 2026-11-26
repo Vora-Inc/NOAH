@@ -198,7 +198,7 @@ def test_miner_commit_and_reveal_use_configured_testnet_subnet(case):
     assert [call["netuid"] for call in chain.sent] == [2, 2]
 
 
-def test_runtime_upgrade_after_preparation_refuses_before_wallet_or_new_journal(case):
+def test_malformed_finalized_context_refuses_before_wallet_or_new_journal(case):
     from noah.reports.backing.chain_session import SubstrateChain
     c, r, fake, _ = case
     prepare(case)
@@ -207,35 +207,29 @@ def test_runtime_upgrade_after_preparation_refuses_before_wallet_or_new_journal(
     adapter.finalized_time_ms = fake.finalized_time_ms
     fake.now = r['commit_open_ms']
     adapter._rpc = lambda method, _params: '0x'+'aa'*32 if method == 'chain_getFinalizedHead' else {'specVersion': 999}
-    with pytest.raises(SubmitError, match='runtime is not supported'):
+    with pytest.raises(SubmitError, match='signing context could not be read'):
         miner.submit_tick(c, r, chain=adapter, authorized=True, signer_factory=no_sign)
     assert not (state_directory(c, r)/'commit.journal').exists()
 
 
-@pytest.mark.parametrize('spec, code, supported', [
-    (490, None, True), (483, 'wrong-code', False), (999, None, False),
-    (483, '0x99856ec64a61eb8011999a803bd336979512275214a173fea583abd5c89952d2', True),
-])
-def test_signing_preflight_uses_shared_runtime_qualification(spec, code, supported):
+@pytest.mark.parametrize('spec', [490, 483, 999])
+def test_signing_preflight_accepts_well_formed_finalized_context(spec):
     from noah.reports.backing.chain_session import SubstrateChain
     adapter = SubstrateChain.__new__(SubstrateChain)
     pin = '0x'+'ab'*32
     def rpc(method, params):
-        if method == 'chain_getFinalizedHead': return pin
-        assert params[-1] == pin
-        return {'specVersion': spec} if method == 'state_getRuntimeVersion' else code
+        if method == 'chain_getFinalizedHead':
+            return pin
+        assert method == 'state_getRuntimeVersion' and params == [pin]
+        return {'specVersion': spec, 'transactionVersion': 2}
     adapter._rpc = rpc
-    if supported:
-        adapter.ensure_supported_signing_runtime()
-    else:
-        with pytest.raises(SubmitError, match='runtime is not supported'):
-            adapter.ensure_supported_signing_runtime()
+    adapter.check_finalized_signing_context()
 
 
-def test_direct_adapter_signing_rechecks_runtime_before_composition():
+def test_direct_adapter_signing_checks_finalized_context_before_composition():
     from noah.reports.backing.chain_session import SubstrateChain
     adapter = SubstrateChain.__new__(SubstrateChain)
     adapter._rpc = lambda method, _params: '0x'+'aa'*32 if method == 'chain_getFinalizedHead' else {'specVersion': 999}
-    adapter.substrate = NS(compose_call=lambda *_a, **_k: pytest.fail('unsupported runtime must refuse before composition'))
-    with pytest.raises(SubmitError, match='runtime is not supported'):
+    adapter.substrate = NS(compose_call=lambda *_a, **_k: pytest.fail('malformed context must refuse before composition'))
+    with pytest.raises(SubmitError, match='signing context could not be read'):
         adapter.sign(Key(b'\x33'*32), 2, 'Raw32', bytes(32))

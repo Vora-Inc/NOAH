@@ -126,12 +126,16 @@ opt-in only accepts the new report-only policy on mining subnet82, and does not
 override chain identity or window checks. It does not enable validator report
 processing or V2 scoring. Do not add it before the approved report activation.
 
-Commit requires registration and the correct chain; reveal requires the finalized
-commit. Each new phase checks the current finalized runtime against the supported
-reader policy before opening the wallet, and the signing adapter checks again
-before building the extrinsic. At the actual signature request it also binds the
-SDK-selected runtime, transaction version and composed metadata; the SDK may use
-an unfinalized best head. Preparation's old snapshot check alone is insufficient.
+Commit requires registration on the correct chain. Reveal requires a finalized
+commit. Each new phase reads the finalized chain context before opening the
+wallet. The signing adapter builds the call from the SDK's live metadata and
+checks that the SDK's runtime, transaction version and composed call agree at
+the signature boundary. A new runtime number alone does not refuse submission.
+If its local commitment quota rules have not been reviewed, the chain decides
+whether quota permits the transaction. The miner displays a decoded dispatch
+error name when the chain includes a failed extrinsic and the SDK provides one.
+Snapshot preparation still requires reviewed calculation rules.
+
 A proven refusal before signing is recorded as failed with no submission attempted;
 that phase is not automatically retried, but it does not lock out later rounds.
 An error after signing begins remains uncertain. Existing journal reconciliation

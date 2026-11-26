@@ -74,11 +74,11 @@ def test_supported_unchanged_runtime_invokes_signer_exactly_once():
     assert calls == [b'synthetic-signing-payload']
 
 
-@pytest.mark.parametrize('change', ['unsupported', 'sdk_spec', 'transaction', 'sdk_metadata', 'call_metadata', 'rpc_failure'])
+@pytest.mark.parametrize('change', ['runtime_changed', 'sdk_spec', 'transaction', 'sdk_metadata', 'call_metadata', 'rpc_failure'])
 def test_actual_signer_boundary_refuses_runtime_or_metadata_change(change):
     chain, calls = adapter(), []
     def mutate():
-        if change == 'unsupported':
+        if change == 'runtime_changed':
             chain.version['specVersion'] = chain.substrate.runtime_version = 999
         elif change == 'sdk_spec':
             chain.substrate.runtime_version = 491
@@ -130,7 +130,7 @@ def test_sdk_error_after_callback_is_never_a_proven_unsent_refusal():
     assert len(calls) == 1
 
 
-def test_second_guard_upgrade_retains_terminal_unsent_journal_and_does_not_block_next_round(case):
+def test_second_guard_context_failure_retains_unsent_journal_and_allows_later_round(case):
     config, contract, fake, engine = case
     prepare(case)
     chain = adapter()
@@ -141,7 +141,7 @@ def test_second_guard_upgrade_retains_terminal_unsent_journal_and_does_not_block
         if method == 'chain_getFinalizedHead':
             return PIN
         runtime_reads.append(method)
-        return {'specVersion': 490 if len(runtime_reads) == 1 else 999}
+        return {'specVersion': 490, 'transactionVersion': 1} if len(runtime_reads) == 1 else None
     chain._rpc = rpc
     with pytest.raises(SigningRuntimeRefused):
         miner.submit_tick(config, contract, chain=chain, authorized=True, signer_factory=sign)
@@ -201,15 +201,10 @@ def test_real_sdk_best_head_runtime_is_checked_at_signing(best_spec):
     assert sdk.runtime_version == best_spec
     chain = SubstrateChain.__new__(SubstrateChain)
     chain.substrate = sdk
-    chain.ensure_supported_signing_runtime()  # Finalized block6 still reports490.
+    chain.check_finalized_signing_context()  # Finalized block 6 still reports 490.
     calls = []
     public_key = NS(public_key=HOT, ss58_address=ss58_encode(HOT), crypto_type=1,
                     sign=lambda _: calls.append(1) or bytes(64))
-    if best_spec == 999:
-        with pytest.raises(SigningRuntimeRefused, match='SDK signing runtime is not supported'):
-            chain.sign(public_key, 82, 'Raw32', bytes(32))
-        assert calls == []
-    else:
-        identity, extrinsic = chain.sign(public_key, 82, 'Raw32', bytes(32))
-        assert calls == [1]
-        assert identity == '0x' + extrinsic.extrinsic_hash.hex()
+    identity, extrinsic = chain.sign(public_key, 82, 'Raw32', bytes(32))
+    assert calls == [1]
+    assert identity == '0x' + extrinsic.extrinsic_hash.hex()

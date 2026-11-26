@@ -45,48 +45,32 @@ class SubstrateChain:
 
     def commitment_quota(self, netuid, hotkey, required_space):
         """Public finalized quota receipt; no wallet, nonce lookup or transaction."""
-        from .commitment_quota import read_commitment_quota
-        return read_commitment_quota(self.substrate, mining_netuid=netuid,
-                                     hotkey=hotkey, required_space=required_space)
+        from .commitment_quota import QuotaRulesUnreviewed, read_commitment_quota
+        try:
+            return read_commitment_quota(self.substrate, mining_netuid=netuid,
+                                         hotkey=hotkey, required_space=required_space)
+        except QuotaRulesUnreviewed:
+            # The chain enforces its own quota. Do not guess the rules on an upgrade.
+            return None
 
-    def ensure_supported_signing_runtime(self):
-        """Fresh finalized runtime check; existing sends remain reconcilable."""
-        from types import SimpleNamespace
-        from .reads import Reader
+    def check_finalized_signing_context(self):
+        """Check the finalized context before opening a wallet."""
         try:
             head = _runtime_hash(self._rpc("chain_getFinalizedHead", []))
-            reader = Reader(SimpleNamespace(call=self._rpc), head)
-            if not reader.qualified_runtime(reader.spec_version()):
-                raise SigningRuntimeRefused("current finalized runtime is not supported for report signing")
-        except SigningRuntimeRefused:
-            raise
+            _version_pair(self._rpc("state_getRuntimeVersion", [head]))
         except Exception as exc:
-            raise SigningRuntimeRefused("current finalized signing runtime could not be checked") from exc
+            raise SigningRuntimeRefused("current finalized signing context could not be read") from exc
 
-    def _qualified_sdk_runtime(self):
-        """Qualify the exact parent runtime selected by SDK init_runtime().
-
-        The SDK can select an unfinalized best head, so the earlier finalized
-        check alone cannot authorize its encoding or signature payload.
-        """
-        from types import SimpleNamespace
-        from .reads import Reader
+    def _checked_sdk_runtime(self):
+        """Check the selected parent version and capture the SDK metadata identity."""
         try:
             block = _runtime_hash(self.substrate.block_hash)
             parent = _runtime_hash(self._rpc("chain_getHeader", [block])["parentHash"])
-            pin = block if parent == '0x' + '00' * 32 else parent
-            version = self._rpc("state_getRuntimeVersion", [pin])
-            def call(method, params):
-                if method == 'state_getRuntimeVersion' and params == [pin]:
-                    return version
-                return self._rpc(method, params)
-            reader = Reader(SimpleNamespace(call=call), pin)
-            if not reader.qualified_runtime(reader.spec_version()):
-                raise SigningRuntimeRefused("SDK signing runtime is not supported")
+            pin = block if parent == "0x" + "00" * 32 else parent
+            version = _version_pair(self._rpc("state_getRuntimeVersion", [pin]))
             identity = _sdk_identity(self.substrate)
-            if (type(version.get('transactionVersion')) is not int
-                    or (version['specVersion'], version['transactionVersion']) != identity[:2]):
-                raise SigningRuntimeRefused("SDK signing runtime version differs from pinned chain runtime")
+            if version != identity[:2]:
+                raise SigningRuntimeRefused("SDK signing runtime version differs from its chain context")
             return identity
         except SigningRuntimeRefused:
             raise
@@ -95,13 +79,13 @@ class SubstrateChain:
 
     def sign(self, keypair, netuid: int, variant: str, payload: bytes):
         require_sr25519(keypair)
-        self.ensure_supported_signing_runtime()
+        self.check_finalized_signing_context()
         call = self.substrate.compose_call(
             "Commitments",
             "set_commitment",
             {"netuid": netuid, "info": commitment_info(variant, payload)},
         )
-        expected = self._qualified_sdk_runtime()
+        expected = self._checked_sdk_runtime()
         if _metadata_fingerprint(getattr(call, 'metadata', None)) != expected[2]:
             raise SigningRuntimeRefused("composed call metadata differs from SDK signing metadata")
         chain = self
@@ -115,7 +99,7 @@ class SubstrateChain:
             def sign(self, *args, **kwargs):
                 if self.invoked:
                     raise SubmitError("multiple signature requests refused")
-                if (chain._qualified_sdk_runtime() != expected
+                if (chain._checked_sdk_runtime() != expected
                         or _metadata_fingerprint(getattr(call, 'metadata', None)) != expected[2]):
                     raise SigningRuntimeRefused("signing runtime or composed metadata changed before signature")
                 self.invoked = True
@@ -200,13 +184,15 @@ class SubstrateChain:
     def _inclusion_from_receipt(self, receipt) -> Inclusion:
         header = self.substrate.get_block_header(receipt.block_hash)["header"]
         events = [_plain_event(item.value if hasattr(item, "value") else item) for item in receipt.triggered_events]
+        success = _succeeded(events)
         return Inclusion(
             extrinsic_hash=_as_hex(receipt.extrinsic_hash),
             block_hash=str(receipt.block_hash),
             block_number=_number(header["number"]),
             extrinsic_index=int(receipt.extrinsic_idx),
             block_timestamp_ms=int(self.substrate.query("Timestamp", "Now", block_hash=receipt.block_hash).value),
-            success=_succeeded(events),
+            success=success,
+            dispatch_error=None if success else _receipt_error_name(receipt),
         )
 
     def _inclusion_from_block(self, block_hash: str, index: int, extrinsic_hash: str) -> Inclusion:
@@ -229,6 +215,16 @@ class SubstrateChain:
         return self.substrate.rpc_request(method, params)["result"]
 
 
+def _receipt_error_name(receipt):
+    try:
+        error = receipt.error_message
+    except Exception:
+        # Decoding the optional label cannot change the observed failure event.
+        return None
+    name = error.get("name") if isinstance(error, dict) else None
+    return name if isinstance(name, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else None
+
+
 def _runtime_hash(value):
     if type(value) is not str or re.fullmatch(r'0x[0-9a-f]{64}', value) is None:
         raise SigningRuntimeRefused("invalid signing runtime block identity")
@@ -243,6 +239,15 @@ def _metadata_fingerprint(metadata):
         return hashlib.sha256(raw).hexdigest()
     except Exception as exc:
         raise SigningRuntimeRefused("signing metadata unavailable") from exc
+
+
+def _version_pair(version):
+    if not isinstance(version, dict):
+        raise SigningRuntimeRefused("invalid runtime version")
+    spec, transaction = version.get("specVersion"), version.get("transactionVersion")
+    if type(spec) is not int or type(transaction) is not int or min(spec, transaction) < 0:
+        raise SigningRuntimeRefused("invalid runtime version")
+    return spec, transaction
 
 
 def _sdk_identity(substrate):

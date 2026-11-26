@@ -139,6 +139,29 @@ def test_wait_then_epoch_reset_progresses_without_consuming_attempt(case):
     assert len(fake.sent)==2
 
 
+def test_unreviewed_quota_rules_allow_chain_decision_without_quoting_capacity(case):
+    c, r, fake, chain, sdk = adapter_case(case)
+    sdk.spec = 999
+    result = miner.submit_tick(c, r, chain=chain, authorized=True, signer_factory=sign)
+    assert result['sent'] and 'commitment_quota' not in result
+    assert len(fake.sent) == 1
+    assert not any(call[0] == 'Commitments.UsedSpaceOf' for call in sdk.calls)
+
+
+def test_chain_dispatch_error_is_retained_for_failed_report(case):
+    from dataclasses import replace
+    c, r, fake, chain, sdk = adapter_case(case)
+    sdk.spec = 999
+    dispatch = chain.broadcast
+    chain.broadcast = lambda handle: replace(dispatch(handle), success=False,
+                                                dispatch_error='CommitmentSpaceExceeded')
+    with pytest.raises(SubmitError, match='extrinsic failed: CommitmentSpaceExceeded'):
+        miner.submit_tick(c, r, chain=chain, authorized=True, signer_factory=sign)
+    with pytest.raises(SubmitError, match='previous extrinsic failed: CommitmentSpaceExceeded'):
+        miner.submit_tick(c, r, chain=chain, authorized=True, signer_factory=no_sign)
+    assert len(fake.sent) == 1
+
+
 def test_legacy_payload_cost_and_after_read_deadline_preserve_original_windows(case):
     c,r,fake,chain,sdk=adapter_case(case,context=False)
     # First clock read is open; the pinned quota observation crosses the deadline.

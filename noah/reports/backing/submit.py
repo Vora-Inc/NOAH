@@ -37,6 +37,7 @@ class Inclusion:
     extrinsic_index: int
     block_timestamp_ms: int
     success: bool
+    dispatch_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -178,7 +179,8 @@ def _resume(fd, body: dict, chain, phase: str, prepared, evidence: Path, mining_
     if state == "failed":
         if body.get("submission_attempted") is False:
             raise SubmitError("previous signing was refused; no submission attempted")
-        raise SubmitError("previous extrinsic failed")
+        error = body.get("dispatch_error")
+        raise SubmitError(f"previous extrinsic failed: {error}" if error else "previous extrinsic failed")
     if state == "claimed" or not body.get("extrinsic_hash"):
         _store(fd, body | {"state": "unresolved", "reason": "no recorded extrinsic"})
         raise SubmitError("outcome unknown")
@@ -192,8 +194,12 @@ def _resume(fd, body: dict, chain, phase: str, prepared, evidence: Path, mining_
 def _accept(fd, chain, phase, prepared, evidence, mining_netuid, inclusion: Inclusion, *, sent: bool) -> Outcome:
     current = _body(fd)
     if not inclusion.success:
-        _store(fd, current | {"state": "failed", "extrinsic_hash": inclusion.extrinsic_hash})
-        raise SubmitError("extrinsic failed")
+        error = inclusion.dispatch_error
+        failure = {"state": "failed", "extrinsic_hash": inclusion.extrinsic_hash}
+        if error:
+            failure["dispatch_error"] = error
+        _store(fd, current | failure)
+        raise SubmitError(f"extrinsic failed: {error}" if error else "extrinsic failed")
     proof = chain.finality(inclusion.block_hash, inclusion.block_number)
     if not proof.get("matches"):
         _store(fd, current | {"state": "unresolved", "extrinsic_hash": inclusion.extrinsic_hash, "reason": "inclusion is not on the finalized chain"})

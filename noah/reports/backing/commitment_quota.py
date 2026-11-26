@@ -25,6 +25,10 @@ SOURCE_PINS = {
 }
 
 
+class QuotaRulesUnreviewed(ReportError):
+    """The finalized runtime has no reviewed local quota arithmetic."""
+
+
 def _require(condition, message):
     if not condition:
         raise ReportError('commitment quota: ' + message)
@@ -99,9 +103,9 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
         spec = _uint(version.get('specVersion'), 32)
         transaction = _uint(version.get('transactionVersion'), 32)
         code = _hash(rpc('state_getStorageHash', ['0x3a636f6465', pin]))
-        _require(spec in SOURCE_PINS and (spec not in RUNTIME_CODE_PINS or code == RUNTIME_CODE_PINS[spec])
-                 and (spec not in (494, 495, 497) or transaction == 2),
-                 'unsupported finalized runtime')
+        if (spec not in SOURCE_PINS or spec in RUNTIME_CODE_PINS and code != RUNTIME_CODE_PINS[spec]
+                or spec in (494, 495, 497) and transaction != 2):
+            raise QuotaRulesUnreviewed('commitment quota: unsupported finalized runtime')
         def query(module, name, params):
             result = substrate.query(module, name, params, block_hash=pin)
             _require(hasattr(result, 'value'), 'undecoded quota response')
