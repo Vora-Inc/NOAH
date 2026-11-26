@@ -1868,11 +1868,11 @@
     },
     "noah/reports/backing/commitment_quota.py": {
       "mode": "100644",
-      "sha256": "b3cbb653575307b3325d9513e64bbd64dd6d031b91b02c8e90f1d534446d528d"
+      "sha256": "4cca221f69ffd6ddb3d54a78d0662a533bf7cdfecdb39206847e473142fd8e25"
     },
     "noah/reports/backing/constants.py": {
       "mode": "100644",
-      "sha256": "1e0215a56d6324980f33b4caa47f1e71880b6798b7c893f7bebcbb2161625774"
+      "sha256": "c33eb600a612ee6e94454a09cb48cd9a0b158b585b97197b9dce4d5d23cf040f"
     },
     "noah/reports/backing/deposit_index.py": {
       "mode": "100644",
@@ -2136,7 +2136,7 @@
     },
     "noah/reports/tests/test_commitment_quota.py": {
       "mode": "100644",
-      "sha256": "9cf5c14f99c5eff6815dd70fdd0055a11703a852bd284d39875bfcce2b232a7a"
+      "sha256": "6d513dd50a9b88147f0449079f3e0dd09495af5a6acea78be39989bcad6380bf"
     },
     "noah/reports/tests/test_context_commitment.py": {
       "mode": "100644",
@@ -2144,7 +2144,7 @@
     },
     "noah/reports/tests/test_coverage_evidence.py": {
       "mode": "100644",
-      "sha256": "3466f461a2af7522bf0c0d6c055be65ee73380c8e04539f3cf7472130c40261f"
+      "sha256": "abc721d5cc64771fc385df4f08dfbd48e573628725fe7fb9136b6a06cdc8e2aa"
     },
     "noah/reports/tests/test_engine_arithmetic.py": {
       "mode": "100644",
@@ -2996,9 +2996,9 @@
     }
   },
   "review": {
-    "date": "2026-11-24",
-    "evidence_sha256": "3673e78af63523e8b0f61267f9ed7dde8016789583df40deea51852ba718a31a",
-    "owner": "Codex independent runtime 495 application reviewer",
+    "date": "2026-11-26",
+    "evidence_sha256": "b76edac57227f8da222a475f8d6b277c8abde82dae47ecd7b4d1d5678a6f18d0",
+    "owner": "Codex runtime 497 execute-path delta reviewer",
     "status": "reviewed"
   },
   "schema": "noah.application-vex/1",

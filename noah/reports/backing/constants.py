@@ -7,7 +7,7 @@ VERSION = "0.1.0"
 # signed calculation identity are unchanged. Legacy is retained replay only.
 COVERAGE_LEGACY = "alpha-out-v1"
 COVERAGE_STAKED_V2 = "total-alpha-staked-v2"
-STAKED_COVERAGE_SPECS = frozenset({483, 492, 493, 494, 495})
+STAKED_COVERAGE_SPECS = frozenset({483, 492, 493, 494, 495, 497})
 
 # Public Ark coldkey. SS58 prefix 42. Not a secret.
 ARK_SS58 = "5EL1nNebm9e3iKBz3G8vELKYqYVWN4iyda8a79esydKBsba3"
@@ -30,6 +30,7 @@ SUBTENSOR_492_PIN = "541a50d38764acdce23578bd8ba54f80156ffb2a"
 SUBTENSOR_493_PIN = "8b407e40988ea7a251abb6dbc07a9ab7d602b740"
 SUBTENSOR_494_PIN = "a68c6e8c65411a842fbf69269dc385aa13041391"
 SUBTENSOR_495_PIN = "e536e6bf4bfa58f1ec4506dff0147e1f9b1c1900"
+SUBTENSOR_497_PIN = "24e1fc7b12ea7ce9d390925dac602ba961997824"
 
 # Reviewed runtime 483 adapter, restricted to the official release code.
 # Other chains/code with that spec number are not implicitly compatible.
@@ -46,6 +47,9 @@ RUNTIME_493_CODE_HASH = "0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e
 RUNTIME_494_CODE_HASH = "0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca"
 # Official v495 tag e536e6bf. Live Finney code read at the finalized tip on 2026-11-24.
 RUNTIME_495_CODE_HASH = "0x7f4f60f27f1cbdb92a8413d8280217789229f54189e48a501ada2d25f4c7edf7"
+# Official v497 WASM matches the finalized Finney snapshot. The v495-to-v497
+# runtime changes preserve the Commitments call and report storage/API contracts.
+RUNTIME_497_CODE_HASH = "0x1ef826aebed0d77300b7da09d4e3b23ad507317d72c8c01d827537643dbf2c15"
 RUNTIME_CODE_PINS = {
     483: RUNTIME_483_CODE_HASH,
     491: RUNTIME_491_CODE_HASH,
@@ -53,6 +57,7 @@ RUNTIME_CODE_PINS = {
     493: RUNTIME_493_CODE_HASH,
     494: RUNTIME_494_CODE_HASH,
     495: RUNTIME_495_CODE_HASH,
+    497: RUNTIME_497_CODE_HASH,
 }
 
 MINIMUM_RESERVE = 1_000_000
