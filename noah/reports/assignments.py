@@ -1,7 +1,9 @@
-"""Weekly subnet assignments. One signed file, three reports a day.
+"""Weekly subnet assignments, plus a daily supplement for later registrations.
 
-The weekly setting is off unless a caller turns it on. This module does not
-publish weights or open a host.
+The weekly setting is off unless a caller turns it on. Existing readers still
+load only the signed Sunday file. A supplement is a separate signed file and
+does not rewrite that Sunday file. This module does not publish weights,
+change the validator loop, or open a host.
 """
 
 from __future__ import annotations
@@ -127,8 +129,8 @@ def deal(roster, targets, seed):
 
     Each miner receives min(3, len(targets)) distinct targets. Extra reports
     are spread so counts differ by at most one. Targets left at zero are
-    uncovered. The seed is the week-open block hash, so a retry deals the
-    same rows.
+    uncovered. The seed is the snapshot block hash supplied by the caller, so
+    a retry deals the same rows.
     """
     _hex32(seed, 'week seed')
     _require(type(targets) is list and targets == sorted(set(targets)), 'targets')
@@ -482,3 +484,414 @@ def current_document(directory, url, now_seconds, *, trusted_public_key, expecte
     if cached is None and url:
         raise AssignmentUnavailable('weekly assignments: assignment file is unavailable')
     return cached
+
+
+SUPPLEMENT = 'noah.daily-assignment-supplement/1'
+SUPPLEMENT_DOMAIN = b'noah-daily-assignment-supplement-v1\x00'
+_SUPPLEMENT_BODY = (
+    'schema', *TEMPLATE_KEYS, 'week_start', 'day', 'week_sha256', 'previous_sha256',
+    'weekly_roster_block_number', 'previous_roster_block_number', 'roster_block_number',
+    'roster_block_hash', 'targets', 'uncovered', 'counts', 'assignments',
+)
+SUPPLEMENT_KEYS = set(_SUPPLEMENT_BODY) | {'signature'}
+
+
+def _require_sup(condition, message):
+    if not condition:
+        raise ReportError('daily assignment supplement: ' + message)
+
+
+def _hex_sup(value, label):
+    _require_sup(type(value) is str and re.fullmatch('[0-9a-f]{64}', value), label)
+
+
+def _calendar_day(value):
+    _require_sup(type(value) is str, 'assignment day')
+    try:
+        day = datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError as exc:
+        raise ReportError('daily assignment supplement: invalid day') from exc
+    _require_sup(day.isoformat() == value, 'assignment day')
+    return day
+
+
+def signed_document_sha256(document):
+    """Canonical hash of one signed document, including its signature field."""
+    _require_sup(type(document) is dict and type(document.get('signature')) is str, 'signed document required')
+    raw = json.dumps(document, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def snapshot_target_ms(template, day):
+    """UTC instant of the daily snapshot named by the assignment template.
+
+    The reviewed template uses ``snapshot_offset_seconds`` 600, which is
+    00:10:00 UTC. The instant follows the template value rather than a second copy.
+    """
+    template_from_document(template)
+    offset = template['snapshot_offset_seconds']
+    _require_sup(type(offset) is int and 0 <= offset <= 86399, 'snapshot offset')
+    moment = datetime.combine(_calendar_day(day), datetime.min.time(), timezone.utc)
+    return int(moment.timestamp()) * 1000 + offset * 1000
+
+
+def supplement_url(url, day):
+    """Directory URL plus ``daily/<date>.json``. This is not the Sunday file URL."""
+    _calendar_day(day)
+    _require_sup(type(url) is str and url.endswith('/'), 'assignment directory URL')
+    return url + 'daily/' + day + '.json'
+
+
+def _identity(row):
+    return (row['hotkey'], row['coldkey'], row['registration_block'])
+
+
+def _assigned_identities(week, earlier):
+    taken = {_identity(row) for row in week['assignments']}
+    for document in earlier:
+        taken.update(_identity(row) for row in document['assignments'])
+    return taken
+
+
+def late_joiner_roster(week, earlier, roster, *, previous_block, snapshot_block):
+    """Rows registered after the previous assignment boundary and by this snapshot.
+
+    A row already present in the Sunday file or an earlier supplement is left
+    there. A registration at or before the previous boundary is not repaired
+    by a later file. A registration after ``snapshot_block`` waits for a later
+    snapshot. The returned rows carry no targets; ``deal`` chooses those.
+    """
+    _require_sup(type(previous_block) is int and type(snapshot_block) is int
+                 and 1 <= previous_block <= snapshot_block < 2**32, 'snapshot boundary')
+    _require_sup(type(roster) is list and len(roster) <= MAX_MEMBERS, 'roster size')
+    taken = _assigned_identities(week, earlier)
+    selected, seen_hotkeys, seen_uids = [], set(), set()
+    for row in roster:
+        _member(row)
+        registered = row['registration_block']
+        if registered <= previous_block or registered > snapshot_block or _identity(row) in taken:
+            continue
+        _require_sup(row['hotkey'] not in seen_hotkeys, 'duplicate late joiner hotkey')
+        _require_sup(row['uid'] not in seen_uids, 'duplicate late joiner UID')
+        seen_hotkeys.add(row['hotkey'])
+        seen_uids.add(row['uid'])
+        selected.append({key: row[key] for key in ('uid', 'hotkey', 'coldkey', 'registration_block')})
+    return selected
+
+
+def _checked_chain(week, earlier, trusted_public_key):
+    week = verify_week(week, trusted_public_key=trusted_public_key)
+    checked = []
+    for document in earlier:
+        checked.append(_verify_supplement(document, week, checked, trusted_public_key))
+    return week, checked
+
+
+def validate_unsigned_supplement(document, week, earlier, *, trusted_public_key):
+    week, checked = _checked_chain(week, earlier, trusted_public_key)
+    return _validate_supplement_body(document, week, checked)
+
+
+def _validate_supplement_body(document, week, checked):
+    _require_sup(type(document) is dict and set(document) == set(_SUPPLEMENT_BODY), 'supplement fields')
+    _require_sup(document['schema'] == SUPPLEMENT, 'supplement schema')
+    _require_sup(all(document[key] == week[key] for key in TEMPLATE_KEYS), 'template differs from the week file')
+    _require_sup(document['week_start'] == week['week_start'], 'week_start differs')
+    start = _sunday(document['week_start'])
+    day = _calendar_day(document['day'])
+    _require_sup(start <= day <= start + timedelta(days=6), 'day is outside the assignment week')
+    _require_sup((day - start).days == len(checked), 'missing earlier daily supplement')
+    for index, item in enumerate(checked):
+        expected = (start + timedelta(days=index)).isoformat()
+        _require_sup(item['day'] == expected and item['week_start'] == week['week_start'],
+                     'earlier supplement sequence')
+    boundary = week['roster_block_number'] if not checked else checked[-1]['roster_block_number']
+    previous = week if not checked else checked[-1]
+    _hex_sup(document['week_sha256'], 'week file hash')
+    _hex_sup(document['previous_sha256'], 'previous file hash')
+    _require_sup(document['week_sha256'] == signed_document_sha256(week), 'week file link')
+    _require_sup(document['previous_sha256'] == signed_document_sha256(previous), 'previous file link')
+    _require_sup(document['weekly_roster_block_number'] == week['roster_block_number'], 'week snapshot block')
+    _require_sup(type(document['previous_roster_block_number']) is int
+                 and document['previous_roster_block_number'] == boundary, 'previous snapshot block')
+    height = document['roster_block_number']
+    _require_sup(type(height) is int and boundary <= height < 2**32, 'daily snapshot block')
+    _hex_sup(document['roster_block_hash'], 'daily snapshot hash')
+    _require_sup(document['targets'] == week['targets'], 'supplement targets differ from the week file')
+    taken = _assigned_identities(week, checked)
+    for row in document['assignments']:
+        _require_sup(_identity(row) not in taken, 'miner is already assigned this week')
+        _require_sup(boundary < row['registration_block'] <= height, 'registration is outside this daily snapshot')
+    expected, counts, uncovered = deal(document['assignments'], document['targets'], document['roster_block_hash'])
+    _require_sup(document['assignments'] == expected, 'assignments do not match the daily deal')
+    _require_sup(type(document['counts']) is list and type(document['uncovered']) is list, 'coverage fields')
+    _require_sup(document['counts'] == counts and document['uncovered'] == uncovered,
+                 'coverage does not match the daily deal')
+    _require_sup(len(canonical_bytes(document)) <= MAX_DOCUMENT_BYTES - 160, 'assignment file is too large')
+    return document
+
+
+def supplement_signature_payload(document):
+    return SUPPLEMENT_DOMAIN + canonical_bytes(document)
+
+
+def build_supplement(week, earlier, roster, *, day, roster_block_number, roster_block_hash, trusted_public_key):
+    """Deal only miners not already assigned this week. The week object is not modified."""
+    week, checked = _checked_chain(week, earlier, trusted_public_key)
+    _calendar_day(day)
+    boundary = week['roster_block_number'] if not checked else checked[-1]['roster_block_number']
+    _require_sup(type(roster_block_number) is int and boundary <= roster_block_number < 2**32,
+                 'daily snapshot block')
+    _hex_sup(roster_block_hash, 'daily snapshot hash')
+    rows = late_joiner_roster(week, checked, roster, previous_block=boundary, snapshot_block=roster_block_number)
+    assignments, counts, uncovered = deal(rows, list(week['targets']), roster_block_hash)
+    previous = week if not checked else checked[-1]
+    document = {
+        'schema': SUPPLEMENT, **{key: week[key] for key in TEMPLATE_KEYS},
+        'week_start': week['week_start'], 'day': day,
+        'week_sha256': signed_document_sha256(week),
+        'previous_sha256': signed_document_sha256(previous),
+        'weekly_roster_block_number': week['roster_block_number'],
+        'previous_roster_block_number': boundary,
+        'roster_block_number': roster_block_number, 'roster_block_hash': roster_block_hash,
+        'targets': list(week['targets']), 'uncovered': uncovered, 'counts': counts,
+        'assignments': assignments,
+    }
+    return validate_unsigned_supplement(document, week, checked, trusted_public_key=trusted_public_key)
+
+
+def sign_supplement(document, keypair, *, week, earlier, trusted_public_key):
+    """Sign with the assignment-only key. The weekly signature domain is not reused."""
+    validate_unsigned_supplement(document, week, earlier, trusted_public_key=trusted_public_key)
+    import sr25519
+    if isinstance(keypair, tuple) and len(keypair) == 2:
+        _require_sup(keypair[0] == bytes.fromhex(trusted_public_key), 'assignment signing key differs')
+        signature = sr25519.sign(keypair, supplement_signature_payload(document))
+    else:
+        _require_sup(getattr(keypair, 'crypto_type', None) == 1, 'assignment signature requires SR25519')
+        _require_sup(getattr(keypair, 'public_key', None) == bytes.fromhex(trusted_public_key),
+                     'assignment signing key differs')
+        signature = keypair.sign(supplement_signature_payload(document))
+    signed = {**document, 'signature': signature.hex()}
+    return verify_supplement(signed, week, earlier, trusted_public_key=trusted_public_key)
+
+
+def verify_supplement(document, week, earlier, *, trusted_public_key):
+    week, checked = _checked_chain(week, earlier, trusted_public_key)
+    return _verify_supplement(document, week, checked, trusted_public_key)
+
+
+def _verify_supplement(document, week, checked, trusted_public_key):
+    _require_sup(type(document) is dict and set(document) == SUPPLEMENT_KEYS, 'supplement fields')
+    _validate_supplement_body(
+        {key: value for key, value in document.items() if key != 'signature'}, week, checked)
+    _require_sup(type(document['signature']) is str and re.fullmatch('[0-9a-f]{128}', document['signature']),
+                 'assignment signature')
+    import sr25519
+    try:
+        accepted = sr25519.verify(
+            bytes.fromhex(document['signature']), supplement_signature_payload(document),
+            bytes.fromhex(trusted_public_key))
+    except (ValueError, TypeError):
+        accepted = False
+    _require_sup(accepted is True, 'assignment signature')
+    return document
+
+
+def merged_assignments(week, supplements, day, *, trusted_public_key):
+    """Sunday rows followed by supplement rows through ``day``.
+
+    Later files are checked when the caller supplies them, and their rows are
+    not included before their own day. Rows are not re-sorted: a replaced UID
+    can appear in an older file and again in a supplement.
+    """
+    week, checked = _checked_chain(week, supplements, trusted_public_key)
+    selected = _calendar_day(day)
+    rows = [{**row, 'targets': list(row['targets'])} for row in week['assignments']]
+    for document in checked:
+        if _calendar_day(document['day']) > selected:
+            continue
+        rows.extend({**row, 'targets': list(row['targets'])} for row in document['assignments'])
+    return rows
+
+
+def assignment_for_day(week, supplements, *, day, hotkey, coldkey, registration_block, trusted_public_key):
+    matches = [row for row in merged_assignments(week, supplements, day, trusted_public_key=trusted_public_key)
+               if row['hotkey'] == hotkey and row['coldkey'] == coldkey
+               and row['registration_block'] == registration_block]
+    _require_sup(len(matches) <= 1, 'assignment identity is ambiguous')
+    return matches[0] if matches else None
+
+
+def first_eligible_day(week, supplements, *, hotkey, coldkey, registration_block, trusted_public_key):
+    """Sunday date for a week-file row, otherwise the supplement date that first lists it."""
+    week = verify_week(week, trusted_public_key=trusted_public_key)
+    identity = (hotkey, coldkey, registration_block)
+    if any(_identity(row) == identity for row in week['assignments']):
+        return week['week_start']
+    checked = []
+    for document in supplements:
+        verified = verify_supplement(document, week, checked, trusted_public_key=trusted_public_key)
+        checked.append(verified)
+        if any(_identity(row) == identity for row in verified['assignments']):
+            return verified['day']
+    return None
+
+
+def retain_supplement(directory, document, *, week, earlier, trusted_public_key):
+    """Write ``daily/<date>.json`` once. The same bytes are returned on retry."""
+    document = verify_supplement(document, week, earlier, trusted_public_key=trusted_public_key)
+    path = Path(directory) / 'daily' / (document['day'] + '.json')
+    with _locked(directory):
+        if os.path.lexists(path):
+            current = verify_supplement(_read_document(path), week, earlier, trusted_public_key=trusted_public_key)
+            _require_sup(canonical_bytes(current) == canonical_bytes(document), 'retained daily file differs')
+            fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            return current
+        immutable_json(path, document)
+        return document
+
+
+def supplement_dates(week_start, finalized_ms, snapshot_offset_seconds):
+    """Sunday through the last day whose daily snapshot is already finalized.
+
+    The offset is the template value. 600 seconds is 00:10:00 UTC. A later
+    day is omitted until its own snapshot block exists, so the publisher
+    cannot use a block from the future.
+    """
+    start = _sunday(week_start)
+    _require_sup(type(finalized_ms) is int and finalized_ms >= 0, 'finalized clock')
+    _require_sup(type(snapshot_offset_seconds) is int and 0 <= snapshot_offset_seconds <= 86399,
+                 'snapshot offset')
+    dates = []
+    for offset in range(7):
+        day = start + timedelta(days=offset)
+        instant = int(datetime.combine(day, datetime.min.time(), timezone.utc).timestamp()) * 1000
+        instant += snapshot_offset_seconds * 1000
+        if finalized_ms < instant:
+            break
+        dates.append(day.isoformat())
+    return dates
+
+
+def scoring_day_name(anchor, day_index):
+    """UTC calendar date of a scoring day. The anchor is UTC midnight."""
+    _require_sup(type(anchor) is int and type(day_index) is int and anchor % 86400 == 0
+                 and day_index >= 0, 'scoring day')
+    return datetime.fromtimestamp(anchor + day_index * 86400, timezone.utc).date().isoformat()
+
+
+def load_supplement_prefix(directory, week, through_day, *, trusted_public_key):
+    """Verified daily files from Sunday through the first gap, stopping at through_day.
+
+    A missing later file does not discard earlier files. The caller keeps
+    Sunday rows when this prefix is empty.
+    """
+    week = verify_week(week, trusted_public_key=trusted_public_key)
+    start = _sunday(week['week_start'])
+    end = _calendar_day(through_day)
+    _require_sup(start <= end <= start + timedelta(days=6), 'day is outside the assignment week')
+    loaded = []
+    day = start
+    while day <= end:
+        path = Path(directory) / 'daily' / (day.isoformat() + '.json')
+        if not os.path.lexists(path):
+            break
+        loaded.append(verify_supplement(_read_document(path), week, loaded, trusted_public_key=trusted_public_key))
+        day += timedelta(days=1)
+    return loaded
+
+
+def publish_supplement_sequence(directory, week, steps, roster_for, *, keypair, trusted_public_key, post=None):
+    """Sign and retain each day in order, including a day with no new miners.
+
+    ``steps`` is ``[{day, roster_block_number, roster_block_hash}, ...]`` from
+    Sunday forward. An existing file is kept. ``post`` receives the retained
+    document and may be called again on a later tick; the host treats the
+    same bytes as a retry.
+    """
+    week = verify_week(week, trusted_public_key=trusted_public_key)
+    _require_sup(type(steps) is list, 'supplement steps')
+    earlier, produced = [], []
+    for index, step in enumerate(steps):
+        _require_sup(type(step) is dict and set(step) == {'day', 'roster_block_number', 'roster_block_hash'},
+                     'supplement step')
+        expected = (_sunday(week['week_start']) + timedelta(days=index)).isoformat()
+        _require_sup(step['day'] == expected, 'supplement step order')
+        path = Path(directory) / 'daily' / (step['day'] + '.json')
+        if os.path.lexists(path):
+            current = verify_supplement(_read_document(path), week, earlier, trusted_public_key=trusted_public_key)
+        else:
+            unsigned = build_supplement(
+                week, earlier, roster_for(step), day=step['day'],
+                roster_block_number=step['roster_block_number'],
+                roster_block_hash=step['roster_block_hash'], trusted_public_key=trusted_public_key)
+            signed = sign_supplement(unsigned, keypair, week=week, earlier=earlier,
+                                     trusted_public_key=trusted_public_key)
+            current = retain_supplement(directory, signed, week=week, earlier=earlier,
+                                        trusted_public_key=trusted_public_key)
+        if post is not None:
+            post(current)
+        earlier.append(current)
+        produced.append(current)
+    return produced
+
+
+def fetch_supplement_prefix(directory, url, week, through_day, *, trusted_public_key):
+    """Cache daily files until the first one the host does not have yet."""
+    week = verify_week(week, trusted_public_key=trusted_public_key)
+    start = _sunday(week['week_start'])
+    end = _calendar_day(through_day)
+    earlier = load_supplement_prefix(directory, week, through_day, trusted_public_key=trusted_public_key)
+    day = start + timedelta(days=len(earlier))
+    while day <= end:
+        try:
+            document = fetch_supplement(supplement_url(url, day.isoformat()), week=week, earlier=earlier,
+                                        trusted_public_key=trusted_public_key)
+        except AssignmentUnavailable:
+            break
+        document = retain_supplement(directory, document, week=week, earlier=earlier,
+                                     trusted_public_key=trusted_public_key)
+        earlier.append(document)
+        day += timedelta(days=1)
+    return earlier
+
+
+def fetch_supplement(url, *, week, earlier, trusted_public_key):
+    _require_sup(type(url) is str and url.startswith(('https://', 'http://')), 'assignment URL')
+    try:
+        with urlopen(Request(url, headers={'accept': 'application/json'}), timeout=30) as response:
+            raw = response.read(MAX_DOCUMENT_BYTES + 1)
+    except (OSError, URLError, TimeoutError) as exc:
+        raise AssignmentUnavailable('daily assignment supplement: assignment file is unavailable') from exc
+    _require_sup(len(raw) <= MAX_DOCUMENT_BYTES, 'assignment file is too large')
+    return verify_supplement(_document(raw), week, earlier, trusted_public_key=trusted_public_key)
+
+
+def supplement_wire_bytes(document):
+    """The indented bytes a host stores. Same spelling as the Sunday file."""
+    return (json.dumps(document, indent=2, sort_keys=True) + '\n').encode()
+
+
+def post_supplement(origin, token, document, *, transport):
+    """POST one retained supplement. The caller supplies the HTTP transport."""
+    _require_sup(type(origin) is str and origin.startswith('https://') and not origin.endswith('/')
+                 and '/' not in origin[len('https://'):], 'supplement publish origin')
+    _require_sup(type(token) is str and len(token) >= 32, 'supplement publish token')
+    raw = supplement_wire_bytes(document)
+    code, reply = transport(
+        'POST', origin + '/api/miner-assignment', payload=raw,
+        headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',
+                 'X-Noah-Assignment-Day': document['day']})
+    _require_sup(code in (200, 201), 'supplement host refused the file')
+    try:
+        body = json.loads(reply)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ReportError('daily assignment supplement: supplement host reply is not JSON') from exc
+    digest = hashlib.sha256(raw).hexdigest()
+    _require_sup(body == {'day': document['day'], 'sha256': digest}, 'supplement host reply differs')
+    return digest

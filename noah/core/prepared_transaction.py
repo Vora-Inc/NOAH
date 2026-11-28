@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from hashlib import blake2b, sha256
 import re
 
+from ..chain.runtime_compatibility import RuntimeApprovalRequired
 from ..chain.sources import Refusal
 
 from .reader import ChainUnreadable
@@ -91,8 +92,12 @@ class SDKPreparedTransport:
             raise _preparation_refusal(
                 "prepared signer/nonce/genesis/runtime differs from finalized readers", "identity"
             )
+        require_runtime = getattr(chain, "require_weight_runtime", False)
+        finalized_runtime = {key: agreed[key] for key in runtime}
+        if require_runtime and runtime != finalized_runtime:
+            raise RuntimeApprovalRequired("weight publication", wait_for_registry=False)
         if (
-            runtime != {key: agreed[key] for key in runtime}
+            runtime != finalized_runtime
             or unsigned.spec_version != runtime["specVersion"]
             or unsigned.transaction_version != runtime["transactionVersion"]
             or type(unsigned.spec_version) is not int
@@ -148,6 +153,10 @@ class SDKPreparedTransport:
             raise _preparation_refusal(
                 "prepared mortality birth hash differs from finalized readers", "birth_hash", heads=heads
             )
+        if require_runtime:
+            approved = chain.weight_runtime(after)
+            if approved[:2] != (unsigned.spec_version, unsigned.transaction_version):
+                raise RuntimeApprovalRequired("weight publication", wait_for_registry=False)
         from bittensor._transport.extrinsics import sign_unsigned
 
         signature = client._call(sign_unsigned(unsigned, wallet))

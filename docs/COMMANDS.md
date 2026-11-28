@@ -14,6 +14,7 @@ Configuration stays in the existing miner INI and validator environment files.
 | Prepare/report/check a round | `noah-miner report --help` | Separate report commands; submit may send |
 | Advance daily reporting | `noah-miner report run --schedule report-schedule.json` | Uses a frozen schedule; submission requires existing confirmation |
 | Report the weekly assignment | `noah-miner report assignments --yes --follow` | Uses the configured URL and independently trusted assignment public key to complete today's reports. Does nothing without a URL or explicit file |
+| Check the report endpoint | `noah-miner report preflight` | Read-only. Checks the configured endpoint, runtime, and Sunday roster block when the week file is available. Does not unlock a wallet or send |
 | Validator startup checks | `noah-validator check --env validator.env` | Existing dry run, no publication |
 | Continuous validator | `noah-validator run --env validator.env` | Existing validator, may publish |
 | Starter expiry guard | `noah-validator guard --env validator.env` | Existing guard, may publish fallback |

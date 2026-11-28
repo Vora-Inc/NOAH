@@ -8,6 +8,7 @@ readers. Local metadata memoization is keyed by exact deployed code hash.
 import hashlib
 import re
 
+from .runtime_compatibility import RuntimeApprovalRequired, configured, lookup
 from .sources import Refusal, SourceLied, Unverified
 
 CODES = {
@@ -19,6 +20,7 @@ CODES = {
     492: '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
     493: '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
     494: '0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
+    495: '0x7f4f60f27f1cbdb92a8413d8280217789229f54189e48a501ada2d25f4c7edf7',
 }
 FIELDS = (('NetworksAdded', 'bool'), ('NetworkRegisteredAt', 'u64'),
           ('RegisteredSubnetCounter', 'u64'), ('SubnetMechanism', 'u16'))
@@ -75,7 +77,12 @@ def decoded(raw, kind):
 
 
 def transaction_version(spec):
-    return 2 if spec == 494 else 1
+    return 2 if spec in (494, 495) else 1
+
+
+def bundled_identity(spec, tx_version, code):
+    return type(spec) is int and type(tx_version) is int and spec in CODES \
+        and code == CODES[spec] and tx_version == transaction_version(spec)
 
 
 def runtime_identity(connection, at):
@@ -84,9 +91,15 @@ def runtime_identity(connection, at):
     code = rpc(connection, 'state_getStorageHash', ['0x3a636f6465', at])
     spec = version['specVersion']
     tx_version = version.get('transactionVersion')
-    if (spec not in CODES or code != CODES[spec] or type(tx_version) is not int
-            or tx_version != transaction_version(spec)):
-        raise Unverified('token lifecycle runtime semantics have not been reviewed')
+    if not bundled_identity(spec, tx_version, code):
+        if not configured():
+            raise RuntimeApprovalRequired('token lifecycle')
+        genesis = rpc(connection, 'chain_getBlockHash', [0])
+        approved = lookup(genesis, spec, tx_version, code, 'token')
+        if approved is None:
+            raise RuntimeApprovalRequired('token lifecycle')
+        require(hashlib.sha256(explicit_metadata(connection, at)).hexdigest() == approved.metadata,
+                'token lifecycle metadata differs from runtime approval')
     return {'spec_version': spec, 'code_hash': code, 'transaction_version': tx_version}
 
 

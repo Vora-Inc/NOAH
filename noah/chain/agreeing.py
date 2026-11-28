@@ -170,6 +170,9 @@ class AgreeingChain:
             raise SourceDisagreement(f"genesisHash: sources disagree: {detail}")
         return values[0]
 
+    def weight_runtime(self, block):
+        return self._agreed('weightRuntime', block, lambda client: client.weight_runtime(block))
+
     def signing_context(self, address, block):
         return self._agreed("signingContext", block,
                             lambda client: client.signing_context(address, block))

@@ -371,6 +371,27 @@ class LiveRunnerChain:
         self._canary_hash = None
         self._connection.close()
 
+    def weight_runtime(self, block):
+        """Authenticate the runtime on which direct weights will be sent."""
+        from . import token_context as token
+        from .runtime_compatibility import RuntimeApprovalRequired, lookup
+
+        at = self.block_hash(block)
+        def read():
+            version = token.rpc(self._connection, 'state_getRuntimeVersion', [at])
+            code = token.rpc(self._connection, 'state_getStorageHash', ['0x3a636f6465', at])
+            spec, transaction = version.get('specVersion'), version.get('transactionVersion')
+            if not (spec in (494, 495) and token.bundled_identity(spec, transaction, code)):
+                approved = lookup(self.genesis_hash(), spec, transaction, code, 'weights')
+                if approved is None:
+                    raise RuntimeApprovalRequired('weight publication')
+                metadata = token.explicit_metadata(self._connection, at)
+                from hashlib import sha256
+                if sha256(metadata).hexdigest() != approved.metadata:
+                    raise RuntimeApprovalRequired('weight publication metadata')
+            return spec, transaction, code
+        return self._ask('finalized weight runtime', read)
+
     def signing_context(self, address, block):
         """Nonce and runtime at one finalized block, for exact direct publication."""
         block_hash = self.block_hash(block)

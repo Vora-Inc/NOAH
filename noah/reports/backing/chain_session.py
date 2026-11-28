@@ -50,16 +50,42 @@ class SubstrateChain:
             return read_commitment_quota(self.substrate, mining_netuid=netuid,
                                          hotkey=hotkey, required_space=required_space)
         except QuotaRulesUnreviewed:
+            if getattr(self, 'report_proxy', None):
+                raise
             # The chain enforces its own quota. Do not guess the rules on an upgrade.
             return None
+
+    def ensure_supported_signing_runtime(self):
+        """Fresh finalized runtime check; existing sends remain reconcilable."""
+        from types import SimpleNamespace
+        from .reads import Reader
+        try:
+            head = _runtime_hash(self._rpc("chain_getFinalizedHead", []))
+            reader = Reader(SimpleNamespace(call=self._rpc), head)
+            if not reader.qualified_runtime(reader.spec_version()):
+                raise SigningRuntimeRefused("current finalized runtime is not supported for report signing")
+        except SigningRuntimeRefused:
+            raise
+        except Exception as exc:
+            raise SigningRuntimeRefused("current finalized signing runtime could not be checked") from exc
 
     def check_finalized_signing_context(self):
         """Check the finalized context before opening a wallet."""
         try:
             head = _runtime_hash(self._rpc("chain_getFinalizedHead", []))
-            _version_pair(self._rpc("state_getRuntimeVersion", [head]))
+            self._runtime_version_at(head)
         except Exception as exc:
             raise SigningRuntimeRefused("current finalized signing context could not be read") from exc
+
+    def _runtime_version_at(self, block):
+        version = _version_pair(self._rpc("state_getRuntimeVersion", [block]))
+        if getattr(self, 'report_proxy', None):
+            from types import SimpleNamespace
+            from .reads import Reader
+            reader = Reader(SimpleNamespace(call=self._rpc), block)
+            if not reader.qualified_runtime(version[0]):
+                raise SigningRuntimeRefused("report proxy signing requires a reviewed runtime")
+        return version
 
     def _checked_sdk_runtime(self):
         """Check the selected parent version and capture the SDK metadata identity."""
@@ -67,7 +93,7 @@ class SubstrateChain:
             block = _runtime_hash(self.substrate.block_hash)
             parent = _runtime_hash(self._rpc("chain_getHeader", [block])["parentHash"])
             pin = block if parent == "0x" + "00" * 32 else parent
-            version = _version_pair(self._rpc("state_getRuntimeVersion", [pin]))
+            version = self._runtime_version_at(pin)
             identity = _sdk_identity(self.substrate)
             if version != identity[:2]:
                 raise SigningRuntimeRefused("SDK signing runtime version differs from its chain context")
@@ -85,6 +111,15 @@ class SubstrateChain:
             "set_commitment",
             {"netuid": netuid, "info": commitment_info(variant, payload)},
         )
+        proxy = getattr(self, 'report_proxy', None)
+        if proxy:
+            from .proxy_receipts import public_hex
+            if (proxy.get('netuid') != netuid or public_hex(proxy.get('delegate')) != keypair.public_key.hex()
+                    or not public_hex(proxy.get('real')) or public_hex(proxy['real']) == keypair.public_key.hex()):
+                raise SigningRuntimeRefused("proxy route does not match signer and report")
+            call = self.substrate.compose_call('Proxy', 'proxy', {
+                'real': proxy['real'], 'force_proxy_type': 'Validate', 'call': call})
+            self._proxy_preflight(call, keypair)
         expected = self._checked_sdk_runtime()
         if _metadata_fingerprint(getattr(call, 'metadata', None)) != expected[2]:
             raise SigningRuntimeRefused("composed call metadata differs from SDK signing metadata")
@@ -126,6 +161,49 @@ class SubstrateChain:
         except SigningRuntimeRefused as exc:
             raise SubmitError("signing metadata unavailable after signing began") from exc
         return _as_hex(extrinsic.extrinsic_hash), extrinsic
+
+    def _proxy_preflight(self, call, keypair):
+        """No signature: exact zero-delay Validate grant, fees plus 2%, account minimum."""
+        from .proxy_receipts import public_hex
+        try:
+            proxy = self.report_proxy
+            head = self._rpc('chain_getFinalizedHead', [])
+            grants = self.substrate.query('Proxy', 'Proxies', [proxy['real']], block_hash=head).value
+            if not isinstance(grants, (tuple, list)) or len(grants) != 2:
+                raise ValueError('invalid delegation response')
+            allowed = any(isinstance(r, dict) and public_hex(r.get('delegate')) == keypair.public_key.hex()
+                          and r.get('proxy_type') == 'Validate' and type(r.get('delay')) is int and r['delay'] == 0
+                          for r in grants[0])
+            if not allowed:
+                raise ValueError('zero-delay Validate delegation missing')
+            from substrateinterface import Keypair
+            public = Keypair(ss58_address=proxy['delegate'])
+            quote = self.substrate.get_payment_info(call=call, keypair=public)
+            fee = quote.get('partialFee', quote.get('partial_fee'))
+            data = self.substrate.query('System', 'Account', [proxy['delegate']], block_hash=head).value['data']
+            minimum = self.substrate.get_constant('Balances', 'ExistentialDeposit', block_hash=head).value
+            frozen = max(data.get(k, 0) for k in ('frozen', 'fee_frozen', 'misc_frozen'))
+            if any(type(x) is not int or x < 0 for x in (fee, minimum, frozen, data['free'])):
+                raise ValueError('invalid fee or balance')
+            if data['free'] - frozen - minimum < (fee * 102 + 99) // 100:
+                raise ValueError('delegate balance cannot cover estimated fee plus 2% and account minimum')
+        except Exception as exc:
+            raise SigningRuntimeRefused('report proxy preflight refused; verify zero-delay Validate grant and delegate fee balance') from exc
+
+    def preflight_proxy_report(self, netuid, variant, payload):
+        """Retryable public-only check before opening the wallet or phase journal."""
+        from substrateinterface import Keypair
+        from .proxy_receipts import public_hex
+        proxy = getattr(self, 'report_proxy', None)
+        if not proxy:
+            return
+        if proxy.get('netuid') != netuid or not public_hex(proxy.get('delegate')) or not public_hex(proxy.get('real')):
+            raise SigningRuntimeRefused('invalid report proxy route')
+        inner = self.substrate.compose_call('Commitments', 'set_commitment',
+                                             {'netuid': netuid, 'info': commitment_info(variant, payload)})
+        call = self.substrate.compose_call('Proxy', 'proxy', {
+            'real': proxy['real'], 'force_proxy_type': 'Validate', 'call': inner})
+        self._proxy_preflight(call, Keypair(ss58_address=proxy['delegate']))
 
     def broadcast(self, handle) -> Inclusion:
         receipt = self.substrate.submit_extrinsic(handle, wait_for_inclusion=True)
@@ -182,6 +260,9 @@ class SubstrateChain:
         return [_plain_event(item) for item in value or []]
 
     def _inclusion_from_receipt(self, receipt) -> Inclusion:
+        if getattr(self, 'report_proxy', None):
+            return self._inclusion_from_block(str(receipt.block_hash), int(receipt.extrinsic_idx),
+                                              _as_hex(receipt.extrinsic_hash))
         header = self.substrate.get_block_header(receipt.block_hash)["header"]
         events = [_plain_event(item.value if hasattr(item, "value") else item) for item in receipt.triggered_events]
         success = _succeeded(events)
@@ -202,13 +283,23 @@ class SubstrateChain:
             for event in self.block_events(block_hash)
             if phase_of(event) == ("ApplyExtrinsic", index)
         ]
+        success = _succeeded(events)
+        proxy = getattr(self, 'report_proxy', None)
+        if proxy:
+            from .proxy_receipts import proxy_report, proxy_success, public_hex, arguments
+            block = self.substrate.get_block(block_hash=block_hash)
+            routed = proxy_report(block['extrinsics'][index].value)
+            success = bool(routed and routed[1] == public_hex(proxy['real'])
+                           and routed[2] == public_hex(proxy['delegate'])
+                           and arguments(routed[0]).get('netuid') == proxy['netuid']
+                           and proxy_success(events, index, routed[1], proxy['netuid']))
         return Inclusion(
             extrinsic_hash=extrinsic_hash,
             block_hash=str(block_hash),
             block_number=_number(header["number"]),
             extrinsic_index=index,
             block_timestamp_ms=int(self.substrate.query("Timestamp", "Now", block_hash=block_hash).value),
-            success=_succeeded(events),
+            success=success,
         )
 
     def _rpc(self, method: str, params: list):

@@ -49,6 +49,41 @@ def no_sign(_):
     raise AssertionError('signer must not load')
 
 
+def test_unready_calculation_names_the_reason_code(case):
+    c, r, _, engine = case
+    for reason in ('rpc_rate_limit', 'rpc_transport', 'run_budget_exceeded',
+                   'block_state_unavailable', 'runtime_spec_not_pinned'):
+        failed = {**engine, 'status': 'UNAVAILABLE', 'reason': reason}
+        with pytest.raises(ReportError, match=reason):
+            miner.prepare_report(c, r, 90, 3, compute_fn=lambda *_: failed)
+    output_failed = {**engine, 'output2': {'status': 'UNAVAILABLE', 'reason': 'all_zero_sim'}}
+    with pytest.raises(ReportError, match='all_zero_sim'):
+        miner.prepare_report(c, r, 90, 3, compute_fn=lambda *_: output_failed)
+    fake_auth = 'user' + ':' + 'secret'
+    leaked = {**engine, 'status': 'UNAVAILABLE', 'reason': f'wss://{fake_auth}@node.invalid'}
+    with pytest.raises(ReportError, match='calculation_not_ready') as raised:
+        miner.prepare_report(c, r, 90, 3, compute_fn=lambda *_: leaked)
+    assert 'secret' not in str(raised.value)
+
+
+def test_hotkey_is_unlocked_once_per_process(case, monkeypatch):
+    c, r, chain, _ = case
+    c.wallet_name, c.hotkey_name, c.wallet_path = 'wallet', 'hotkey', None
+    opened = []
+    monkeypatch.setattr(miner, '_unlock_wallet', lambda config: opened.append(config.hotkey_name) or sign(config))
+    miner._OPEN_HOTKEYS.clear()
+    prepare(case)
+    assert miner.submit_tick(c, r, chain=chain, authorized=True)['sent']
+    chain.now = r['reveal_open_ms']
+    assert miner.submit_tick(c, r, chain=chain, authorized=True)['sent']
+    assert opened == ['hotkey']
+    # An existing journal must not unlock again, even in a fresh process cache.
+    miner._OPEN_HOTKEYS.clear()
+    opened.clear()
+    assert miner.submit_tick(c, r, chain=chain)['action'] == 'complete'
+    assert opened == []
+
+
 def test_prepare_is_immutable_and_retry_never_recalculates(case):
     c, r, _, _ = case
     assert prepare(case)['outputs']['drop_ppm'] == 10

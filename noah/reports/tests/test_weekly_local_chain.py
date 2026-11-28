@@ -477,7 +477,7 @@ def test_scheduler_catches_up_after_sunday_and_restart_keeps_the_file(tmp_path):
         rpc.shutdown()
 
 
-def _bonus_case(tmp_path, commits, reveals, *, omit_reveal_netuid=None):
+def _bonus_case(tmp_path, commits, reveals, *, omit_reveal_netuid=None, proxy=False):
     """Scheduler, miner URL, collection, adjudication, and the V2 bonus function."""
     from noah.core.report_publication import derive_vector
     from noah.reports.assignments import earns_reporting_bonus
@@ -492,7 +492,13 @@ def _bonus_case(tmp_path, commits, reveals, *, omit_reveal_netuid=None):
     owner = Keypair.create_from_uri('//weekly-owner', crypto_type=1, ss58_format=42)
     quiet_hot = Keypair.create_from_uri('//weekly-quiet', crypto_type=1, ss58_format=42)
     quiet_cold = Keypair.create_from_uri('//weekly-quiet-owner', crypto_type=1, ss58_format=42)
-    chain = Chain(miner.hotkey.public_key, owner.public_key, extras=[(quiet_hot.public_key, quiet_cold.public_key)])
+    chain_type = Chain
+    if proxy:
+        from .proxy_chain_fixture import ProxyChain
+        chain_type = ProxyChain
+        delegate_wallet = Wallet(name='delegate', hotkey='default', path=str(wallets))
+        delegate_wallet.create_hotkey_from_uri('//weekly-proxy', use_password=False, overwrite=True)
+    chain = chain_type(miner.hotkey.public_key, owner.public_key, extras=[(quiet_hot.public_key, quiet_cold.public_key)])
     rpc, endpoint = _serve(chain)
     other, other_endpoint = _serve(chain)
     http = None
@@ -543,11 +549,22 @@ dir = {miner_state}
 assignments_url = {url}/
 assignment_signer_public_key = {template['assignment_signer_public_key']}
 """)
-        committed = [_run(['miner', '--config', str(ini), 'assignments', '--yes']) for _ in range(commits)]
+        if proxy:
+            ini.write_text(ini.read_text().replace('wallet_name = miner', 'wallet_name = delegate')
+                           + f'proxy_address = {delegate_wallet.hotkey.ss58_address}\n')
+            # The reporter cannot load the original miner key in this rehearsal.
+            import shutil
+            shutil.rmtree(wallets / 'miner')
+        def assignment_tick():
+            if proxy:
+                result = _run(['miner', 'fleet', '--configs', str(ini), '--yes'])
+                return result['miners'][0]
+            return _run(['miner', '--config', str(ini), 'assignments', '--yes'])
+        committed = [assignment_tick() for _ in range(commits)]
         assert len({row.get('reported_netuid') for row in committed}) == commits
         chain.reveal_time = T0 + 25000 + 7_200_000 + 1000
         if omit_reveal_netuid is None:
-            revealed = [_run(['miner', '--config', str(ini), 'assignments', '--yes']) for _ in range(reveals)]
+            revealed = [assignment_tick() for _ in range(reveals)]
         else:
             assert commits == 3 and reveals == 2
             contracts = [json.loads(path.read_text())['round']

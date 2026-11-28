@@ -1,16 +1,17 @@
 """Exact runtime EMA/spot observations, without economic valuation or fallback.
 
-Slow emission EMA is capped at a one-TAO input by runtimes 483/488/490/491/492/493/494. Fast EMA is
+Slow emission EMA is capped at a one-TAO input by runtimes 483/488/490/491/492/493/494/495. Fast EMA is
 separate and unclamped, but is not accepted in this release. The policy selects
 the slow field explicitly; raw absence is kept.
 """
 from . import token_context as token
+from .runtime_compatibility import RuntimeApprovalRequired, configured, lookup
 from .sources import Unverified
 
 SOURCES = {
     'SubnetMovingPrice': ('I96F32', 2**32, True, 'Default'),
 }
-EMA_CODES = {version: token.CODES[version] for version in (483, 488, 490, 491, 492, 493, 494)}
+EMA_CODES = {version: token.CODES[version] for version in (483, 488, 490, 491, 492, 493, 494, 495)}
 
 
 def source(value):
@@ -43,8 +44,14 @@ def batch(connection, at, keys):
 def read(connection, block, block_hash, assets, cache, ema_source):
     encoding, denominator, signed, modifier = source(ema_source)
     context = token.read(connection, block, block_hash, assets, cache)
-    if context['runtime']['spec_version'] not in EMA_CODES:
-        raise Unverified('EMA runtime semantics have not been reviewed')
+    identity = context['runtime']
+    spec, version, code = (identity[key] for key in ('spec_version', 'transaction_version', 'code_hash'))
+    if EMA_CODES.get(spec) != code or not token.bundled_identity(spec, version, code):
+        if not configured():
+            raise RuntimeApprovalRequired('EMA')
+        genesis = token.rpc(connection, 'chain_getBlockHash', [0])
+        if lookup(genesis, spec, version, code, 'ema') is None:
+            raise RuntimeApprovalRequired('EMA')
     runtime = connection.init_runtime(block_hash=block_hash)
     # At an upgrade boundary the SDK may use parent metadata. Never silently
     # decode the chosen field with a different target schema.

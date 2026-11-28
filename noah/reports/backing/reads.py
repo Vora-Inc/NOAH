@@ -6,6 +6,7 @@ import os
 import sys
 from typing import Any
 
+from ...chain.runtime_compatibility import configured, lookup
 from .constants import AVAILABILITY_BATCH, KEY_PAGE_SIZE
 from .keys import (
     alpha_v2_prefix,
@@ -78,8 +79,31 @@ class Reader:
     def qualified_runtime(self, spec: int) -> bool:
         from .constants import SUPPORTED_SPECS, RUNTIME_CODE_PINS
         if spec in RUNTIME_CODE_PINS:
-            return self.source.call("state_getStorageHash", ["0x3a636f6465", self.block_hash]) == RUNTIME_CODE_PINS[spec]
-        return spec in SUPPORTED_SPECS
+            code = self.source.call("state_getStorageHash", ["0x3a636f6465", self.block_hash])
+            return code == RUNTIME_CODE_PINS[spec] or self._additional_runtime(spec)
+        return spec in SUPPORTED_SPECS or self._additional_runtime(spec)
+
+    def _additional_runtime(self, spec: int) -> bool:
+        if not configured():
+            return False
+        version = self.source.call("state_getRuntimeVersion", [self.block_hash])
+        if not isinstance(version, dict) or version.get('specVersion') != spec:
+            return False
+        genesis = self._hash(self.source.call("chain_getBlockHash", [0]))
+        code = self._hash(self.source.call("state_getStorageHash", ["0x3a636f6465", self.block_hash]))
+        from hashlib import sha256
+        from types import SimpleNamespace
+        from ...chain.token_context import explicit_metadata
+        from ...chain.sources import Refusal
+
+        approved = lookup(genesis, spec, version.get('transactionVersion'), code, 'reports')
+        if approved is None:
+            return False
+        connection = SimpleNamespace(rpc_request=lambda method, params: {'result': self.source.call(method, params)})
+        try:
+            return sha256(explicit_metadata(connection, self.block_hash)).hexdigest() == approved.metadata
+        except Refusal:
+            return False
 
     def timestamp_ms(self) -> int:
         return self._u64(timestamp_now_key(), default=None)
@@ -120,7 +144,7 @@ class Reader:
         """Only completed caches under independently reviewed, code-pinned runtimes."""
         from .constants import STAKED_COVERAGE_SPECS
         from .keys import total_alpha_staked_complete_key, total_alpha_staked_migration_key
-        if self.runtime_spec not in STAKED_COVERAGE_SPECS:
+        if self.runtime_spec not in STAKED_COVERAGE_SPECS and not self._additional_runtime(self.runtime_spec):
             raise RunFailure("stake_coverage_runtime_unsupported")
         # Missing completion evidence is never an implicit completed migration.
         if (self._raw(total_alpha_staked_complete_key()) != b"\x01"

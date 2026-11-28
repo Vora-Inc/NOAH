@@ -65,6 +65,8 @@ FALSE_SPELLINGS = ("false",)
 WHOLE_NUMBER = re.compile(r"^[0-9]+$")
 
 KEYS = (
+    "NOAH_RUNTIME_APPROVALS",
+    "NOAH_RUNTIME_APPROVAL_KEY",
     "NOAH_SCORING_MODE",
     "NOAH_POINTS_POLICY",
     "NOAH_REPORT_GATE_ENABLED",
@@ -74,6 +76,8 @@ KEYS = (
     "NOAH_REPORT_SOURCE_HANDOFF_SHA256",
     "NOAH_WEEKLY_ASSIGNMENTS",
     "NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE",
+    "NOAH_LATE_JOINER_PUBLISH",
+    "NOAH_LATE_JOINER_SCORING",
     "NOAH_BURN_ALLOCATION_BPS",
     # Interpreter override owned by reports.dispatch and report test scripts.
     # Runtime-only: Settings never reads/executes it or changes scoring from it.
@@ -450,6 +454,8 @@ class Settings:
     report_source_handoff_sha256: Optional[str] = None
     weekly_assignments: bool = False
     weekly_assignment_signing_key_file: Optional[str] = None
+    late_joiner_publish: bool = False
+    late_joiner_scoring: bool = False
     burn_allocation_bps: int = 0
 
     def __repr__(self):
@@ -502,6 +508,15 @@ class Settings:
         weekly_assignments = _flag(
             {"NOAH_WEEKLY_ASSIGNMENTS": mapping.get("NOAH_WEEKLY_ASSIGNMENTS", "false")},
             "NOAH_WEEKLY_ASSIGNMENTS",
+        )
+        late_base = weekly_assignments and report_gate_enabled
+        late_joiner_publish = late_base and _flag(
+            {"NOAH_LATE_JOINER_PUBLISH": mapping.get("NOAH_LATE_JOINER_PUBLISH", "false")},
+            "NOAH_LATE_JOINER_PUBLISH",
+        )
+        late_joiner_scoring = late_base and _flag(
+            {"NOAH_LATE_JOINER_SCORING": mapping.get("NOAH_LATE_JOINER_SCORING", "false")},
+            "NOAH_LATE_JOINER_SCORING",
         )
         burn_text = mapping.get("NOAH_BURN_ALLOCATION_BPS", "0").strip()
         if burn_text not in ("0", "9800"):
@@ -601,6 +616,8 @@ class Settings:
             report_source_handoff_sha256=report_source_handoff_sha256,
             weekly_assignments=weekly_assignments,
             weekly_assignment_signing_key_file=(mapping.get("NOAH_WEEKLY_ASSIGNMENT_SIGNING_KEY_FILE", "").strip() or None) if weekly_assignments and report_gate_enabled else None,
+            late_joiner_publish=late_joiner_publish,
+            late_joiner_scoring=late_joiner_scoring,
             burn_allocation_bps=burn_allocation_bps,
             scoring_mode=scoring_mode,
             starter_entry_snapshot=mapping.get("NOAH_STARTER_ENTRY_SNAPSHOT", "").strip() or None,

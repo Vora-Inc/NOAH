@@ -62,6 +62,9 @@ network = private-test
 # node running on THIS computer. Point it at a node you run or trust: it supplies every number the
 # tool reads, and the tool will sign what you approve based on those numbers.
 # If it points at the wrong network, set genesis_hash below and the tool refuses to run.
+# Reports need this one endpoint to serve the Sunday roster block as well as today's snapshot.
+# A lite node that drops that block cannot report. Use an archive, or keep about eight days of state.
+# There is no second endpoint. Do not put a password in this file.
 endpoint = ws://127.0.0.1:9944
 netuid = 2
 # Your registered miner hotkey address.
@@ -107,6 +110,9 @@ file = ./evidence.json
 # Optional weekly reporting. Obtain this public key independently from the operator.
 # assignments_url = https://HOST/assignments/
 # assignment_signer_public_key = LOWERCASE_64_HEX_PUBLIC_KEY
+# Optional report-only routing. Grant zero-delay Validate from the miner hotkey first.
+# With this set, wallet_name/hotkey_name locate the delegate software key, not the Ledger.
+# proxy_address = DELEGATE_PUBLIC_ADDRESS
 
 [state]
 dir = ./noah-deposit-state
@@ -138,6 +144,8 @@ class AssistantConfig:
     signing: dict = None
     assignments_url: str = None
     assignment_signer_public_key: str = None
+    report_proxy_address: str = None
+    late_joiner_assignments: bool = False
 
 
 def _address(value, what):
@@ -268,7 +276,13 @@ def load_config(path, environ=None):
         raise DepositRefused("assignment_signer_public_key must be 64 lowercase hex characters.", "config")
     if get("report", "assignments_url") and assignment_key is None:
         raise DepositRefused("Weekly reporting requires an independently configured assignment_signer_public_key.", "config")
+    report_proxy = get("report", "proxy_address") or None
+    if report_proxy:
+        report_proxy = _address(report_proxy, "Report proxy address")
+        if public_key_of(report_proxy) == public_key_of(miner_hotkey):
+            raise DepositRefused("Report proxy must differ from miner hotkey", "config")
     return AssistantConfig(
+        report_proxy_address=report_proxy,
         signing=signing,
         network=get("miner", "network", "unspecified"),
         endpoint=get("miner", "endpoint"),
@@ -292,6 +306,7 @@ def load_config(path, environ=None):
         wallet_path=(get("miner", "wallet_path") or None),
         assignments_url=(get("report", "assignments_url") or None),
         assignment_signer_public_key=assignment_key,
+        late_joiner_assignments=(get("report", "late_joiner_assignments", "false") or "false").strip().lower() == "true",
     )
 
 

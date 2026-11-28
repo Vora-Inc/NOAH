@@ -6,6 +6,8 @@ arithmetic. set_commitment resets UsedSpaceOf on *inequality* with that counter.
 import re
 
 from ..common import ReportError
+from ...chain.runtime_compatibility import lookup
+from ...chain.sources import Refusal
 from .constants import (
     RUNTIME_CODE_PINS, SUBTENSOR_PIN, SUBTENSOR_491_PIN, SUBTENSOR_492_PIN,
     SUBTENSOR_493_PIN, SUBTENSOR_494_PIN, SUBTENSOR_495_PIN, SUBTENSOR_497_PIN,
@@ -71,7 +73,7 @@ def required_space_for_payload(payload):
     return max(100, len(payload))
 
 
-def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
+def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space, at=None):
     """Return a public receipt; required_space=909 checks the whole new batch.
 
     All state queries use the same finalized hash. Runtime qualification retains
@@ -88,7 +90,8 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
             _require(type(response) is dict and 'result' in response and 'error' not in response,
                      'RPC response unavailable')
             return response['result']
-        pin = _hash(rpc('chain_getFinalizedHead', []))
+        finalized = _hash(rpc('chain_getFinalizedHead', []))
+        pin = finalized if at is None else _hash(at)
         header = rpc('chain_getHeader', [pin])
         _require(type(header) is dict, 'finalized header unavailable')
         number = header.get('number')
@@ -97,15 +100,34 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
             number = int(number, 16)
         number = _uint(number)
         _require(_hash(rpc('chain_getBlockHash', [number])) == pin, 'finalized hash is not canonical')
+        if at is not None:
+            tip = rpc('chain_getHeader', [finalized])
+            _require(type(tip) is dict, 'finalized height unavailable')
+            tip_number = tip['number']
+            if isinstance(tip_number, str):
+                _require(re.fullmatch(r'0x[0-9a-f]{1,16}', tip_number), 'invalid finalized height')
+                tip_number = int(tip_number, 16)
+            _require(number <= _uint(tip_number), 'quota block is not finalized')
         genesis = _hash(rpc('chain_getBlockHash', [0]))
         version = rpc('state_getRuntimeVersion', [pin])
         _require(type(version) is dict, 'runtime unavailable')
         spec = _uint(version.get('specVersion'), 32)
         transaction = _uint(version.get('transactionVersion'), 32)
         code = _hash(rpc('state_getStorageHash', ['0x3a636f6465', pin]))
-        if (spec not in SOURCE_PINS or spec in RUNTIME_CODE_PINS and code != RUNTIME_CODE_PINS[spec]
-                or spec in (494, 495, 497) and transaction != 2):
+        bundled = (spec in SOURCE_PINS and (spec not in RUNTIME_CODE_PINS or code == RUNTIME_CODE_PINS[spec])
+                   and (spec not in (494, 495, 497) or transaction == 2))
+        approved = None if bundled else lookup(genesis, spec, transaction, code, 'reports')
+        if not bundled and approved is None:
             raise QuotaRulesUnreviewed('commitment quota: unsupported finalized runtime')
+        if approved is not None:
+            from hashlib import sha256
+            from ...chain.token_context import explicit_metadata
+
+            _require(sha256(explicit_metadata(substrate, pin)).hexdigest() == approved.metadata,
+                     'runtime metadata differs from approval')
+        source = approved.source if approved else SOURCE_PINS[spec]
+        qualification = 'spec-and-code' if approved or spec in RUNTIME_CODE_PINS else 'supported-spec'
+
         def query(module, name, params):
             result = substrate.query(module, name, params, block_hash=pin)
             _require(hasattr(result, 'value'), 'undecoded quota response')
@@ -121,11 +143,11 @@ def read_commitment_quota(substrate, *, mining_netuid, hotkey, required_space):
                 'finalized_timestamp_ms': timestamp, 'mining_netuid': mining_netuid,
                 'hotkey': normalized_hotkey, 'runtime': {
                     'spec_version': spec, 'transaction_version': transaction, 'code_hash': code,
-                    'reviewed_source_commit': SOURCE_PINS[spec],
-                    'qualification': 'spec-and-code' if spec in RUNTIME_CODE_PINS else 'supported-spec'},
+                    'reviewed_source_commit': source,
+                    'qualification': qualification},
                 **assessment}
     except ReportError:
         raise
-    except Exception:
+    except (Exception, Refusal):
         # Never turn a failed or malformed query into zero usage; do not leak URLs.
         raise ReportError('commitment quota: finalized state could not be read') from None

@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .keys import ss58_encode
+from .keys import ss58_encode, ss58_decode
 from .prepare import load_prepared
 from .protocol.policy import MAINNET_GENESIS
 from .protocol.timing import RoundWindows, classify_commit, classify_reveal
@@ -81,6 +81,7 @@ def run_phase(
     now_ms: int | None = None,
     round_windows: dict | None = None,
     allow_mainnet: bool = False,
+    on_journal=None,
 ) -> Outcome:
     if phase not in {"commit", "reveal"}:
         raise SubmitError("unknown phase")
@@ -90,7 +91,16 @@ def run_phase(
     prepared = load_prepared(prepared_path)
     bind_payload(prepared.submission, announcement)
     _refuse_wrong_chain(chain.genesis(), announcement, allow_mainnet=allow_mainnet)
-    if keypair.public_key != prepared.submission.hotkey:
+    proxy = getattr(chain, 'report_proxy', None)
+    if proxy:
+        from .protocol.preimage import ReportSubmission
+        if (not isinstance(prepared.submission, ReportSubmission)
+                or set(proxy) != {'real', 'delegate', 'netuid'}
+                or ss58_decode(proxy['real']) != prepared.submission.hotkey
+                or ss58_decode(proxy['delegate']) != keypair.public_key
+                or proxy['netuid'] != mining_netuid):
+            raise SubmitError("proxy route does not match the report hotkey, delegate and subnet")
+    elif keypair.public_key != prepared.submission.hotkey:
         raise SubmitError("signer is not the payload hotkey")
     from .protocol.preimage import ReportSubmission, REPORT_POLICY
     if allow_mainnet and (not isinstance(prepared.submission, ReportSubmission) or mining_netuid != 82
@@ -113,7 +123,7 @@ def run_phase(
         if prepared_path.read_bytes() != original:
             raise SubmitError("prepared file changed")
         return Outcome("finalized", False, existing.get("locator"))
-    if not chain.is_registered(mining_netuid, keypair.ss58_address):
+    if not chain.is_registered(mining_netuid, ss58_encode(prepared.submission.hotkey)):
         raise SubmitError("hotkey has no uid on the mining subnet")
     if round_windows is None:
         windows = _windows(announcement, windows_doc)
@@ -143,6 +153,10 @@ def run_phase(
                 raise SubmitError("reveal is outside the announced window")
     fd, body, owner = _open_journal(evidence / f"{phase}.journal", phase, prepared.commitment.hex())
     try:
+        # The phase journal is durable before the shared sender marker, and
+        # both exist before a signature. A marker with no journal is not a send.
+        if on_journal is not None:
+            on_journal()
         if not owner:
             outcome = _resume(fd, body, chain, phase, prepared, evidence, mining_netuid)
         else:

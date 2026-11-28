@@ -22,6 +22,7 @@ from typing import Optional
 
 from ..chain.dayblocks import DayNotComplete, day_block_range
 from ..chain.foreign_value import ForeignDepositUnpriced
+from ..chain.runtime_compatibility import RuntimeApprovalRequired, installed_revision
 from ..chain.sources import Refusal
 from ..diagnostics import severity_for
 from ..diagnostics import write as diagnostic
@@ -674,6 +675,24 @@ def _foreign_unpriced_cause(error):
     return None
 
 
+def _runtime_pending(day_catchup):
+    if "runtime_blocked" not in day_catchup:
+        return False
+    if day_catchup["runtime_blocked"] == installed_revision():
+        return True
+    del day_catchup["runtime_blocked"]
+    day_catchup["checked_pinned"] = None
+    day_catchup.pop("readiness_check", None)
+    return False
+
+
+def _runtime_approval_cause(error):
+    for candidate in (error, getattr(error, "__cause__", None)):
+        if isinstance(candidate, RuntimeApprovalRequired):
+            return candidate
+    return None
+
+
 def _write_state(
     path, payload, *, identity=None, refused_heights=None, day_catchup_pending=None,
     points_accounting=None
@@ -941,6 +960,7 @@ def _attempt_day_catchup(
     )
     try:
         with held(lock_path):
+            approval_revision = installed_revision()
             result = run_period(fixed_chain)
     except LockHeld as error:
         # Transient -- another writer holds the lock this one tick; retried
@@ -1049,7 +1069,10 @@ def _attempt_day_catchup(
     except PERIOD_REFUSALS as error:
         day_not_complete = _day_not_complete_cause(error)
         unpriced = _foreign_unpriced_cause(error)
-        if day_not_complete is not None or unpriced is not None:
+        runtime_approval = _runtime_approval_cause(error)
+        if runtime_approval is not None and runtime_approval.wait_for_registry:
+            day_catchup["runtime_blocked"] = approval_revision
+        if day_not_complete is not None or unpriced is not None or runtime_approval is not None:
             # Day D genuinely still has not ended -- a day can span many
             # tempo periods, so more than one can legitimately come and go
             # before it closes. Left pending, UNCHANGED (the identical
@@ -1059,6 +1082,7 @@ def _attempt_day_catchup(
                 f"day {day}'s own catch-up attempt at height {height} was refused again "
                 f"({type(error).__name__}: {error}); "
                 + ("its exact-block foreign price is still unavailable. " if unpriced
+                   else "its runtime is unavailable for publication. " if runtime_approval
                    else f"day {day} still has not ended. ")
                 + "The original day remains pending and will be retried automatically; "
                 "no later price or later credit day is substituted."
@@ -1471,6 +1495,15 @@ def tick(
             if gate_result is not None and not pending_equality:
                 return (gate_result, last_attempted_height)
 
+            if _runtime_pending(day_catchup):
+                return (
+                    TickResult(acted=False, period=natural_period,
+                               outcome="day_catchup_pending",
+                               detail=f"day {pending['day']} is waiting for runtime compatibility approval",
+                               last_attempted_tempo=last_attempted_tempo),
+                    last_attempted_height,
+                )
+
             # Ordinary attempts still run once per new pinned period (#244).
             # Between those transitions, a five-minute finalized readiness
             # probe can release a day that has now closed. It keeps the same
@@ -1691,6 +1724,7 @@ def tick(
                 refused_heights=refused_heights,
                 points_accounting=day_catchup.get("accounted", []),
             )
+            approval_revision = installed_revision()
             result = run_period(active_chain)
     except LockHeld as error:
         detail = str(error) + planned_gap_note
@@ -1977,9 +2011,24 @@ def tick(
         # to retry later, so the existing, always-safe blacklist is the
         # right fallback rather than silently dropping the refusal.
         day_not_complete = _day_not_complete_cause(error)
+        runtime_approval = _runtime_approval_cause(error)
         retry_cause = day_not_complete or _foreign_unpriced_cause(error)
         retry_day = getattr(retry_cause, "day", None)
-        if type(retry_day) is int:
+        if runtime_approval is not None:
+            try:
+                retry_day = active_chain.scoring_day_at(pinned)
+            except (Exception, Refusal):
+                # Preserve the previous scheduling state and revisit the same
+                # current eligible height rather than blacklisting an unknown day.
+                return (
+                    TickResult(acted=False, period=period, outcome="waiting",
+                               severity="warning", detail="runtime approval needed; scoring day unreadable",
+                               last_attempted_tempo=last_attempted_tempo),
+                    before_attempt_height,
+                )
+        if type(retry_day) is int and retry_day >= 0:
+            if runtime_approval is not None and runtime_approval.wait_for_registry:
+                day_catchup["runtime_blocked"] = approval_revision
             day_catchup["pending"] = {"day": retry_day, "height": pinned}
             # Seeded to THIS tick's own `pinned` -- the value that just
             # triggered this refusal -- so the very next tick (almost
@@ -2348,8 +2397,9 @@ def run_forever(
         last_attempted_tempo = result.last_attempted_tempo
         from .epoch_work import maintain
         maintain(chain, lock_path)
-        from .report_runtime import publish_weekly
+        from .report_runtime import publish_weekly, publish_daily_supplements
         publish_weekly(chain)
+        publish_daily_supplements(chain)
         diagnostic(f"[loop] {result.outcome}: {result.detail}", severity=result.log_severity)
         if on_tick is not None:
             on_tick(result)

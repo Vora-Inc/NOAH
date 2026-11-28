@@ -119,6 +119,8 @@ def policy_for_day(policy, day, anchor):
 def configure(adapter, settings):
     adapter.report_gate_enabled = False
     adapter.weekly_assignments = False
+    adapter.late_joiner_publish = False
+    adapter.late_joiner_scoring = False
     if not getattr(settings, "report_gate_enabled", False):
         return
     require(settings.publish_mode == "direct", "report enforcement requires direct publication")
@@ -149,6 +151,8 @@ def configure(adapter, settings):
         bind_template(adapter._submitted_record_dir, policy)
         if adapter.weekly_assignment_signing_key_file:
             signing_pair(adapter.weekly_assignment_signing_key_file, policy["assignment_signer_public_key"])
+        adapter.late_joiner_publish = getattr(settings, "late_joiner_publish", False) is True
+        adapter.late_joiner_scoring = getattr(settings, "late_joiner_scoring", False) is True
 
 
 def publish_weekly(adapter):
@@ -214,6 +218,133 @@ def publish_weekly(adapter):
         return None
     adapter._weekly_publish_last = result
     adapter._weekly_publish_not_before = now + 300
+    return result
+
+
+def _read_daily_assignment(invocation):
+    with tempfile.TemporaryDirectory(prefix="noah-daily-assignment-") as directory:
+        path = Path(directory) / "invocation.json"
+        path.write_bytes(encoded(invocation))
+        path.chmod(0o600)
+        return run_worker("assignment-day", "--invocation", path)
+
+
+def _poll_daily_assignment(adapter, configuration, day, endpoint):
+    """Only the isolated roster read runs in the background. Signing stays on the loop."""
+    from concurrent.futures import ThreadPoolExecutor
+    from ..reports.assignments import snapshot_target_ms
+
+    pending = getattr(adapter, "_daily_roster_pending", None)
+    identity = (semantic_digest(configuration), day, endpoint)
+    if pending is None:
+        executor = getattr(adapter, "_daily_roster_executor", None)
+        if executor is None:
+            executor = adapter._daily_roster_executor = ThreadPoolExecutor(max_workers=1)
+        invocation = {"schema": "noah.daily-assignment-build/1", "template": configuration,
+                      "endpoint": endpoint, "day": day}
+        adapter._daily_roster_pending = (identity, executor.submit(_read_daily_assignment, invocation))
+        return None
+    original, future = pending
+    if not future.done():
+        return None
+    adapter._daily_roster_pending = None
+    if original != identity:
+        return None
+    result = future.result()
+    require(type(result) is dict and set(result) == {"schema", "snapshot", "members", "finalized"}
+            and result["schema"] == "noah.daily-assignment-build-result/1", "invalid daily roster result")
+    snapshot = result["snapshot"]
+    require(type(snapshot) is dict and set(snapshot) == {"block_number", "block_hash", "timestamp_ms"}
+            and type(snapshot["block_number"]) is int and snapshot["block_number"] > 0
+            and type(snapshot["timestamp_ms"]) is int, "invalid daily roster snapshot")
+    number = snapshot["block_number"]
+    target = snapshot_target_ms(configuration, day)
+    chain = adapter.runner_chain
+    require(chain.head_block() >= number
+            and chain.block_hash(number).removeprefix("0x") == snapshot["block_hash"]
+            and chain.block_timestamp_ms(number) == snapshot["timestamp_ms"] >= target
+            and (number == 1 or chain.block_timestamp_ms(number - 1) < target),
+            "daily roster snapshot differs from finalized chain")
+    return number, snapshot["block_hash"], result["members"]
+
+
+def publish_daily_supplements(adapter, *, now_ms=None, build_fn=None, post_fn=None, keypair=None):
+    """Retain this week's daily supplements. Off unless the publish flag is set.
+
+    Days run from Sunday through the latest finalized daily snapshot. A day
+    with nobody new still gets an empty file. A failure leaves the Sunday
+    file and any supplement already retained untouched.
+    """
+    if getattr(adapter, "late_joiner_publish", False) is not True or not enabled(adapter):
+        return None
+    if getattr(adapter, "weekly_assignments", False) is not True:
+        return None
+    import time
+    now = time.monotonic()
+    if now < getattr(adapter, "_daily_publish_not_before", 0):
+        return getattr(adapter, "_daily_publish_last", None)
+    key_file = getattr(adapter, "weekly_assignment_signing_key_file", None)
+    if keypair is None and not key_file:
+        return None
+    from ..chain.sources import Refusal
+    try:
+        from ..reports.assignments import (supplement_dates, publish_supplement_sequence,
+                                           week_start_date, verify_week, load_supplement_prefix)
+        from .weekly_runtime import signing_pair
+        configuration = load_policy(adapter.report_gate_policy_path)
+        directory = Path(adapter._submitted_record_dir) / "report-state/weekly-assignments"
+        if now_ms is None:
+            chain = adapter.runner_chain
+            now_ms = chain.block_timestamp_ms(chain.head_block())
+        week_name = week_start_date(now_ms // 1000).isoformat()
+        week_path = directory / f"{week_name}.json"
+        if not week_path.is_file():
+            return None
+        from ..reports.adjudication_contract import strict_json, MAX_REQUEST_BYTES
+        with week_path.open("rb") as stream:
+            raw = stream.read(MAX_REQUEST_BYTES + 1)
+        require(len(raw) <= MAX_REQUEST_BYTES, "weekly file exceeds byte limit")
+        trusted = configuration["assignment_signer_public_key"]
+        week = verify_week(strict_json(raw), trusted_public_key=trusted)
+        from ..reports.assignments import template_from_document
+        require(template_from_document(week) == template_from_document(configuration),
+                "daily supplement weekly template differs")
+        dates = supplement_dates(week_name, now_ms, configuration["snapshot_offset_seconds"])
+        if not dates:
+            return None
+        loaded = load_supplement_prefix(directory, week, dates[-1], trusted_public_key=trusted)
+        if build_fn is None:
+            if len(loaded) == len(dates):
+                adapter._daily_publish_not_before = now + 300
+                return loaded
+            day = dates[len(loaded)]
+            endpoints = list(adapter.runner_chain.endpoints.values())
+            require(endpoints, "daily supplement requires a chain endpoint")
+            roster = _poll_daily_assignment(adapter, configuration, day, endpoints[0])
+            if roster is None:
+                return None
+            build_fn = lambda _: roster
+            dates = dates[:len(loaded) + 1]
+        if keypair is None:
+            keypair = signing_pair(key_file, trusted)
+        steps, rosters = [], {}
+        for index, day in enumerate(dates):
+            if index < len(loaded) and loaded[index]["day"] == day:
+                steps.append({"day": day, "roster_block_number": loaded[index]["roster_block_number"],
+                              "roster_block_hash": loaded[index]["roster_block_hash"]})
+                continue
+            number, block_hash, members = build_fn(day)
+            steps.append({"day": day, "roster_block_number": number, "roster_block_hash": block_hash})
+            rosters[day] = members
+        result = publish_supplement_sequence(
+            directory, week, steps, lambda step: rosters[step["day"]], keypair=keypair,
+            trusted_public_key=trusted, post=post_fn)
+    except (Exception, Refusal) as error:
+        from ..diagnostics import write as diagnostic
+        adapter._daily_publish_not_before = now + 300
+        diagnostic(f"[weekly] daily supplement not written ({type(error).__name__})", severity="error")
+        return None
+    adapter._daily_publish_last = result
     return result
 
 
@@ -303,18 +434,27 @@ def _verify_weekly_selection(configuration, resolution, request):
     from ..reports.schedule import verify_resolution
     require(type(resolution) is dict, "invalid weekly resolution")
     compact = resolution.get("schema") == "noah.weekly-resolution/2"
+    daily = resolution.get("schema") == "noah.weekly-resolution/3"
     require((compact and set(resolution) == {"schema", "week", "base"}) or
+            (daily and set(resolution) == {"schema", "week", "base", "supplements"}) or
             (resolution.get("schema") == "noah.weekly-resolution/1" and
              set(resolution) == {"schema", "week", "rounds"}), "invalid weekly resolution")
     from .weekly_runtime import verify_week_for
     week = verify_week_for(configuration, resolution["week"], request["eval_day"], request["day_anchor_ts"])
     require(template_from_document(week) == template_from_document(configuration),
             "weekly template differs from the signed file")
-    needed = sorted({netuid for row in week["assignments"] for netuid in row["targets"]})
-    if compact:
+    rows = week["assignments"]
+    if daily:
+        from ..reports.assignments import merged_assignments, scoring_day_name
+        rows = merged_assignments(
+            week, resolution["supplements"],
+            scoring_day_name(request["day_anchor_ts"], request["eval_day"]),
+            trusted_public_key=configuration["assignment_signer_public_key"])
+    needed = sorted({netuid for row in rows for netuid in row["targets"]})
+    if compact or daily:
         from .weekly_runtime import expand_resolution
         rounds = expand_resolution(configuration, week, request["eval_day"], request["day_anchor_ts"],
-                                   resolution["base"])
+                                   resolution["base"], rows=None if compact else rows)
     else:
         rounds = resolution["rounds"]
     require(type(rounds) is list and len(rounds) == len(needed), "weekly round count differs")
@@ -325,7 +465,7 @@ def _verify_weekly_selection(configuration, resolution, request):
         verify_resolution(schedule, request["eval_day"], item, require_pair=True)
         collected.append(item["round"])
     policy = _weekly_policy(configuration, collected)
-    require(request.get("assignments") == week["assignments"], "frozen assignments differ")
+    require(request.get("assignments") == rows, "frozen assignments differ")
     return policy
 
 
@@ -351,24 +491,34 @@ def _retained_week(root, day, anchor, configuration):
     return verify_week_for(configuration, strict_json(data), day, anchor)
 
 
-def select_weekly(configuration, week, endpoints, day, anchor):
+def select_weekly(configuration, week, endpoints, day, anchor, supplements=None):
     from ..reports.assignments import schedule_for_target, template_from_document
     from .weekly_runtime import verify_week_for
     week = verify_week_for(configuration, week, day, anchor)
     require(template_from_document(week) == template_from_document(configuration),
             "weekly template differs from the signed file")
-    needed = sorted({netuid for row in week["assignments"] for netuid in row["targets"]})
+    rows = week["assignments"]
+    if supplements:
+        from ..reports.assignments import merged_assignments, scoring_day_name
+        rows = merged_assignments(
+            week, supplements, scoring_day_name(anchor, day),
+            trusted_public_key=configuration["assignment_signer_public_key"])
+    needed = sorted({netuid for row in rows for netuid in row["targets"]})
     require(needed, "weekly file has no assigned subnet")
     template = template_from_document(configuration)
     from .weekly_runtime import expand_resolution
     schedule = schedule_for_target(template, needed[0])
     require(schedule["day_anchor_ts"] == anchor, "weekly calendar differs")
     base = resolve_schedule(schedule, endpoints, day)
-    resolutions = expand_resolution(configuration, week, day, anchor, base)
+    resolutions = expand_resolution(configuration, week, day, anchor, base, rows=None if not supplements else rows)
     policy = _weekly_policy(configuration, [item["round"] for item in resolutions])
+    resolution = {"schema": "noah.weekly-resolution/2", "week": week, "base": base}
+    if supplements:
+        resolution = {"schema": "noah.weekly-resolution/3", "week": week, "base": base,
+                      "supplements": supplements}
     selection = {"schema": "noah-report-selection/1", "configuration": configuration,
                  "configuration_sha256": semantic_digest(configuration),
-                 "resolution": {"schema": "noah.weekly-resolution/2", "week": week, "base": base}}
+                 "resolution": resolution}
     return policy, selection
 
 
@@ -467,6 +617,29 @@ def resume_raw_source(adapter, current, frozen, *, request_raw=None):
     return frozen, original
 
 
+def _weekly_evaluation_assignments(root, week, configuration, day, anchor, enabled, request):
+    assignments = week["assignments"]
+    if request is not None:
+        enabled = request.get("assignments") != assignments
+    if not enabled:
+        return assignments, None
+
+    from ..reports.assignments import load_supplement_prefix, merged_assignments, scoring_day_name
+    from ..reports.common import ReportError
+    key = configuration["assignment_signer_public_key"]
+    day_name = scoring_day_name(anchor, day)
+    try:
+        found = load_supplement_prefix(
+            root / "report-state" / "weekly-assignments", week, day_name, trusted_public_key=key)
+        if found:
+            merged = merged_assignments(week, found, day_name, trusted_public_key=key)
+            if merged != assignments:
+                return merged, found
+    except (OSError, ValueError, ReportError, ReportPublicationRefused):
+        pass
+    return assignments, None
+
+
 def prepare_daily(adapter, vector):
     if not enabled(adapter):
         return vector
@@ -483,6 +656,11 @@ def prepare_daily(adapter, vector):
         return vector
     configuration = configuration_for_day(adapter, configuration, manifest["day"])
     endpoints = list(adapter.runner_chain.endpoints.values())
+    # A frozen request determines its assignment roster across flag changes.
+    path = root / "report-state" / f"day-{manifest['day']}.request.json"
+    request_raw = path.read_bytes() if path.exists() else None
+    request = json.loads(request_raw) if request_raw is not None else None
+    require(request_raw is None or type(request) is dict, "invalid frozen report request")
     assignments = None
     adapter._report_source_handoff_reference = None
     if configuration.get("schema") == "noah.weekly-assignment-template/2":
@@ -502,22 +680,24 @@ def prepare_daily(adapter, vector):
             week = _retained_week(root, manifest["day"], adapter.day_anchor_ts, configuration)
         except (OSError, ValueError, ReportPublicationRefused):
             week = None  # Invalid/unavailable infrastructure can never earn a bonus.
-        if week is None or not any(row["targets"] for row in week["assignments"]):
+        supplements = None
+        if week is not None:
+            assignments, supplements = _weekly_evaluation_assignments(
+                root, week, configuration, manifest["day"], adapter.day_anchor_ts,
+                getattr(adapter, "late_joiner_scoring", False) is True, request)
+        if week is None or not any(row["targets"] for row in assignments):
             require({str(k): v for k, v in vector.items()} == manifest["publishable_weights_u16"], "no-bonus raw vector differs")
             adapter._calculation_reference = retain_no_bonus(root, source, configuration,
                 reason="assignment_unavailable" if week is None else "no_assigned_targets", week=week,
                 transition=transition_reference(adapter, manifest["day"]))
             return vector
-        policy, selection = select_weekly(configuration, week, endpoints, manifest["day"], adapter.day_anchor_ts)
-        assignments = week["assignments"]
+        policy, selection = select_weekly(
+            configuration, week, endpoints, manifest["day"], adapter.day_anchor_ts, supplements=supplements)
     else:
         policy, selection = select_policy(configuration, endpoints, manifest["day"], adapter.day_anchor_ts)
     # Freeze the first evaluation and policy before any provider collection.
     # Restart/retry never silently retimes a signed round or substitutes a policy.
-    path = root / "report-state" / f"day-{manifest['day']}.request.json"
-    if path.exists():
-        request_raw = path.read_bytes()
-        request = json.loads(request_raw)
+    if request is not None:
         source, manifest = resume_raw_source(adapter, source, request["calculation"]["reference"], request_raw=request_raw)
         require(request["calculation"]["fixture_sha256"] == manifest["artifacts"]["fixture"]["sha256"]
                 and request["policy"] == policy

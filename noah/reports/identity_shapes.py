@@ -325,10 +325,14 @@ def _proof(value):
 
 
 def _call(value):
-    _shape(value, {'block_hash': _hash, 'block_number': _nat, 'call': _enum('Commitments.set_commitment'),
+    spec = {'block_hash': _hash, 'block_number': _nat, 'call': _enum('Commitments.set_commitment'),
             'data_hex': lambda item: require(type(item) is str and len(item) <= 6202 and re.fullmatch('(0x)?(?:[0-9a-f]{2})*', item), 'commitment data'),
             'extrinsic_index': _nat, 'finality': _proof, 'finalized': _bool, 'genesis_hash': _hash,
-            'signer': _hash, 'structurally_valid': _bool, 'successful': _bool, 'target_netuid': _nat, 'timestamp_ms': _nat})
+            'signer': _hash, 'structurally_valid': _bool, 'successful': _bool, 'target_netuid': _nat, 'timestamp_ms': _nat}
+    # Present only when a Validate proxy submitted the commitment. Direct reports omit it.
+    if 'proxy_delegate' in value:
+        spec['proxy_delegate'] = _hash
+    _shape(value, spec)
 
 
 def _calculation(value):

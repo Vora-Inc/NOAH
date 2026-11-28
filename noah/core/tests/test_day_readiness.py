@@ -248,3 +248,52 @@ def test_uncertain_send_stays_held_across_restart_until_exact_reconciliation(sce
     assert make_adapter(s.path, s.ledger).already_published(CLOSE - 1)
     assert len(s.ledger.calls) == 1 and not (s.path / "intent.json").exists()
     assert receipt(s.path)["applied_weights_readback"]["confirmed"]
+
+
+@pytest.mark.parametrize("restart", [False, True])
+def test_runtime_refusal_waits_for_approval_then_recovers_original_day(scenario, monkeypatch, restart):
+    from ...chain.runtime_compatibility import RuntimeApprovalRequired
+
+    s = scenario
+    original_read = s.adapter.read
+    assert s.step(CLOSE - 1, 0).outcome == "refused"
+    initial = read_state(s.path / "loop.json")["day_catchup_pending"]
+    approvals = s.path / "runtime-approvals"
+    monkeypatch.setenv("NOAH_RUNTIME_APPROVALS", str(approvals))
+    attempts = []
+
+    def blocked(height):
+        attempts.append(height)
+        if not approvals.exists():
+            raise RuntimeApprovalRequired("EMA")
+        return original_read(height)
+
+    monkeypatch.setattr(s.adapter, "read", blocked)
+    assert s.step(CLOSE + SETTLE, 300).outcome == "day_catchup_pending"
+    assert read_state(s.path / "loop.json")["day_catchup_pending"] == initial
+    assert not s.step(CLOSE + SETTLE, 610).acted
+    assert attempts == [initial["height"]]
+    approvals.write_text("changed approval revision")
+    if restart:
+        run_forever(
+            s.adapter,
+            settle_blocks=SETTLE,
+            state_path=s.path / "loop.json",
+            lock_path=s.path / "loop.lock",
+            identity=f"{GENESIS}/2/{VALIDATOR}",
+            iterations=1,
+        )
+    else:
+        assert s.step(CLOSE + SETTLE, 611).outcome == "published"
+    assert receipt(s.path)["height"] == initial["height"]
+    assert len(s.ledger.calls) == 1
+    s.ledger.block = CLOSE + SETTLE + 1
+    run_forever(
+        make_adapter(s.path, s.ledger),
+        settle_blocks=SETTLE,
+        state_path=s.path / "loop.json",
+        lock_path=s.path / "loop.lock",
+        identity=f"{GENESIS}/2/{VALIDATOR}",
+        iterations=1,
+    )
+    assert len(s.ledger.calls) == 1

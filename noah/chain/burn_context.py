@@ -3,6 +3,7 @@
 The exact V15 digest authenticates the reviewed storage declaration, Identity
 u16 key, Default 0x00 and Burn=0/Recycle=1 layout. The exact deployed code hash
 binds that layout to run_coinbase's Burn-or-absent fallback at upstream commit
+e536e6bf4bfa58f1ec4506dff0147e1f9b1c1900 (495),
 a68c6e8c65411a842fbf69269dc385aa13041391 (494),
 8b407e40988ea7a251abb6dbc07a9ab7d602b740 (493),
 541a50d38764acdce23578bd8ba54f80156ffb2a (492) and
@@ -14,6 +15,7 @@ from types import SimpleNamespace
 import re
 
 from . import token_context as token
+from .runtime_compatibility import RuntimeApprovalRequired, lookup
 from .sources import Unverified, validated_hash_digits
 
 REVIEWED = {
@@ -21,6 +23,7 @@ REVIEWED = {
     492: ('0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e', 'a397a753ad67ba335fb02cd5c54ccb0c1149fbf981f3ed6d9df44d49ca5bf71d'),
     493: ('0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591', '89f3e67a94db5f9a155678122b5a5daff5b2ddbb1f179ac669df996bd3332a98'),
     494: (token.CODES[494], '80df15954eca22bf5349a687563ccc9ec03ef101c9916779a4e8782143aa5c1c'),
+    495: (token.CODES[495], 'c4fbaf6d9365096d42eecc1e279f16002d5a62bf95407b9e348df2693ca77659'),
 }
 SCHEMA = 'noah-effective-burn/1'
 
@@ -39,6 +42,17 @@ def storage_key(netuid):
     return '0x' + prefix + netuid.to_bytes(2, 'little').hex()
 
 
+def metadata_for(genesis, spec, transaction, code):
+    if type(spec) is int and type(transaction) is int and spec in REVIEWED:
+        bundled_code, digest = REVIEWED[spec]
+        if code == bundled_code and transaction == token.transaction_version(spec):
+            return digest
+    approved = lookup(genesis, spec, transaction, code, 'burn')
+    if approved is None:
+        raise RuntimeApprovalRequired('effective Burn')
+    return approved.metadata
+
+
 def validate(evidence):
     """Validate a retained proof's shape; live authorization still requires read()."""
     require(type(evidence) is dict and set(evidence) == {
@@ -51,10 +65,8 @@ def validate(evidence):
     require(all(isinstance(evidence[k], str) and evidence[k].startswith('0x')
                 and validated_hash_digits(evidence[k]) and int(evidence[k][2:], 16)
                 for k in ('block_hash', 'genesis')))
-    require(type(evidence['spec_version']) is int and evidence['spec_version'] in REVIEWED)
-    require(type(evidence['transaction_version']) is int
-            and evidence['transaction_version'] == token.transaction_version(evidence['spec_version']))
-    require((evidence['code_hash'], evidence['metadata_sha256']) == REVIEWED[evidence['spec_version']])
+    require(evidence['metadata_sha256'] == metadata_for(
+        evidence['genesis'], evidence['spec_version'], evidence['transaction_version'], evidence['code_hash']))
     require(evidence['key'] == storage_key(evidence['netuid']))
     require(evidence['raw'] is None or evidence['raw'] == '0x00', 'effective Burn requires Burn or proven absence')
     require(evidence['effective'] == 'Burn')
@@ -80,13 +92,9 @@ def read(rpc, block, block_hash, netuid):
     require(rpc('chain_getBlockHash', [block]) == block_hash, 'effective Burn block hash differs')
     genesis = rpc('chain_getBlockHash', [0])
     runtime = rpc('state_getRuntimeVersion', [block_hash])
-    require(type(runtime) is dict and type(runtime.get('specVersion')) is int
-            and runtime['specVersion'] in REVIEWED and type(runtime.get('transactionVersion')) is int
-            and runtime['transactionVersion'] == token.transaction_version(runtime['specVersion']),
-            'effective Burn runtime is not reviewed')
-    code, metadata_sha = REVIEWED[runtime['specVersion']]
-    require(rpc('state_getStorageHash', ['0x3a636f6465', block_hash]) == code,
-            'effective Burn runtime code is not reviewed')
+    require(type(runtime) is dict)
+    code = rpc('state_getStorageHash', ['0x3a636f6465', block_hash])
+    metadata_sha = metadata_for(genesis, runtime.get('specVersion'), runtime.get('transactionVersion'), code)
     # Use the existing strict Option<Vec<V15>> framing parser, adapting only
     # its synchronous response envelope. No SDK query/default path is involved.
     connection = SimpleNamespace(rpc_request=lambda method, params: {'result': rpc(method, params)})

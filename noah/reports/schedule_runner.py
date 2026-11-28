@@ -106,21 +106,52 @@ def assignments_tick(config, document, *, authorized=False, allow_mainnet=False,
     key, _ = assignment_identity(config)
     owned = chain is None
     chain = chain or SubstrateChain(config.endpoint)
-    sender, preparer = submit_fn or submit_tick, prepare_fn or prepare_report
+    sender = submit_fn or submit_tick
+    if prepare_fn is None:
+        inventory = {}
+        def preparer(config, contract):
+            return prepare_report(config, contract, inventory=inventory)
+    else:
+        preparer = prepare_fn
     try:
         prior = reconcile_assignments(config, chain=chain, allow_mainnet=allow_mainnet, submit_fn=sender)
         if prior is not None:
             return {'sent': False, 'action': 'reconciled', 'report': prior}
         now = chain.finalized_time_ms()
         document = validate_assignment_document(config, document, now // 1000)
+        hotkey = ss58_decode(config.miner_hotkey).hex()
+        coldkey = ss58_decode(config.coldkey).hex()
+        supplements = None
+        if getattr(config, 'late_joiner_assignments', False) is True:
+            from .assignments import load_supplement_prefix
+            from datetime import datetime, timezone
+            day_name = datetime.fromtimestamp(now // 1000, timezone.utc).date().isoformat()
+            supplements = load_supplement_prefix(
+                Path(config.state_dir) / 'weekly-assignments', document, day_name, trusted_public_key=key)
         if registration_block is None:
-            registration_block = _registration_block(chain, document, config.miner_hotkey)
-        row = assignment_for(document, hotkey=ss58_decode(config.miner_hotkey).hex(),
-                             coldkey=ss58_decode(config.coldkey).hex(),
-                             registration_block=registration_block, trusted_public_key=key)
+            registration_block = _registration_block(
+                chain, document, config.miner_hotkey, use_head=supplements is not None)
+        if supplements is not None:
+            from .assignments import assignment_for_day
+            from datetime import datetime, timezone
+            day_name = datetime.fromtimestamp(now // 1000, timezone.utc).date().isoformat()
+            row = assignment_for_day(
+                document, supplements, day=day_name, hotkey=hotkey, coldkey=coldkey,
+                registration_block=registration_block, trusted_public_key=key)
+        else:
+            row = assignment_for(document, hotkey=hotkey, coldkey=coldkey,
+                                 registration_block=registration_block, trusted_public_key=key)
         targets = [] if row is None else list(row['targets'])
         base = {'sent': False, 'targets': targets, 'week_start': document['week_start']}
         if not targets:
+            if supplements is not None:
+                template = template_from_document(document)
+                schedule = schedule_for_target(template, template['mining_netuid'])
+                day = max(day_for_time(schedule, now), schedule['effective_day'])
+                slot = (schedule['day_anchor_ts'] + day * 86400 + schedule['snapshot_offset_seconds']) * 1000
+                commit_close = slot + (schedule['prepare_lead_seconds'] + schedule['commit_seconds']) * 1000
+                if now < commit_close:
+                    return {**base, 'action': 'waiting', 'next_at_ms': commit_close}
             return {**base, 'action': 'not_assigned'}
         template = template_from_document(document)
         schedule = schedule_for_target(template, targets[0])
@@ -154,17 +185,29 @@ def assignments_tick(config, document, *, authorized=False, allow_mainnet=False,
                        for _, state in states)
         if terminal:
             return {**base, 'action': 'partial'}
+        # Read-only prep starts at the snapshot, including the lead before commit opens.
+        # One subnet's failure is recorded and the other prepared reports can still be signed.
+        prep_errors = _prepare_assigned(config, states, now, preparer)
+        states = [(contract, status(config, contract)) for contract in contracts]
+        base['reports'] = [{'reported_netuid': contract['reported_netuid'], 'commit': state['commit'],
+                            'reveal': state['reveal']} for contract, state in states]
+        if prep_errors:
+            base['prep_errors'] = prep_errors
+        skip = {item['reported_netuid'] for item in prep_errors}
         for phase in ('commit', 'reveal'):
-            outcome = _advance(config, states, phase, now, authorized, allow_mainnet, chain, preparer, sender)
+            outcome = _advance(config, states, phase, now, authorized, allow_mainnet, chain, preparer, sender,
+                               skip_netuids=skip)
             if outcome is not None:
                 return {**base, **outcome}
+        if prep_errors and now < closed:
+            return {**base, 'action': 'prep_failed', 'sent': False}
         return {**base, 'action': 'expired' if now >= closed else 'waiting'}
     finally:
         if owned:
             chain.substrate.close()
 
 
-def _registration_block(chain, document, hotkey):
+def _registration_block(chain, document, hotkey, *, use_head=False):
     substrate = chain.substrate
     block = '0x' + document['roster_block_hash']
     def registered_at(pin):
@@ -178,7 +221,12 @@ def _registration_block(chain, document, hotkey):
         return registered
     week_registration = registered_at(block)
     if week_registration is None:
-        return None
+        if not use_head:
+            return None
+        head = substrate.rpc_request('chain_getFinalizedHead', [])
+        if not isinstance(head, dict) or 'error' in head or not isinstance(head.get('result'), str):
+            raise ReportError('weekly assignments: finalized registration is unavailable')
+        return registered_at(head['result'])
     head = substrate.rpc_request('chain_getFinalizedHead', [])
     if not isinstance(head, dict) or 'error' in head or not isinstance(head.get('result'), str):
         raise ReportError('weekly assignments: finalized registration is unavailable')
@@ -198,9 +246,34 @@ def _reconcile(config, document, sender, allow_mainnet, chain):
     return None
 
 
-def _advance(config, states, phase, now, authorized, allow_mainnet, chain, preparer, sender):
+def _prepare_assigned(config, states, now, preparer):
+    """Prepare every open target before any signature. Keep going after one failure."""
+    from .backing.prepare import PrepareError
+    errors = []
+    for contract, state in states:
+        if state.get('prepared') or state.get('commit') in ('finalized', 'failed'):
+            continue
+        if now >= contract['commit_close_ms']:
+            continue
+        try:
+            preparer(config, contract)
+        except (ReportError, PrepareError) as exc:
+            errors.append({'reported_netuid': contract['reported_netuid'], 'reason': _prep_reason(exc)})
+    return errors
+
+
+def _prep_reason(exc):
+    text = str(exc)
+    if "://" in text or "@" in text or len(text) > 160:
+        return type(exc).__name__
+    return text
+
+
+def _advance(config, states, phase, now, authorized, allow_mainnet, chain, preparer, sender, skip_netuids=()):
     opened = []
     for contract, state in states:
+        if contract['reported_netuid'] in skip_netuids:
+            continue
         if phase == 'reveal' and state['commit'] != 'finalized':
             continue
         if state[phase] in ('finalized', 'failed'):

@@ -195,6 +195,15 @@ def _read_batch(
         _require(netuid <= 65535)
 
         stake_events, remark_events = segments[offset : offset + 2]
+        # Runtime root settlement can precede the transfer. It is pool accounting,
+        # never an Ark arrival or part of this miner's transferred amount.
+        if stake_events and (stake_events[0].get("module_id"), stake_events[0].get("event_id")) == ("SubtensorModule", "BasketDeposited"):
+            _require(netuid == 0)
+            basket = stake_events[0]["attributes"]
+            _require(isinstance(basket, dict) and set(basket) == {"hotkey", "shares", "tao"})
+            _require(public_key_of(basket["hotkey"]) == position)
+            _require(_number(basket["shares"]) > 0 and _number(basket["tao"]) > 0)
+            stake_events = stake_events[1:]
         _require(
             all(
                 e["module_id"] == "SubtensorModule"
@@ -218,12 +227,16 @@ def _read_batch(
         # The last transfer-event field is TAO equivalent, not received alpha.
         _number(moved[5])
         removed = _events(stake_events, "SubtensorModule", "StakeRemoved")
-        _require(len(removed) <= 1)
+        _require(len(removed) == 1 if netuid == 0 else len(removed) <= 1)
+        if netuid == 0:
+            _require(_number(fields[2]) == amount and _number(moved[5]) == amount)
         if removed:
             spent = removed[0]["attributes"]
             _require(isinstance(spent, (list, tuple)) and len(spent) == 6)
             _require(public_key_of(spent[0]) == cold and public_key_of(spent[1]) == position)
             _require(_number(spent[3]) == amount and _number(spent[4]) == netuid)
+            if netuid == 0:
+                _require(_number(spent[2]) == amount)
             _require(removed[0]["ordinal_in_block"] < added[0]["ordinal_in_block"])
 
         _require(len(remark_events) == 1)

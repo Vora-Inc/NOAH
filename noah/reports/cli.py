@@ -27,6 +27,8 @@ def parser():
     submit.add_argument("--follow", action="store_true", help="wait for windows; safe to resume with the same round")
     submit.add_argument("--timeout-seconds", type=int, default=18000, help="bound --follow; a timeout preserves all journals")
     state = actions.add_parser("status", help="show saved phase states and finalized receipts; no RPC or signing")
+    preflight = actions.add_parser("preflight", help="read-only check of the endpoint, runtime, and Sunday roster block")
+    preflight.add_argument("--file", type=Path, help="current weekly assignment file; otherwise the configured URL when set")
     scheduled = actions.add_parser("run", help="derive the daily frozen round and advance reporting")
     scheduled.add_argument("--schedule", type=Path, required=True, help="immutable operator-approved schedule JSON")
     scheduled.add_argument("--yes", action="store_true", help="authorize scheduled report transactions")
@@ -39,6 +41,15 @@ def parser():
     assigned.add_argument("--allow-mainnet-report", action="store_true")
     assigned.add_argument("--follow", action="store_true")
     assigned.add_argument("--timeout-seconds", type=int, default=18000)
+    fleet = actions.add_parser("fleet", help="run assigned reports serially for miners sharing one proxy")
+    fleet.add_argument("--configs", type=Path, nargs='+', required=True)
+    fleet.add_argument("--check", action="store_true", help="validate local config only; no network, keys or signing")
+    fleet.add_argument("--yes", action="store_true")
+    fleet.add_argument("--allow-mainnet-report", action="store_true")
+    fleet.add_argument("--follow", action="store_true")
+    # 15,600s from 00:01 UTC ends at 04:21 UTC, after a 04:16 reveal close.
+    # Phase windows still come from the signed assignment, not from this budget.
+    fleet.add_argument("--timeout-seconds", type=int, default=15600)
     for command in (prepare, submit, state):
         command.add_argument("--round", type=Path, required=True, help="operator's frozen round JSON")
 
@@ -63,6 +74,8 @@ def parser():
     replay.add_argument("--manifest-sha256", required=True)
     assignment = checks.add_parser("assignment-week", help="read the week-open roster; unsigned isolated worker")
     assignment.add_argument("--invocation", type=Path, required=True)
+    daily_assignment = checks.add_parser("assignment-day", help="read a daily snapshot roster; unsigned isolated worker")
+    daily_assignment.add_argument("--invocation", type=Path, required=True)
     publish = checks.add_parser("publish-week", help="write this week's signed assignment file from the chain roster")
     publish.add_argument("--template", type=Path, required=True)
     publish.add_argument("--endpoint", required=True)
@@ -144,6 +157,13 @@ def _assignments(config, args):
                         raise ReportError("weekly assignment file is unavailable")
                 if time.monotonic() >= deadline:
                     return 1
+                if getattr(config, "late_joiner_assignments", False) is True and url:
+                    from datetime import datetime, timezone
+                    from .assignments import fetch_supplement_prefix
+                    fetch_supplement_prefix(
+                        Path(config.state_dir) / "weekly-assignments", url, document,
+                        datetime.fromtimestamp(now, timezone.utc).date().isoformat(),
+                        trusted_public_key=key)
                 result = assignments_tick(
                     config, document, authorized=authorized, allow_mainnet=args.allow_mainnet_report, chain=chain)
             emit(result)
@@ -157,12 +177,31 @@ def _assignments(config, args):
         chain.substrate.close()
 
 
+def _roster_hash(path):
+    if path is None:
+        return None
+    document = read_json(path)
+    from .miner import _roster_hash as roster_hash
+    return roster_hash(document)
+
+
+def _public_reason(exc):
+    import re
+    reason = getattr(exc, "reason", None)
+    if isinstance(reason, str) and re.fullmatch(r"[a-z0-9_]+", reason):
+        return reason
+    return None
+
+
 def emit(value):
     print(json.dumps(value, sort_keys=True, indent=2), flush=True)
 
 
 def execute(args):
     if args.role == "miner":
+        if args.action == 'fleet':
+            from .fleet import run
+            return run(args, emit)
         from noah.deposits.assistant.config import load_config
         from .miner import prepare_report, status, submit_tick
         config = load_config(args.config)
@@ -191,6 +230,11 @@ def execute(args):
                 time.sleep(min(15, max(0, deadline - time.monotonic())))
         if args.action == "assignments":
             return _assignments(config, args)
+        if args.action == "preflight":
+            from .miner import preflight
+            emit(preflight(config, roster_block_hash=_roster_hash(args.file),
+                           lookup_assignments=args.file is None))
+            return 0
         contract = load_round(args.round)
         if args.action in ("prepare", "preview"):
             emit(prepare_report(config, contract, args.deposit_block, args.deposit_event))
@@ -243,6 +287,10 @@ def execute(args):
     if args.action == "assignment-week":
         from .assignment_worker import build
         emit(build(read_json(args.invocation)))
+        return 0
+    if args.action == "assignment-day":
+        from .assignment_worker import build_supplement_invocation
+        emit(build_supplement_invocation(read_json(args.invocation)))
         return 0
     if args.action == "publish-week":
         from .assignments import publish_week, load_assignment_key
@@ -326,7 +374,11 @@ def main(argv=None):
         return 2
     except (Exception, Refusal) as exc:
         # Endpoint/provider errors can embed credentials. Do not print them.
-        print(f"Report operation refused ({type(exc).__name__}); preserve state and check inputs/endpoint.", file=sys.stderr)
+        # A closed reason code has no URL and is safe to show.
+        reason = _public_reason(exc)
+        name = type(exc).__name__
+        shown = f"{name}: {reason}" if reason else name
+        print(f"Report operation refused ({shown}); preserve state and check inputs/endpoint.", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         print("Stopped; saved report and submission journals are preserved.", file=sys.stderr)

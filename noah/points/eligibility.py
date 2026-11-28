@@ -9,6 +9,7 @@ import hashlib
 from dataclasses import asdict
 from pathlib import Path
 
+from ..chain.runtime_compatibility import approved_runtime, lookup
 from ..chain.sources import Refusal, SourceLied, Unverified
 from ..chain.token_context import CODES, FIELDS, decoded, transaction_version
 from ..core.calculation_record import durable_write, encoded
@@ -95,10 +96,13 @@ def validate_reference_proof(document, *, read_proof=None):
         for key in ('runtime', 'parent_runtime'):
             value = document[key]
             require(isinstance(value, dict) and set(value) == {'spec_version', 'code_hash', 'transaction_version'})
-            require(type(value['spec_version']) is int and value['spec_version'] in CODES
-                    and value['code_hash'] == CODES[value['spec_version']]
-                    and type(value['transaction_version']) is int
-                    and value['transaction_version'] == transaction_version(value['spec_version']))
+            spec, version, code = (value[name] for name in ('spec_version', 'transaction_version', 'code_hash'))
+            require(type(spec) is int and type(version) is int)
+            if code != CODES.get(spec) or version != transaction_version(spec):
+                approval = lookup(document['genesis'], spec, version, code, 'token')
+                require(approval is not None)
+                if key == 'parent_runtime':
+                    require(approval.metadata == document['metadata_sha256'])
         require(sha(document['metadata_sha256']))
         markers = {}
         for role in ('native', 'asset'):
@@ -133,7 +137,11 @@ def validate_reference_proof(document, *, read_proof=None):
             expected[role] = None if marker is None else tuple(marker)
         metadata = document['metadata']
         require(isinstance(metadata, dict) and metadata)
-        require(all(str(int(spec)) == spec and int(spec) in CODES and sha(value) for spec, value in metadata.items()))
+        for spec, value in metadata.items():
+            require(str(int(spec)) == spec and sha(value))
+            if int(spec) not in CODES:
+                approval = approved_runtime(document['genesis'], int(spec), 'token')
+                require(approval is not None and approval.metadata == value)
         rows = document['rows']
         require(isinstance(rows, list) and 0 < len(rows) <= last - first + 1)
         cursor, previous, failure = start, None, None

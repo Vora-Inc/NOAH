@@ -109,6 +109,8 @@ def worker_timeout(action, arguments):
     """
     if action == "assignment-week":
         return 120
+    if action == "assignment-day":
+        return 270
     if action not in ("adjudicate", "adjudicate-verify"):
         return WORKER_TIMEOUT_SECONDS
     values = list(map(str, arguments))
@@ -139,7 +141,8 @@ def worker_timeout(action, arguments):
 
 def run_worker(action, *arguments):
     """Fixed CLI, isolated imports, bounded response; never echo provider secrets."""
-    require(action in ("adjudicate", "adjudicate-verify", "resolve-day", "assignment-week"), "unsupported report worker action")
+    require(action in ("adjudicate", "adjudicate-verify", "resolve-day", "assignment-week", "assignment-day"),
+            "unsupported report worker action")
     limit = MAX_ADJUDICATION_OUTPUT if action in ("adjudicate", "adjudicate-verify") else MAX_WORKER_OUTPUT
     timeout = worker_timeout(action, arguments)
     env = dict(os.environ)
