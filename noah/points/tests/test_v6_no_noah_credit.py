@@ -443,24 +443,35 @@ def test_accounted_pre_switch_day_keeps_v2_policy_and_never_sends(tmp_path):
     assert not path.exists()
 
 
-def test_preflight_validates_confirmed_source_without_a_wallet(tmp_path, monkeypatch):
+@pytest.mark.parametrize("use_proxy", [False, True])
+def test_preflight_validates_confirmed_source_without_a_wallet(tmp_path, monkeypatch, use_proxy):
     from unittest.mock import Mock
 
     from noah.chain.ss58 import address_of
+    from noah.core.publish_intent import PublicationStatusUnknown
     from noah.points.mode import check_publication_mode
 
     adapter, ref, _, path, _ = pending_refresh_fixture(tmp_path)
     hotkey = address_of(bytes([7]) * 32)
-    adapter.designated_validator_hotkey = hotkey
+    adapter.designated_validator_hotkey = address_of(bytes([8]) * 32)
+    adapter.expected_signer_address = hotkey
+    adapter.proxy_signer_address = address_of(bytes([9]) * 32) if use_proxy else None
     del adapter._check_direct_identity
     del adapter.reader
     raw = json.loads(path.read_bytes())
-    raw["direct_intent"].update(mode="direct", mecid=0, hotkey=hotkey)
+    route = "proxy" if use_proxy else "direct"
+    signer = adapter.proxy_signer_address or hotkey
+    raw["direct_intent"].update(mode="direct", mecid=0, hotkey=hotkey, route=route, signer=signer)
     path.write_text(json.dumps(raw))
     confirm = Mock()
     monkeypatch.setattr("noah.points.transition.confirm_paired_receipt", confirm)
     assert check_publication_mode(adapter, ref, refresh={"day": 1, "height": 11, "epoch": 20}) == onboarding.MODE
     confirm.assert_called_once_with(adapter.runner_chain, raw["direct_intent"])
+    raw["direct_intent"]["hotkey"] = adapter.designated_validator_hotkey
+    path.write_text(json.dumps(raw))
+    with pytest.raises(PublicationStatusUnknown, match="last V2 publisher differs"):
+        check_publication_mode(adapter, ref, refresh={"day": 1, "height": 11, "epoch": 20})
+    confirm.assert_called_once()
 
 
 @pytest.mark.parametrize("record", [

@@ -74,6 +74,18 @@ def test_supported_unchanged_runtime_invokes_signer_exactly_once():
     assert calls == [b'synthetic-signing-payload']
 
 
+def test_new_runtime_number_allows_direct_signing_but_requires_proxy_review():
+    chain, calls = adapter(), []
+    chain.version['specVersion'] = chain.substrate.runtime_version = 999
+    signer = key(lambda payload: calls.append(payload) or bytes(64))
+    chain.sign(signer, 82, 'Raw32', bytes(32))
+    chain.report_proxy = {'netuid': 82, 'delegate': signer.ss58_address,
+                          'real': ss58_encode(b'\x44' * 32)}
+    with pytest.raises(SigningRuntimeRefused):
+        chain.sign(signer, 82, 'Raw32', bytes(32))
+    assert len(calls) == 1 and chain.substrate.compositions == 1
+
+
 @pytest.mark.parametrize('change', ['runtime_changed', 'sdk_spec', 'transaction', 'sdk_metadata', 'call_metadata', 'rpc_failure'])
 def test_actual_signer_boundary_refuses_runtime_or_metadata_change(change):
     chain, calls = adapter(), []

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ...chain.runtime_compatibility import RuntimeApprovalRequired
 from ..prepared_transaction import SDKPreparedTransport, transaction_hash
 from ..publish_intent import PublishIntent
 from ..reader import ChainUnreadable
@@ -159,6 +160,37 @@ def test_pending_pool_nonce_disagreement_refuses_before_signing():
     with pytest.raises(ChainUnreadable):
         SDKPreparedTransport(client, wallet).prepare(b"call", chain)
     assert wallet.signatures == 0 and not client.sent
+
+
+@pytest.mark.parametrize("admission", ["missing", "matched", "changed"])
+def test_runtime_admission_uses_fresh_finalized_head_before_signing(admission):
+    chain, wallet = Chain(), Wallet()
+    client = Client(chain)
+    chain.require_weight_runtime = True
+    prepare_call = client.prepare_call
+
+    def advance(*args, **kwargs):
+        chain.head += 1
+        return prepare_call(*args, **kwargs)
+
+    def weight_runtime(block):
+        assert block == 101
+        assert not wallet.signatures
+        if admission == "missing":
+            raise RuntimeApprovalRequired("weight publication")
+        return (487 if admission == "changed" else 486), 1, "approved-code"
+
+    client.prepare_call = advance
+    chain.weight_runtime = weight_runtime
+    transport = SDKPreparedTransport(client, wallet)
+    if admission == "matched":
+        assert transport.prepare(b"call", chain).evidence["spec_version"] == 486
+    else:
+        with pytest.raises(RuntimeApprovalRequired) as error:
+            transport.prepare(b"call", chain)
+        assert error.value.wait_for_registry == (admission == "missing")
+    assert wallet.signatures == int(admission == "matched")
+    assert not client.sent
 
 
 def test_lost_reply_retains_exact_private_bytes_and_new_process_does_not_sign(tmp_path):

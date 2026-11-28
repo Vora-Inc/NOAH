@@ -26,10 +26,34 @@ def check_snapshot(config, contract, connection):
         raise ReportError("miner registration or owner differs at snapshot B")
 
 
-def compute_report(config, contract):
+class _StakeMapSource:
+    """Reuse one AlphaV2 scan for every subnet at the same endpoint and block.
+
+    The validator collector keeps its own source. This wrapper is miner-only.
+    """
+
+    def __init__(self, client, cache, endpoint):
+        self.client = client
+        self._cache = cache
+        self._endpoint = endpoint
+
+    def call(self, method, params):
+        return self.client.call(method, params)
+
+    def alpha_inventory(self, netuid):
+        from noah.reports.backing.reads import alpha_inventory
+        key = (self._endpoint, self.client.block_hash)
+        found = self._cache.get(key)
+        if found is None:
+            found = alpha_inventory(self, self.client.block_hash)
+            self._cache[key] = found
+        rows, positions, pages = found
+        return list(rows.get(netuid, [])), pages, positions.get(netuid, 0)
+
+
+def compute_report(config, contract, inventory=None):
     from noah.reports.backing.engine import compute
     from noah.reports.backing.rpc import RpcClient, close_sockets, websocket_transport
-    from noah.reports.backing.source import LiveSource
     from .backing.sdk_client import live_sdk
 
     connection = live_sdk(config.endpoint)
@@ -39,15 +63,39 @@ def compute_report(config, contract):
         connection.close()
     block = "0x" + contract["block_hash"]
     client = RpcClient([config.endpoint], block, websocket_transport)
+    cache = {} if inventory is None else inventory
     try:
-        result, _ = compute(LiveSource(client), contract["reported_netuid"], block,
+        result, _ = compute(_StakeMapSource(client, cache, config.endpoint), contract["reported_netuid"], block,
                             contract["block_number"], ark=bytes.fromhex(contract["ark_coldkey"]))
         return result
     finally:
         close_sockets()
 
 
-def prepare_report(config, contract, deposit_block=None, deposit_event=None, *, compute_fn=None):
+def unready_reason(result):
+    """Short reason code for a calculation that cannot be submitted.
+
+    Only the engine's own code is returned. Endpoint text is never copied.
+    """
+    import re
+    if not isinstance(result, dict):
+        return "calculation_not_ready"
+    if result.get("status") != "OK":
+        reason = result.get("reason")
+        if isinstance(reason, str) and re.fullmatch(r"[a-z0-9_]+", reason):
+            return reason
+        return "calculation_not_ready"
+    for output in (result.get("output1"), result.get("output2"), result.get("output3")):
+        if not isinstance(output, dict) or output.get("status") == "OK":
+            continue
+        reason = output.get("reason")
+        if isinstance(reason, str) and re.fullmatch(r"[a-z0-9_]+", reason):
+            return reason
+        return "calculation_not_ready"
+    return None
+
+
+def prepare_report(config, contract, deposit_block=None, deposit_event=None, *, compute_fn=None, inventory=None):
     from noah.reports.backing.keys import ss58_decode
     from noah.reports.backing.prepare import prepare, load_prepared
     from noah.reports.backing.round_config import preparation_from_round, calculation_for_shadow
@@ -68,8 +116,20 @@ def prepare_report(config, contract, deposit_block=None, deposit_event=None, *, 
         immutable_json(directory / "request.json", request)
         path = directory / "prepared.json"
         if not path.exists():
-            result = (compute_fn or compute_report)(config, contract)
-            calculation_for_shadow(contract, result)
+            if compute_fn is not None:
+                result = compute_fn(config, contract)
+            else:
+                result = compute_report(config, contract, inventory=inventory)
+            reason = unready_reason(result)
+            if reason is not None:
+                raise ReportError(f"calculation is not ready ({reason})")
+            try:
+                calculation_for_shadow(contract, result)
+            except ValueError as exc:
+                text = str(exc)
+                if "://" in text or "@" in text:
+                    raise ReportError("calculation does not match the round") from None
+                raise ReportError(text) from None
             if result.get("block_timestamp_ms") != contract["block_timestamp_ms"]:
                 raise ReportError("calculation timestamp differs from the trusted round")
             ten = result["output2"]["alpha_required_rao"]
@@ -105,16 +165,39 @@ def status(config, contract):
     return result
 
 
-def wallet_signer(config):
+# One unlocked hotkey per process. A new process prompts again. The key is not written down.
+_OPEN_HOTKEYS = {}
+
+
+def _unlock_wallet(config):
     """Open the configured hotkey only. No mnemonic file or deposit coldkey."""
     from bittensor_wallet import Wallet
     kwargs = {"name": config.wallet_name, "hotkey": config.hotkey_name}
     if config.wallet_path:
         kwargs["path"] = config.wallet_path
-    return Wallet(**kwargs).hotkey
+    return Wallet(**kwargs).unlock_hotkey()
+
+
+def wallet_signer(config):
+    """Return the hotkey unlocked on the first new phase in this process."""
+    key = (config.wallet_path or "", config.wallet_name, config.hotkey_name)
+    cached = _OPEN_HOTKEYS.get(key)
+    if cached is not None:
+        return cached
+    keypair = _unlock_wallet(config)
+    _OPEN_HOTKEYS[key] = keypair
+    return keypair
 
 
 def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chain=None, signer_factory=None):
+    from .proxy import sender_lane
+    directory = state_directory(config, contract)
+    with sender_lane(config, directory):
+        return _submit_tick(config, contract, authorized=authorized, allow_mainnet=allow_mainnet,
+                            chain=chain, signer_factory=signer_factory)
+
+
+def _submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chain=None, signer_factory=None):
     """Advance at most one phase. Safe to call repeatedly or after restart."""
     from noah.reports.backing.chain_session import SubstrateChain
     from noah.reports.backing.prepare import load_prepared
@@ -122,6 +205,7 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
     from noah.reports.backing.keys import ss58_decode
     from noah.reports.backing.submit import _refuse_wrong_chain, run_phase
     from substrateinterface import Keypair
+    from .proxy import route, bind_route, claim
 
     directory = state_directory(config, contract)
     # CommitmentOf has one slot per miner/subnet. Serialize sends. A new
@@ -139,6 +223,7 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
             raise ReportError("prepared report belongs to another miner")
         owned = chain is None
         chain = chain or SubstrateChain(config.endpoint)
+        chain.report_proxy = route(config)
         if isinstance(chain, SubstrateChain):
             chain.search_from_block = contract["block_number"]
         try:
@@ -155,6 +240,7 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
             phase = "commit" if state["commit"] != "finalized" else "reveal"
             opened, closed = contract[f"{phase}_open_ms"], contract[f"{phase}_close_ms"]
             existing = (directory / f"{phase}.journal").exists()
+            bind_route(config, directory, existing)
             if not existing and now < opened:
                 return {**state, "action": "waiting", "phase": phase, "next_at_ms": opened, "sent": False}
             if not existing and now >= closed:
@@ -192,7 +278,14 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
                             "reason": "commitment_quota" if now >= opened else "phase_not_open", **receipt}
             # Existing journals can only reconcile. A public-only key is enough;
             # an unresolved attempt must not unlock signing material on restart.
-            keypair = Keypair(ss58_address=config.miner_hotkey) if existing else (signer_factory or wallet_signer)(config)
+            if not existing and chain.report_proxy and isinstance(chain, SubstrateChain):
+                variant = 'Raw32' if phase == 'commit' and prepared.commitment_envelope is None else 'BigRaw'
+                chain.preflight_proxy_report(config.netuid, variant,
+                    prepared.wire_commitment if phase == 'commit' else prepared.submission.encode())
+            signer_address = chain.report_proxy['delegate'] if chain.report_proxy else config.miner_hotkey
+            keypair = Keypair(ss58_address=signer_address) if existing else (signer_factory or wallet_signer)(config)
+            if keypair.public_key != ss58_decode(signer_address):
+                raise ReportError("configured report wallet does not match the expected signer")
             args = preparation_from_round(
                 contract, hotkey_hex=ss58_decode(config.miner_hotkey).hex(),
                 coldkey_hex=ss58_decode(config.coldkey).hex(),
@@ -205,13 +298,92 @@ def submit_tick(config, contract, *, authorized=False, allow_mainnet=False, chai
             windows = {"commit_window_ms": contract["commit_close_ms"] - contract["commit_open_ms"],
                        "reveal_window_ms": contract["reveal_close_ms"] - contract["reveal_open_ms"],
                        "accelerated": True, "clock": "operator-round"}
+
+            def publish_sender():
+                claim(config, directory, phase)
+
             result = run_phase(phase=phase, prepared_path=directory / "prepared.json",
                                announcement=announcement, mining_netuid=contract["mining_netuid"],
                                windows_doc=windows, keypair=keypair, evidence=directory, chain=chain,
                                now_ms=now if existing else None, round_windows=contract,
-                               allow_mainnet=allow_mainnet)
+                               allow_mainnet=allow_mainnet, on_journal=publish_sender)
             return {**status(config, contract), "action": phase, "sent": result.sent,
                     **({"commitment_quota": quota} if quota is not None else {})}
         finally:
             if owned:
                 chain.substrate.close()
+
+
+def _roster_hash(document):
+    import re
+    if not isinstance(document, dict):
+        raise ReportError("weekly assignment file is unreadable")
+    value = document.get("roster_block_hash")
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise ReportError("weekly assignment file has no roster block")
+    return value
+
+
+def _missing_state(text):
+    lowered = text.lower()
+    return "unknown block" in lowered or "state discarded" in lowered or "state already discarded" in lowered
+
+
+def _read_roster_block(chain, block_hash):
+    pin = block_hash if str(block_hash).startswith("0x") else "0x" + block_hash
+    try:
+        response = chain.substrate.rpc_request("chain_getHeader", [pin])
+    except Exception as exc:
+        code = "block_state_unavailable" if _missing_state(str(exc)) else "rpc_transport"
+        raise ReportError(f"roster block could not be read ({code})") from None
+    error = response.get("error") if isinstance(response, dict) else None
+    message = error.get("message", "") if isinstance(error, dict) else ""
+    if not isinstance(response, dict) or error is not None or not isinstance(response.get("result"), dict):
+        code = "block_state_unavailable" if _missing_state(str(message)) else "rpc_transport"
+        raise ReportError(f"roster block could not be read ({code})") from None
+    if "number" not in response["result"]:
+        raise ReportError("roster block could not be read (rpc_transport)")
+    return {"state": "readable", "block_hash": pin.removeprefix("0x")}
+
+
+def _current_roster_hash(config, chain):
+    """Return the Sunday roster hash, or None when this week's file is not here."""
+    if not getattr(config, "assignments_url", None):
+        return None
+    from .assignments import current_document
+    from .schedule_runner import assignment_identity
+    try:
+        key, identity = assignment_identity(config)
+        document = current_document(config.state_dir, config.assignments_url, chain.finalized_time_ms() // 1000,
+                                    trusted_public_key=key, expected_template_identity=identity)
+    except ReportError:
+        return None
+    if document is None:
+        return None
+    return _roster_hash(document)
+
+
+def preflight(config, *, chain=None, roster_block_hash=None, lookup_assignments=True):
+    """Read the endpoint, runtime, and Sunday roster block. No wallet and no transaction."""
+    from .backing.chain_session import SubstrateChain
+    from .backing.rpc import endpoint_label
+    owned = chain is None
+    chain = chain or SubstrateChain(config.endpoint)
+    try:
+        genesis = str(chain.genesis()).lower().removeprefix("0x")
+        expected = (getattr(config, "genesis_hash", None) or "").lower().removeprefix("0x")
+        if expected and genesis != expected:
+            raise ReportError("report endpoint has the wrong genesis")
+        chain.ensure_supported_signing_runtime()
+        if roster_block_hash is None and lookup_assignments:
+            roster_block_hash = _current_roster_hash(config, chain)
+        if roster_block_hash is None:
+            roster = {"state": "file_unavailable" if getattr(config, "assignments_url", None) else "not_configured"}
+        else:
+            roster = _read_roster_block(chain, roster_block_hash)
+        return {"action": "preflight", "sent": False, "signed": False,
+                "endpoint": endpoint_label(config.endpoint or ""),
+                "genesis_ok": True, "runtime": "supported", "roster_block": roster}
+    finally:
+        if owned:
+            chain.substrate.close()

@@ -121,10 +121,15 @@ def check_confirmed_daily(adapter, reference, manifest, predecessor):
         raise PublicationStatusUnknown("no exact confirmed pre-switch daily receipt") from exc
     check_identity = getattr(adapter, "_check_direct_identity", None)
     if check_identity is None:
-        # Managed preflight has paired finalized readers but no wallet or
-        # signer. Compare the proof's publisher with the configured identity.
+        # The Ark designation belongs to the scoring policy. A deployment
+        # can publish from a different explicitly configured validator seat.
+        validator = getattr(adapter, "expected_signer_address", None) or adapter.designated_validator_hotkey
+        proxy = getattr(adapter, "proxy_signer_address", None)
+        route = "proxy" if proxy else "direct"
         if (marker.get("mode") != "direct" or marker.get("mecid") != 0
-                or not same_address(marker.get("hotkey"), adapter.designated_validator_hotkey)):
+                or marker.get("route") != route
+                or not same_address(marker.get("hotkey"), validator)
+                or not same_address(marker.get("signer"), proxy or validator)):
             raise PublicationStatusUnknown("last V2 publisher differs from configured identity")
         from .transition import confirm_paired_receipt
 

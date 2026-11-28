@@ -2167,6 +2167,12 @@ class ChainAdapter:
     def tempo(self):
         return self.reader.tempo(self.netuid)
 
+    def scoring_day_at(self, height):
+        """Identify a refused attempt by its original finalized UTC block."""
+        self.runner_chain.block_hash(height)
+        timestamp = self.runner_chain.block_timestamp(height)
+        return (timestamp - self.day_anchor_ts) // DAY_SECONDS
+
     def closed_day_ready(self, day):
         """Cheap scheduling hint; the pipeline still resolves the exact day range.
 
@@ -2550,6 +2556,7 @@ class ChainAdapter:
         """Persist the complete direct intent before sending, with restart guards."""
         import uuid
 
+        from ..chain.runtime_compatibility import RuntimeApprovalRequired
         from .publish import _validated_vector
 
         _validated_vector(vector)
@@ -2604,6 +2611,8 @@ class ChainAdapter:
             if proof is not None and proof.get("bps") == 9800:
                 if recheck_for_send(self, self._calculation_reference, vector) is None:
                     raise PublicationRefused("publication would pay an owner seat")
+        if getattr(self.runner_chain, "require_weight_runtime", False):
+            self.runner_chain.weight_runtime(self.runner_chain.head_block())
         signer = self.publisher.signer_address
         context = self.publisher.send_context(signer)
         if (
@@ -2656,7 +2665,12 @@ class ChainAdapter:
             finally:
                 # Never carry authority through an uncertain send or restart.
                 self._report_refresh_attempt = None
-        except (CommitRejected, PublicationRefused) as error:
+        except (CommitRejected, PublicationRefused, RuntimeApprovalRequired) as error:
+            if isinstance(error, RuntimeApprovalRequired):
+                current = self._publish_intent.load()
+                if current is None or current.get("prepared_transaction") is not None:
+                    self._publication_event(marker, "uncertain")
+                    raise
             self._publication_event(
                 marker, "rejected" if isinstance(error, CommitRejected) else "refused"
             )
@@ -3031,6 +3045,7 @@ def build_chain_adapter(
                 "secondary": canonical_endpoint(settings.second_chain_endpoint),
             },
         )
+        runner_chain.require_weight_runtime = getattr(settings, "network", None) == "finney"
 
         # seats_source, day_window, and day_anchor_ts are wired here, for real,
         # from the dual-sourced runner_chain just built above -- reading and

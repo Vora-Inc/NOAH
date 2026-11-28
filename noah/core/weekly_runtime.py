@@ -139,7 +139,7 @@ def validate_no_bonus_marker(directory, marker):
     return proof
 
 
-def expand_resolution(configuration, week, day, anchor, base):
+def expand_resolution(configuration, week, day, anchor, base, rows=None):
     """Reconstruct target rounds from one paired boundary, never a saved verdict.
 
     Target schedules differ only in reported_netuid. Each derived resolution is
@@ -149,7 +149,8 @@ def expand_resolution(configuration, week, day, anchor, base):
     from ..reports.assignments import schedule_for_target, template_from_document
     from ..reports.schedule import validate_schedule, verify_resolution
     week = verify_week_for(configuration, week, day, anchor)
-    needed = sorted({netuid for row in week['assignments'] for netuid in row['targets']})
+    source_rows = week['assignments'] if rows is None else rows
+    needed = sorted({netuid for row in source_rows for netuid in row['targets']})
     require(needed, 'weekly file has no assigned subnet')
     template = template_from_document(configuration)
     first = schedule_for_target(template, needed[0])

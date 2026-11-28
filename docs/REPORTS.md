@@ -103,6 +103,39 @@ genesis, subnet, Ark destination and state directory. Reporting always signs
 with the miner's configured **SR25519 hotkey**; the deposit coldkey/proxy signer is not
 used. Do not put seeds or passwords in the configuration or round document.
 
+`[miner] endpoint` is the one WebSocket or HTTP URL used for every report read
+and for the commit and reveal. A lite node can answer the chain tip and still
+fail this job: the weekly assignment reads the Sunday 00:00 UTC roster block,
+which is several days old by Saturday. Use an archive node, or a node that
+keeps about eight days of state. A public archive endpoint and a node you run
+are both fine; the tool does not prefer one. There is no second endpoint setting.
+
+Check the endpoint before the commit window. This reads the chain and does not
+unlock a wallet or send a transaction:
+
+```sh
+noah-miner --config noah-deposit.ini report preflight
+noah-miner --config noah-deposit.ini report preflight --file sunday.json
+```
+
+It checks that the endpoint answers, that block 0 matches `genesis_hash` when
+that is set, that the finalized runtime is one this worker can sign, and, when
+this week's assignment file is available, that the Sunday roster block is still
+readable. A discarded Sunday block is reported as `block_state_unavailable`.
+
+The hotkey password is typed when the file is encrypted. That is the default.
+One nightly `report assignments --follow` process asks once and reuses the
+unlocked hotkey in memory until the process exits. It does not write the
+password or the key. A restarted process asks again. Waiting, status, and
+reconciliation of an uncertain send do not unlock the wallet.
+
+For an unattended run, the pinned `bittensor-wallet` 4.1.1 library can read one
+environment variable. Its name comes from the hotkey file (`Keyfile.env_var_name()`),
+and its value is the one that library's `save_password_to_env` stores for that
+same file. This tool never stores the password. Anyone who can read the process
+environment can recover the password from that value. Keep it out of the INI,
+shell history, journals, and logs. This worker does not read an OS keychain.
+
 ```sh
 noah-miner --config noah-deposit.ini report prepare \
   --round round.json
@@ -134,7 +167,8 @@ the signature boundary. A new runtime number alone does not refuse submission.
 If its local commitment quota rules have not been reviewed, the chain decides
 whether quota permits the transaction. The miner displays a decoded dispatch
 error name when the chain includes a failed extrinsic and the SDK provides one.
-Snapshot preparation still requires reviewed calculation rules.
+Snapshot preparation still requires reviewed calculation rules. Validate proxy submission also requires a reviewed
+runtime and a successful local quota check.
 
 A proven refusal before signing is recorded as failed with no submission attempted;
 that phase is not automatically retried, but it does not lock out later rounds.
@@ -339,6 +373,17 @@ Run once each day:
 ```sh
 noah-miner --config noah-deposit.ini report assignments --yes --follow
 ```
+
+The three calculations start when the snapshot block is finalized (00:10 UTC
+on the recorded weekly template), which is before the commit window opens at
+00:16 UTC. In November that is 4:10 PM PT and 4:16 PM PT, US Pacific standard
+time (UTC−8). The signed assignment file is the authority for those offsets.
+The stake map at that snapshot is read once and reused for all three subnets.
+The reveal and commitment bytes are the same as a separate read of each subnet.
+Signing still waits for the commit window and still sends one transaction at a
+time. If one subnet cannot be calculated, the other prepared reports are still
+submitted. The failed subnet is tried again on a later tick. A signature is
+not retried after it has been sent.
 
 Without `--follow`, each invocation advances at most one target phase.
 Without a configured URL or explicit `--file`, this command reports `disabled`.
@@ -674,3 +719,76 @@ requires a protected operator authorization, authenticated old/new artifacts,
 four matching scoring-engine results and a separately generated successor R0
 with identical financial evidence. `noah-validator report-handoff` only prepares
 a reviewable draft; it never installs configuration or publishes weights.
+
+
+## Optional shared proxy reporting (candidate)
+
+This capability requires compatible miner and validator releases. It is not
+activated by installing the CLI. Existing direct-hotkey reporting remains valid.
+A miner may separately authorize a zero-delay `Validate` proxy from its existing
+hotkey. Multiple hotkeys can authorize the same delegate. The original keys can
+remain on hardware; a separate SR25519 software key signs the reports.
+
+`Validate` also permits weight and serving operations. It is not reporting-only.
+Do not grant `Any`, substitute a transfer proxy, or authorize the miner coldkey.
+Review the running chain's filters, grant fees and refundable reserve before
+approving a grant. Granting, funding and revoking are separate wallet actions.
+
+In each reporting INI, `[miner] miner_hotkey` remains the registered miner and
+`coldkey` remains its owner. `wallet_name`, `hotkey_name` and `wallet_path` point
+to the delegate's software wallet. Add its public address under `[report]`:
+
+```ini
+[report]
+proxy_address = DELEGATE_PUBLIC_ADDRESS
+assignments_url = https://subnet82.com/miner-assignment/
+assignment_signer_public_key = OPERATOR_PUBLIC_ASSIGNMENT_SIGNING_KEY
+```
+
+The existing assignment command supports one miner with this configuration.
+For a shared delegate, run one serial fleet worker on one host. Every config
+must use the same delegate wallet, chain, assignment source and state directory.
+An offline configuration check neither loads a key nor contacts a node:
+
+```sh
+.venv-reports/bin/noah-miner report fleet --configs /absolute/configs/*.ini --check
+```
+
+Only after granting and activation approval, run after midnight UTC:
+
+```sh
+.venv-reports/bin/noah-miner report fleet --configs /absolute/configs/*.ini \
+  --yes --allow-mainnet-report --follow --timeout-seconds 15600
+```
+
+The default budget is 15,600 seconds. A process started at 00:01 UTC can still
+begin a tick at 04:16 UTC and stops starting new ticks at 04:21 UTC. The signed
+assignment document, not this budget, opens and closes commit and reveal.
+Pass a different `--timeout-seconds` when the process starts at another time.
+
+The worker reuses signed weekly assignments, calculation, timing, commitment
+quota, commit/reveal journals and reconciliation. It sends one proxy transaction
+per report phase, not a transaction batch. It checks an exact zero-delay Validate
+grant and free delegate funds for each estimated fee plus 2% and the account
+minimum. It never buys or sells tokens for fees.
+
+Keep the entire shared state directory. A pending transaction blocks other
+miners sharing that sender until its result is reconciled. A sender marker
+whose phase journal file is absent means nothing was signed or broadcast; the
+worker removes that marker and continues. A journal that records a submitted
+or unresolved extrinsic is kept, and it still blocks the other miners until
+that extrinsic is reconciled. Rerun with the same configuration and state after
+interruption. Do not delete journals or run the same proxy independently on
+another machine. A timeout stops new ticks, not a bounded RPC already in
+progress. It leaves recovery records intact.
+
+The reader accepts only `Proxy.proxy` with explicit `Validate`, containing one
+`Commitments.set_commitment`. It verifies the outer success, inner proxy result,
+and matching commitment event. The original hotkey receives attribution; the
+proxy address remains in retained evidence. Different proxy types, nested
+batches and announced/delayed proxies are unsupported by this reader.
+
+Fleet `complete` means every configured miner's reveals finalized. It does not
+mean they earned a bonus. The validator independently checks all reports and
+applies the existing maturity, debt and eligibility rules. A missing, expired
+or unassigned miner is not silently counted as complete.

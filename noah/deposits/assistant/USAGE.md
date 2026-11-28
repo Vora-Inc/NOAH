@@ -81,6 +81,8 @@ to start.
 | `[state] dir` | Folder for the ledger file `deposits.db`. Default `./noah-deposit-state`. |
 | `[report] assignments_url` | Optional weekly assignment source supplied by the operator. The URL alone does not establish trust; signatures must match the pinned public key below. |
 | `assignment_signer_public_key` | Operator-provided assignment signing public key: exactly 64 lowercase hexadecimal characters, obtained through a trusted channel. Required with the assignment source; never use a private key. |
+| `proxy_address` | Optional public address of a zero-delay Validate delegate. When set, `wallet_name`, `hotkey_name` and `wallet_path` locate that delegate's software key, and the miner hotkey remains the account that is credited. Leave it unset to sign directly with the miner hotkey. |
+| `late_joiner_assignments` | Optional. Set to `true` only when this miner should wait for a daily assignment file. Left out or any other value keeps the Sunday-only behavior. |
 
 ### Which `stake_position`
 

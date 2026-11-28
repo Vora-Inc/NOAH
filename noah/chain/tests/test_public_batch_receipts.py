@@ -134,6 +134,46 @@ def test_complete_batches_keep_each_miner_and_actual_receipt(count, multisig):
     assert owner.asked == [(m, "0xparent") for m in MINERS[:count]]
 
 
+@pytest.mark.parametrize('fault', [None, 'wrong_basket_hotkey', 'wrong_tao_equivalent'])
+def test_remarked_root_batch_excludes_settlement_and_binds_tao_amount(fault):
+    events, extrinsics = fixture(2, True, [AMOUNT, AMOUNT + 17])
+    for leg in inner_calls(extrinsics)[::2]:
+        for field in leg['call_args']:
+            if field['name'] in ('origin_netuid', 'destination_netuid'):
+                field['value'] = 0
+
+    root_events = []
+    for row in events:
+        if row['event_id'] == 'StakeRemoved':
+            root_events.append(dict(row, event_id='BasketDeposited', attributes={
+                'hotkey': VALIDATOR, 'shares': 7, 'tao': 11,
+            }))
+        fields = row['attributes']
+        if row['event_id'] in ('StakeAdded', 'StakeRemoved'):
+            fields[2], fields[4] = fields[3], 0
+        if row['event_id'] == 'StakeTransferred':
+            fields[3:] = [0, 0, root_events[-1]['attributes'][3]]
+        root_events.append(row)
+    for ordinal, row in enumerate(root_events, 3):
+        row['ordinal_in_block'] = ordinal
+
+    if fault == 'wrong_basket_hotkey':
+        root_events[0]['attributes']['hotkey'] = OTHER
+    if fault == 'wrong_tao_equivalent':
+        root_events[3]['attributes'][5] += 1
+
+    rows = read(root_events, extrinsics)
+    if fault:
+        assert len(rows) == 1
+        assert rows[0].amount_rao == 2 * AMOUNT + 17
+        assert rows[0].unattributed_reason is not None
+    else:
+        assert [r.amount_rao for r in rows] == [AMOUNT, AMOUNT + 17]
+        assert [r.token_netuid for r in rows] == [0, 0]
+        assert [r.origin_hotkey for r in rows] == MINERS[:2]
+        assert all(r.unattributed_reason is None for r in rows)
+
+
 @pytest.mark.parametrize(
     "mutation",
     [

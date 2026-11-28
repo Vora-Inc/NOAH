@@ -704,10 +704,12 @@ def _decode_block(substrate, row, *, mining_netuid=None):
     # retain the old event read. Direct-call selection semantics stay unchanged.
     events = (substrate.query("System", "Events", block_hash=row["hash"]).value or []
               if _body_has_commitment(block, mining_netuid) else [])
+    from .proxy_receipts import proxy_report, proxy_success
     calls = []
     for index, extrinsic in enumerate(block["extrinsics"]):
         value = extrinsic.value
-        call = value.get("call") or {}
+        routed = proxy_report(value)
+        call = routed[0] if routed else value.get("call") or {}
         if call.get("call_module") != "Commitments" or call.get("call_function") != "set_commitment":
             continue
         args = call.get("call_args") or {}
@@ -736,9 +738,11 @@ def _decode_block(substrate, row, *, mining_netuid=None):
             "finality": row["finality"],
             "finalized": row["finalized"] is True,
             "genesis_hash": "",
-            "signer": signer.lower(),
+            "signer": routed[1] if routed else signer.lower(),
+            **({"proxy_delegate": routed[2]} if routed else {}),
             "structurally_valid": _valid_commitment_payload(payload) and len(signer) == 64,
-            "successful": "ExtrinsicSuccess" in names and "ExtrinsicFailed" not in names,
+            "successful": (proxy_success(events, index, routed[1], args.get("netuid")) if routed
+                           else "ExtrinsicSuccess" in names and "ExtrinsicFailed" not in names),
             "target_netuid": int(args.get("netuid")),
             "timestamp_ms": row["timestamp_ms"],
         })

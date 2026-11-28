@@ -47,6 +47,59 @@ def test_optional_gate_parser_defaults_off():
     assert p.parse_args(['validator','score-preview','--fixture','x','--require-accurate-miner-report']).apply_reports
 
 
+def test_refusal_prints_a_reason_code_and_not_endpoint_credentials(monkeypatch,capsys):
+    def fail(_):
+        error = ValueError('wss://' + 'user' + ':' + 'secret' + '@node.invalid/path?' + 'token' + '=secret')
+        error.reason = 'rpc_transport'
+        raise error
+    monkeypatch.setattr(cli,'execute',fail)
+    assert cli.main(['validator','status','--evidence','x'])==2
+    err = capsys.readouterr().err
+    assert 'rpc_transport' in err and 'secret' not in err and 'node.invalid' not in err
+
+
+def test_preflight_checks_runtime_and_sunday_block_without_a_wallet(monkeypatch):
+    from noah.reports.backing.chain_session import SubstrateChain
+    from noah.reports.miner import preflight
+    class Probe:
+        def __init__(self, *, spec=490, roster=True, genesis='ab'*32):
+            self.substrate = self
+            self.spec = spec
+            self.roster = roster
+            self._genesis = '0x' + genesis
+            self.wallet = False
+        def genesis(self):
+            return self._genesis
+        def rpc_request(self, method, params):
+            if method == 'chain_getFinalizedHead':
+                return {'result': '0x' + 'cd'*32}
+            if method == 'state_getRuntimeVersion':
+                return {'result': {'specVersion': self.spec}}
+            if method == 'chain_getHeader':
+                if not self.roster:
+                    return {'error': {'message': 'State already discarded'}}
+                return {'result': {'number': '0x10', 'parentHash': '0x' + '11'*32}}
+            raise AssertionError(method)
+        def close(self):
+            self.closed = True
+        _rpc = SubstrateChain._rpc
+        ensure_supported_signing_runtime = SubstrateChain.ensure_supported_signing_runtime
+    monkeypatch.setattr('noah.reports.miner._unlock_wallet', lambda *_: pytest.fail('wallet opened'))
+    fake_auth = 'user' + ':' + 'secret'
+    config = NS(endpoint=f'wss://{fake_auth}@archive.example/path', genesis_hash='ab'*32,
+                assignments_url=None, state_dir='unused')
+    probe = Probe()
+    result = preflight(config, chain=probe, roster_block_hash='ef'*32, lookup_assignments=False)
+    assert result['signed'] is False and result['sent'] is False
+    assert result['runtime'] == 'supported' and result['roster_block']['state'] == 'readable'
+    assert result['endpoint'] == 'wss://archive.example' and 'secret' not in json.dumps(result)
+    with pytest.raises(Exception, match='not supported'):
+        preflight(config, chain=Probe(spec=1), lookup_assignments=False)
+    with pytest.raises(Exception, match='block_state_unavailable'):
+        preflight(config, chain=Probe(roster=False), roster_block_hash='ef'*32, lookup_assignments=False)
+    assert cli.parser().parse_args(['miner', 'preflight']).action == 'preflight'
+
+
 def test_refusal_does_not_leak_endpoint_credentials(monkeypatch,capsys):
     from noah.chain.sources import Refusal
     def fail(_): raise Refusal('wss://' + 'user' + ':' + 'secret' + '@node.invalid/path?' + 'token' + '=secret')

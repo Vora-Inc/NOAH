@@ -8,7 +8,7 @@ from substrateinterface import Keypair
 
 from noah.reports import assignments, schedule_runner as runner
 from noah.reports.backing.keys import ss58_encode
-from noah.reports.common import ReportError, digest, immutable_json
+from noah.reports.common import ReportError, digest, immutable_json, state_directory
 from noah.reports.schedule import _resolve, validate_schedule
 from noah.reports.tests.test_schedule import ANCHOR, Chain, schedule
 
@@ -42,6 +42,55 @@ def forbidden(*args, **kwargs):
 
 def tick(config, document, chain, **kwargs):
     return runner.assignments_tick(config, document, chain=chain, registration_block=10, **kwargs)
+
+
+def _resolver(schedule, endpoints, day, require_pair=False):
+    return _resolve(schedule, [Chain()], day)
+
+
+def _mark_prepared(config, contract):
+    directory = state_directory(config, contract)
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'prepared.json').write_text('{"ready": true}')
+
+
+def test_preparation_starts_during_the_lead_before_any_signature(tmp_path):
+    config, document, chain = setup(tmp_path, now=(ANCHOR + 87010) * 1000)
+    order = []
+    def preparer(config, contract):
+        order.append(contract['reported_netuid'])
+        _mark_prepared(config, contract)
+    def sender(*_args, **_kwargs):
+        order.append('send')
+        return {'action': 'commit', 'sent': True}
+    result = tick(config, document, chain, authorized=True, resolver=_resolver,
+                  prepare_fn=preparer, submit_fn=sender)
+    assert order == result['targets']
+    assert len(order) == 3 and 'send' not in order
+    assert result['action'] == 'waiting' and result['sent'] is False
+
+
+def test_failed_subnet_prep_still_submits_the_others(tmp_path):
+    config, document, chain = setup(tmp_path, now=(ANCHOR + 87630) * 1000)
+    order = []
+    def preparer(config, contract):
+        netuid = contract['reported_netuid']
+        order.append(('prep', netuid))
+        if netuid == 4:
+            raise ReportError('calculation is not ready (rpc_rate_limit)')
+        _mark_prepared(config, contract)
+    def sender(_config, contract, **_kwargs):
+        order.append(('send', contract['reported_netuid']))
+        return {'action': 'commit', 'sent': True}
+    result = tick(config, document, chain, authorized=True, resolver=_resolver,
+                  prepare_fn=preparer, submit_fn=sender)
+    preps = [netuid for kind, netuid in order if kind == 'prep']
+    sends = [netuid for kind, netuid in order if kind == 'send']
+    assert preps == result['targets']
+    assert sends == [netuid for netuid in result['targets'] if netuid != 4][:1]
+    assert order.index(('send', sends[0])) > order.index(('prep', preps[-1]))
+    assert result['sent'] is True
+    assert result['prep_errors'] == [{'reported_netuid': 4, 'reason': 'calculation is not ready (rpc_rate_limit)'}]
 
 
 def test_waits_for_snapshot_without_resolving_or_signing(tmp_path):

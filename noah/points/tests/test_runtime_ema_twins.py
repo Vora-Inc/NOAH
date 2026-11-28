@@ -18,6 +18,7 @@ CODES = {
     492: '0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
     493: '0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
     494: '0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
+    495: '0x7f4f60f27f1cbdb92a8413d8280217789229f54189e48a501ada2d25f4c7edf7',
 }
 BASE_CHAIN = reference.EmaChain
 
@@ -28,7 +29,7 @@ def fixture(tmp_path, monkeypatch, spec, parent=None):
             context = super().token_reference_context(block, assets)
             version = parent if parent is not None and block < 50 else spec
             context['runtime'] = {'spec_version': version, 'code_hash': CODES[version],
-                                  'transaction_version': 2 if version == 494 else 1}
+                                  'transaction_version': 2 if version in (494, 495) else 1}
             context['parent_runtime'] = dict(context['runtime'])
             return context
     monkeypatch.setattr(reference, 'EmaChain', ReviewedChain)
@@ -37,7 +38,7 @@ def fixture(tmp_path, monkeypatch, spec, parent=None):
     return raw, policy
 
 
-@pytest.mark.parametrize('spec', [483, 488, 490, 491, 492, 493, 494])
+@pytest.mark.parametrize('spec', [483, 488, 490, 491, 492, 493, 494, 495])
 def test_full_v5_new_ema_credit_agrees_in_both_engines(tmp_path, monkeypatch, spec):
     raw, policy = fixture(tmp_path, monkeypatch, spec)
     assert len(raw['pointsReceipts']) == 2
@@ -53,7 +54,7 @@ def test_full_v5_new_ema_credit_agrees_in_both_engines(tmp_path, monkeypatch, sp
     assert policy.ema_collector.chain.calls['ema_snapshot'] == 1
 
 
-@pytest.mark.parametrize(('spec', 'parent'), [(493, 492), (494, 493)])
+@pytest.mark.parametrize(('spec', 'parent'), [(493, 492), (494, 493), (495, 494)])
 def test_full_v5_upgrade_receipt_keeps_reviewed_parent_and_current_tuples(tmp_path, monkeypatch, spec, parent):
     raw, _ = fixture(tmp_path, monkeypatch, spec, parent=parent)
     assert all(p['runtime']['spec_version'] == spec and p['parent_runtime']['spec_version'] == parent

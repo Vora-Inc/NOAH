@@ -121,6 +121,28 @@ def test_credentials_in_valid_free_text_still_scan(artifacts):
     assert any(finding.kind == 'private-key-header' for finding in scan_text(encode(value)))
 
 
+def test_collector_call_shape_accepts_proxy_delegate(artifacts):
+    value = copy.deepcopy(artifacts["collector"])
+
+    def mark(node):
+        if isinstance(node, dict):
+            if node.get("call") == "Commitments.set_commitment" and "signer" in node:
+                node["proxy_delegate"] = "55" * 32
+            for item in node.values():
+                mark(item)
+        elif isinstance(node, list):
+            for item in node:
+                mark(item)
+
+    mark(value)
+    assert validate_collector(value)
+    assert not scan_text(encode(value))
+    damaged = copy.deepcopy(value)
+    next(iter(damaged["evidence"].values()))["commit"]["proxy_delegate"] = "zz"
+    with pytest.raises(ValueError):
+        validate_collector(damaged)
+
+
 def test_synthetic_package_has_real_retained_commit_and_reveal(artifacts):
     envelope = artifacts['collector']
     for row in envelope['evidence'].values():

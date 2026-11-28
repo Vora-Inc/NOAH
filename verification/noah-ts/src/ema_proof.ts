@@ -1,5 +1,6 @@
-// Independent retained snapshot-to-credit checks. No filesystem or chain reads.
+// Independent retained snapshot-to-credit checks. No chain reads.
 import { createHash } from 'node:crypto';
+import { approvedMetadata } from './runtime_compatibility.ts';
 import { canonicalJson } from './canonical.ts';
 import { emaFractionCredit, priceFraction } from './ema_pricing.ts';
 // Independently reviewed EMA tuples; lifecycle-only runtime486 remains refused.
@@ -11,6 +12,7 @@ const codes: Record<number,string>={
  492:'0x22786f72f280dc968f38a10627c085eaf3ea530dd3a1621a4776882851ac3d8e',
  493:'0x51adea39b16a2b9d60b58d430246d49312f1111b74607edc1166e47a73de4591',
  494:'0x1735bc231789bead3ab3edfa583f3c9a95aaf7643adcc906ea224a7761a303ca',
+ 495:'0x7f4f60f27f1cbdb92a8413d8280217789229f54189e48a501ada2d25f4c7edf7',
 };
 export const EMA_SOURCES=['SubnetMovingPrice'];
 const hash=(v:unknown)=>typeof v==='string'&&/^0x[0-9a-f]{64}$/.test(v);
@@ -38,8 +40,12 @@ export function validateEmaProof(p:any):string{
  keys(p.reference,['block','block_hash']);need(p.reference.block===p.receipt.block-1&&p.reference.block_hash===p.receipt.parent_hash);
  for(const runtime of [p.runtime,p.parent_runtime]){
   keys(runtime,['spec_version','code_hash','transaction_version']);integer(runtime.spec_version);
-  const transactionVersion=runtime.spec_version===494?2:1;
-  need(Object.hasOwn(codes,runtime.spec_version)&&runtime.code_hash===codes[runtime.spec_version]&&runtime.transaction_version===transactionVersion);
+  const transactionVersion=[494,495].includes(runtime.spec_version)?2:1;
+  integer(runtime.transaction_version,0,2**32-1);need(hash(runtime.code_hash));
+  if(!(Object.hasOwn(codes,runtime.spec_version)&&runtime.code_hash===codes[runtime.spec_version]&&runtime.transaction_version===transactionVersion)){
+   const digest=approvedMetadata(p.genesis,runtime.spec_version,runtime.transaction_version,runtime.code_hash,'ema');
+   need(digest!==undefined&&(runtime!==p.parent_runtime||digest===p.metadata_sha256));
+  }
  }
  let reason:string|null=null;
  for(const role of ['native','asset']){
